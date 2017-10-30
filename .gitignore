@@ -1,4 +1,5 @@
-backup
+/backup
+/build
 plugin.dll
 *.bat
 Waveshaper1.svg
