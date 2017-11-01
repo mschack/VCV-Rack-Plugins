@@ -10,10 +10,14 @@
 #define GROUP_OFF_X 52
 #define CHANNEL_OFF_X 34
 
-#define FADE_MULT (0.005f)
+#define FADE_MULT (0.0005f)
 
 #define L 0
 #define R 1
+
+#define MUTE_FADE_STATE_IDLE 0
+#define MUTE_FADE_STATE_INC  1
+#define MUTE_FADE_STATE_DEC  2
 
 //-----------------------------------------------------
 // Module Definition
@@ -46,8 +50,9 @@ struct Mix_4x4_Stereo : Module
         IN_GROUP_PAN            = IN_GROUP_LEVEL + GROUPS,
         IN_GROUP_MUTE           = IN_GROUP_PAN + GROUPS,
         IN_GROUP_SOLO           = IN_GROUP_MUTE + GROUPS,
-
-        nINPUTS                 = IN_GROUP_SOLO + GROUPS 
+        IN_MUTES                = IN_GROUP_SOLO + GROUPS,
+        IN_SOLOS                = IN_MUTES + CHANNELS,
+        nINPUTS                 = IN_SOLOS + CHANNELS 
 	};
 
 	enum OutputIds 
@@ -68,16 +73,16 @@ struct Mix_4x4_Stereo : Module
     bool            m_bMuteStates[ CHANNELS ] = {};
     float           m_fMuteFade[ CHANNELS ] = {};
     
-#define MUTE_FADE_STATE_IDLE 0
-#define MUTE_FADE_STATE_INC  1
-#define MUTE_FADE_STATE_DEC  2
-
     int             m_FadeState[ CHANNELS ] = {MUTE_FADE_STATE_IDLE};
 
     // solo buttons
     SchmittTrigger  m_SchTrigSolos[ CHANNELS ];
     float           m_fLightSolos[ CHANNELS ] = {};
     bool            m_bSoloStates[ CHANNELS ] = {};
+
+    // mute and solo input triggers
+    SchmittTrigger  m_SchTrigInSolos[ CHANNELS ];
+    SchmittTrigger  m_SchTrigInMutes[ CHANNELS ];
 
     // group mute buttons
     SchmittTrigger  m_SchTrigGroupMutes[ GROUPS ];
@@ -91,6 +96,10 @@ struct Mix_4x4_Stereo : Module
     SchmittTrigger  m_SchTrigGroupSolos[ GROUPS ];
     float           m_fLightGroupSolos[ GROUPS ] = {};
     bool            m_bGroupSoloStates[ GROUPS ] = {};
+
+    // group mute and solo input triggers
+    SchmittTrigger  m_SchTrigGroupInSolos[ GROUPS ];
+    SchmittTrigger  m_SchTrigGroupInMutes[ GROUPS ];
 
     // processing
     bool            m_bMono[ CHANNELS ];
@@ -178,14 +187,18 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y += 35;
 
         // mute buttons
-        addParam(createParam<MySquareButton2>( Vec( x + 2, y ), module, Mix_4x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 5, y + 4 ), &module->m_fLightMutes[ ch ] ) );
+        addInput(createInput<MyPortInSmall>( Vec( x - 8, y ), module, Mix_4x4_Stereo::IN_MUTES + ch ) );
+
+        addParam(createParam<MySquareButton2>( Vec( x + 11, y + 1 ), module, Mix_4x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 14, y + 5 ), &module->m_fLightMutes[ ch ] ) );
 
         y += 26;
 
         // solo buttons
-        addParam(createParam<MySquareButton2>( Vec( x + 2, y ), module, Mix_4x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 5, y + 4 ), &module->m_fLightSolos[ ch ] ) );
+        addInput(createInput<MyPortInSmall>( Vec( x - 8, y ), module, Mix_4x4_Stereo::IN_SOLOS + ch ) );
+
+        addParam(createParam<MySquareButton2>( Vec( x + 11, y ), module, Mix_4x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 14, y + 5 ), &module->m_fLightSolos[ ch ] ) );
 
         if( ( ch & 3 ) == 3 )
         {
@@ -278,7 +291,9 @@ void Mix_4x4_Stereo::initialize()
     {
         m_FadeState[ ch ] = MUTE_FADE_STATE_IDLE;
         m_fLightMutes[ ch ] = 0.0;
+        m_fLightSolos[ ch ] = 0.0;
         m_bMuteStates[ ch ] = false;
+        m_bSoloStates[ ch ] = false;
         m_fMuteFade[ ch ] = 1.0;
     }
 
@@ -286,7 +301,9 @@ void Mix_4x4_Stereo::initialize()
     {
         m_GroupFadeState[ i ] = MUTE_FADE_STATE_IDLE;
         m_fLightGroupMutes[ i ] = 0.0;
+        m_fLightGroupSolos[ i ] = 0.0;
         m_bGroupMuteStates[ i ] = false;
+        m_bGroupSoloStates[ i ] = false;
         m_fGroupMuteFade[ i ] = 1.0;
     }
 
@@ -659,6 +676,24 @@ void Mix_4x4_Stereo::step()
     {
         group = ch / 4;
 
+		if( inputs[ IN_MUTES + ch ].active ) 
+        {
+			// External clock
+			if( m_SchTrigInMutes[ ch ].process( inputs[ IN_MUTES + ch ].value ) ) 
+            {
+				ProcessMuteSolo( ch, true, false );
+    		}
+		}
+
+		if( inputs[ IN_SOLOS + ch ].active ) 
+        {
+			// External clock
+			if( m_SchTrigInSolos[ ch ].process( inputs[ IN_SOLOS + ch ].value ) ) 
+            {
+				ProcessMuteSolo( ch, false, false );
+    		}
+		}
+
         // process mute buttons
         if( m_SchTrigMutes[ ch ].process( params[ PARAM_MUTE_BUTTON + ch ].value ) )
         {
@@ -678,7 +713,7 @@ void Mix_4x4_Stereo::step()
         // check right channel first for possible mono
         if( inputs[ IN_RIGHT + ch ].active )
         {
-            inR = inputs[ IN_RIGHT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 30.0 ) ), -1.0, 1.0 ); 
+            inR = inputs[ IN_RIGHT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ), -1.0, 1.0 ); 
             m_bMono[ ch ] = false;
         }
         else
@@ -687,7 +722,7 @@ void Mix_4x4_Stereo::step()
         // left channel
         if( inputs[ IN_LEFT + ch ].active )
         {
-            inL = inputs[ IN_LEFT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 30.0 ) ), -1.0, 1.0 ); 
+            inL = inputs[ IN_LEFT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ), -1.0, 1.0 ); 
 
             if( m_bMono[ ch ] )
                 inR = inL;
@@ -733,6 +768,24 @@ void Mix_4x4_Stereo::step()
 
 	for ( group = 0; group < GROUPS; group++ ) 
     {
+		if( inputs[ IN_GROUP_MUTE + group ].active ) 
+        {
+			// External clock
+			if( m_SchTrigGroupInMutes[ group ].process( inputs[ IN_GROUP_MUTE + group ].value ) ) 
+            {
+				ProcessMuteSolo( group, true, true );
+    		}
+		}
+
+		if( inputs[ IN_GROUP_SOLO + group ].active ) 
+        {
+			// External clock
+			if( m_SchTrigGroupInSolos[ group ].process( inputs[ IN_GROUP_SOLO + group ].value ) ) 
+            {
+				ProcessMuteSolo( group, false, true );
+    		}
+		}
+
         // process mute buttons
         if( m_SchTrigGroupMutes[ group ].process( params[ PARAM_GROUP_MUTE + group ].value ) )
         {
@@ -747,8 +800,8 @@ void Mix_4x4_Stereo::step()
         outL = 0.0;
         outR = 0.0;
 
-        outL = m_fSubMix[ group ][ L ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 30.0 ), -1.0, 1.0 );
-        outR = m_fSubMix[ group ][ R ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 30.0 ), -1.0, 1.0 );
+        outL = m_fSubMix[ group ][ L ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
+        outR = m_fSubMix[ group ][ R ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
 
         // pan
         pan = clampf( params[ PARAM_GROUP_PAN_IN + group ].value + ( inputs[ IN_GROUP_PAN + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
