@@ -1,4 +1,5 @@
 /backup
+/build
 /mschack
 plugin.dll
 *.bat
