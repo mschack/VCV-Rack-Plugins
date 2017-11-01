@@ -61,6 +61,20 @@ struct MySquareButton : SVGSwitch, MomentarySwitch
 };
 
 //-----------------------------------------------------
+// Procedure:   MySquareButton2
+//
+//-----------------------------------------------------
+struct MySquareButton2 : SVGSwitch, MomentarySwitch 
+{
+	MySquareButton2() 
+    {
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_Square_Button2.svg")));
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   MyToggle1
 //
 //-----------------------------------------------------
@@ -121,5 +135,70 @@ struct MyPortOutSmall : SVGPort
 		background->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_PortOut_small.svg"));
 		background->wrap();
 		box.size = background->box.size;
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Blue1_Small
+//
+//-----------------------------------------------------
+struct Blue1_Small : RoundKnob 
+{
+	Blue1_Small() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue1_small.svg")));
+		box.size = Vec(26, 26);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Blue2_Small
+//
+//-----------------------------------------------------
+struct Blue2_Small : RoundKnob 
+{
+	Blue2_Small() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_small.svg")));
+		box.size = Vec(26, 26);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Blue2_Big
+//
+//-----------------------------------------------------
+struct Blue2_Big : RoundKnob 
+{
+	Blue2_Big() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_big.svg")));
+		box.size = Vec(56, 56);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow1_Small
+//
+//-----------------------------------------------------
+struct Yellow1_Small : RoundKnob 
+{
+	Yellow1_Small() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow1_small.svg")));
+		box.size = Vec(26, 26);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow2_Small
+//
+//-----------------------------------------------------
+struct Yellow2_Small : RoundKnob 
+{
+	Yellow2_Small() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+		box.size = Vec(26, 26);
 	}
 };
