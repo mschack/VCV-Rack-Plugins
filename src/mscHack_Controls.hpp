@@ -75,6 +75,36 @@ struct MySquareButton2 : SVGSwitch, MomentarySwitch
 };
 
 //-----------------------------------------------------
+// Procedure:   PianoWhiteKey
+//
+//-----------------------------------------------------
+struct PianoWhiteKey : SVGSwitch, ToggleSwitch
+{
+	PianoWhiteKey()
+    {
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_WhiteKeyOff.svg")));
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_WhiteKeyOn.svg")));
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   PianoBlackKey
+//
+//-----------------------------------------------------
+struct PianoBlackKey : SVGSwitch, ToggleSwitch
+{
+	PianoBlackKey()
+    {
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_BlackKeyOff.svg")));
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_BlackKeyOn.svg")));
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   MyToggle1
 //
 //-----------------------------------------------------
