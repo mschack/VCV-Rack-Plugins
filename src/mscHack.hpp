@@ -21,7 +21,7 @@ struct Seq_Triad_Widget : ModuleWidget {
 	Seq_Triad_Widget();
 };
 
-/*struct WaveShaper1_Widget : ModuleWidget {
-	WaveShaper1_Widget();
-};*/
+struct Mix_4x4_Stereo2_Widget : ModuleWidget {
+	Mix_4x4_Stereo2_Widget();
+};
 

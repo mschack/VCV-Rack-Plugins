@@ -169,6 +169,19 @@ struct MyPortOutSmall : SVGPort
 };
 
 //-----------------------------------------------------
+// Procedure:   Green1_Tiny
+//
+//-----------------------------------------------------
+struct Green1_Tiny : RoundKnob 
+{
+	Green1_Tiny() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Green1_small.svg")));
+		box.size = Vec(15, 15);
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   Blue1_Small
 //
 //-----------------------------------------------------
