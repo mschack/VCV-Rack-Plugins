@@ -6,10 +6,12 @@
 
 - 3 Channel 16 Step Programmable Sequencer.
 - 4 x 4 Channel Mixer Stereo/Mono
+- Triad Sequencer
 
 # Demo Vids
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
 - Mixer: https://www.youtube.com/watch?v=QOjSEM3mPqs
+- Triad Sequencer https://www.youtube.com/watch?v=YBErBzoV_6M
 
 
 
