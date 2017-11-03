@@ -56,6 +56,7 @@ struct Seq_Triad : Module
 {
 	enum ParamIds 
     {
+        PARAM_COPY_NEXT,
         PARAM_PAUSE,            
         PARAM_STEP_NUM,
         PARAM_OCTAVES           = PARAM_STEP_NUM + (nPATTERNS),
@@ -106,6 +107,10 @@ struct Seq_Triad : Module
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
 
+    // copy next button
+    float           m_fLightCopyNext = {};
+    bool            m_bCopy = false;
+
     // Contructor
 	Seq_Triad() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
 
@@ -120,6 +125,28 @@ struct Seq_Triad : Module
     void    SetKey( int kb );
     void    SetOut( int kb );
     void    ChangePattern( int index, bool bForce );
+    void    CopyNext( void );
+};
+
+//-----------------------------------------------------
+// Procedure:   MySquareButton_CopyNext
+//
+//-----------------------------------------------------
+struct MySquareButton_Cpy : MySquareButton
+{
+    Seq_Triad *mymodule;
+
+    void onChange() override 
+    {
+        mymodule = (Seq_Triad*)module;
+
+        if( mymodule && value == 1.0 )
+        {
+            mymodule->CopyNext();
+        }
+
+		MomentarySwitch::onChange();
+	}
 };
 
 //-----------------------------------------------------
@@ -285,6 +312,147 @@ struct MyOCTButton : MySquareButton
 };
 
 //-----------------------------------------------------
+// Procedure:   Widget
+//
+//-----------------------------------------------------
+int bkeyoff[ nBLACKKEYS ] = { 26, 41, 66, 79, 92, 117, 132, 157, 170, 183, 209, 222, 248, 261, 274 };
+Seq_Triad_Widget::Seq_Triad_Widget() 
+{
+    ParamWidget *pWidget;
+    int kb, key, oct, x, y, pat, stp;
+	Seq_Triad *module = new Seq_Triad();
+	setModule(module);
+	box.size = Vec( 15*22, 380);
+
+	{
+		SVGPanel *panel = new SVGPanel();
+		panel->box.size = box.size;
+		panel->setBackground(SVG::load(assetPlugin(plugin, "res/TriadSequencer.svg")));
+		addChild(panel);
+	}
+
+    module->lg.Open("StickyKeysLog.txt");
+
+    //----------------------------------------------------
+    // Step Select buttons 
+
+    y = 10;
+    x = 45;
+
+	for ( stp = 0; stp < nPATTERNS; stp++ ) 
+    {
+        // step button
+		addParam(createParam<MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
+		addChild(createValueLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightStepNumbers[ stp ] ) );
+
+        x += 15;
+
+        module->m_fLightStepNumbers[ stp ] = 1.0;
+    }
+
+    // pause button
+	addParam(createParam<MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
+	addChild(createValueLight<SmallLight<RedValueLight>>( Vec( 45 + 1, 48 + 2 ), &module->m_fLightPause ) );
+
+    //----------------------------------------------------
+    // Pattern Select buttons 
+    y = 32;
+    x = 45;
+
+    addInput(createInput<MyPortInSmall>( Vec( x - 30, y - 3 ), module, Seq_Triad::IN_PATTERN_TRIG ) );
+
+	for ( pat = 0; pat < nPATTERNS; pat++ ) 
+    {
+        // step button
+		addParam(createParam<MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
+		addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightPatterns[ pat ] ) );
+
+        x += 15;
+    }
+
+    // copy next button
+	addParam(createParam<MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
+	addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( 290 + 1, 32 + 2 ), &module->m_fLightCopyNext ) );
+
+    //----------------------------------------------------
+    // Keyboard Keys 
+    y = CHANNEL_Y;
+
+    for( kb = 0; kb < nKEYBOARDS; kb++ )
+    {
+        x = 230;
+
+        for( oct = 0; oct < nOCTAVESEL; oct++ )
+        {
+            addParam(createParam<MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
+            addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x + 1, y -15 ), &module->m_fLightOctaves[ kb ][ oct ] ) );
+            x += 18;
+        }
+
+        x = CHANNEL_X;
+
+        // add white keys
+        for( key = 0; key < nWHITEKEYS; key++ )
+        {
+            pWidget = createParam<MyPianoWhiteKey>( Vec( x, y ), module, Seq_Triad::PARAM_WKEYS + ( kb * nWHITEKEYS) + key, 0.0, 1.0, 0.0 );
+            addParam( pWidget );
+
+            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].pWidget = pWidget;
+            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].fsemi = fWhiteKeyNotes[ key ];
+
+            x += 13;
+        }
+
+        for( key = 0; key < nBLACKKEYS; key++ )
+        {
+            pWidget = createParam<MyPianoBlackKey>( Vec( bkeyoff[ key ] -3, y ), module, Seq_Triad::PARAM_BKEYS + ( kb * nBLACKKEYS) + key, 0.0, 1.0, 0.0 );
+            addParam( pWidget );
+
+            module->m_Keys[ kb ][ blackKeyoff[ key ] ].pWidget = pWidget;
+            module->m_Keys[ kb ][ blackKeyoff[ key ] ].fsemi = fBlackKeyNotes[ key ];
+        }
+
+        y += CHANNEL_OFF_Y;
+    }
+
+	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
+	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
+	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+
+    // outputs
+    x = 307;
+    y = CHANNEL_Y;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG ) );
+    y += CHANNEL_OFF_Y;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 1 ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 1 ) );
+    y += CHANNEL_OFF_Y;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
+}
+
+//-----------------------------------------------------
+// Procedure:   CopyNext
+//
+//-----------------------------------------------------
+void Seq_Triad::CopyNext( void )
+{
+    if( m_CurrentPattern < ( nPATTERNS - 1 ) )
+    {
+        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 0 ], &m_PatternNotes[ m_CurrentPattern ][ 0 ], sizeof(PATTERN_STRUCT ) );
+        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 1 ], &m_PatternNotes[ m_CurrentPattern ][ 1 ], sizeof(PATTERN_STRUCT ) );
+        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 2 ], &m_PatternNotes[ m_CurrentPattern ][ 2 ], sizeof(PATTERN_STRUCT ) );
+
+        ChangePattern( m_CurrentPattern + 1, true );
+
+        m_fLightCopyNext = 1.0;
+        m_bCopy = true;
+    }
+}
+
+//-----------------------------------------------------
 // Procedure:   SetSteps
 //
 //-----------------------------------------------------
@@ -377,124 +545,6 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
 }
 
 //-----------------------------------------------------
-// Procedure:   Widget
-//
-//-----------------------------------------------------
-int bkeyoff[ nBLACKKEYS ] = { 26, 41, 66, 79, 92, 117, 132, 157, 170, 183, 209, 222, 248, 261, 274 };
-Seq_Triad_Widget::Seq_Triad_Widget() 
-{
-    ParamWidget *pWidget;
-    int kb, key, oct, x, y, pat, stp;
-	Seq_Triad *module = new Seq_Triad();
-	setModule(module);
-	box.size = Vec( 15*22, 380);
-
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/TriadSequencer.svg")));
-		addChild(panel);
-	}
-
-    module->lg.Open("StickyKeysLog.txt");
-
-    //----------------------------------------------------
-    // Step Select buttons 
-
-    y = 10;
-    x = 45;
-
-	for ( stp = 0; stp < nPATTERNS; stp++ ) 
-    {
-        // step button
-		addParam(createParam<MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightStepNumbers[ stp ] ) );
-
-        x += 15;
-
-        module->m_fLightStepNumbers[ stp ] = 1.0;
-    }
-
-    // pause button
-	addParam(createParam<MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
-	addChild(createValueLight<SmallLight<RedValueLight>>( Vec( 45 + 1, 48 + 2 ), &module->m_fLightPause ) );
-
-    //----------------------------------------------------
-    // Pattern Select buttons 
-    y = 32;
-    x = 45;
-
-    addInput(createInput<MyPortInSmall>( Vec( x - 30, y - 3 ), module, Seq_Triad::IN_PATTERN_TRIG ) );
-
-	for ( pat = 0; pat < nPATTERNS; pat++ ) 
-    {
-        // step button
-		addParam(createParam<MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightPatterns[ pat ] ) );
-
-        x += 15;
-    }
-
-    //----------------------------------------------------
-    // Keyboard Keys 
-    y = CHANNEL_Y;
-
-    for( kb = 0; kb < nKEYBOARDS; kb++ )
-    {
-        x = 230;
-
-        for( oct = 0; oct < nOCTAVESEL; oct++ )
-        {
-            addParam(createParam<MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
-            addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x + 1, y -15 ), &module->m_fLightOctaves[ kb ][ oct ] ) );
-            x += 18;
-        }
-
-        x = CHANNEL_X;
-
-        // add white keys
-        for( key = 0; key < nWHITEKEYS; key++ )
-        {
-            pWidget = createParam<MyPianoWhiteKey>( Vec( x, y ), module, Seq_Triad::PARAM_WKEYS + ( kb * nWHITEKEYS) + key, 0.0, 1.0, 0.0 );
-            addParam( pWidget );
-
-            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].pWidget = pWidget;
-            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].fsemi = fWhiteKeyNotes[ key ];
-
-            x += 13;
-        }
-
-        for( key = 0; key < nBLACKKEYS; key++ )
-        {
-            pWidget = createParam<MyPianoBlackKey>( Vec( bkeyoff[ key ] -3, y ), module, Seq_Triad::PARAM_BKEYS + ( kb * nBLACKKEYS) + key, 0.0, 1.0, 0.0 );
-            addParam( pWidget );
-
-            module->m_Keys[ kb ][ blackKeyoff[ key ] ].pWidget = pWidget;
-            module->m_Keys[ kb ][ blackKeyoff[ key ] ].fsemi = fBlackKeyNotes[ key ];
-        }
-
-        y += CHANNEL_OFF_Y;
-    }
-
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
-
-    // outputs
-    x = 307;
-    y = CHANNEL_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG ) );
-    y += CHANNEL_OFF_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 1 ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 1 ) );
-    y += CHANNEL_OFF_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
-}
-
-//-----------------------------------------------------
 // Procedure:   initialize
 //
 //-----------------------------------------------------
@@ -578,9 +628,21 @@ void Seq_Triad::fromJson(json_t *rootJ)
 // Procedure:   step
 //
 //-----------------------------------------------------
+#define LIGHT_LAMBDA ( 0.065f )
 void Seq_Triad::step() 
 {
     int i;
+
+    if( m_bCopy )
+    {
+        m_fLightCopyNext -= m_fLightCopyNext / LIGHT_LAMBDA / gSampleRate;
+
+        if( m_fLightCopyNext < 0.001 )
+        {
+            m_bCopy = false;
+            m_fLightCopyNext = 0.0;
+        }
+    }
 
 	// pat change trigger - ignore if already pending
     if( inputs[ IN_PATTERN_TRIG ].active && !m_bPause )
