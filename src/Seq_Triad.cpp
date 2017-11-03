@@ -119,196 +119,189 @@ struct Seq_Triad : Module
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
     void    initialize() override;
-    void    randomize() override{}
+    void    randomize() override;
     //void    reset() override;
     void    SetSteps( int steps );
     void    SetKey( int kb );
     void    SetOut( int kb );
     void    ChangePattern( int index, bool bForce );
     void    CopyNext( void );
-};
 
-//-----------------------------------------------------
-// Procedure:   MySquareButton_CopyNext
-//
-//-----------------------------------------------------
-struct MySquareButton_Cpy : MySquareButton
-{
-    Seq_Triad *mymodule;
-
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_CopyNext
+    //-----------------------------------------------------
+    struct MySquareButton_Cpy : MySquareButton
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
 
-        if( mymodule && value == 1.0 )
+        void onChange() override 
         {
-            mymodule->CopyNext();
-        }
+            mymodule = (Seq_Triad*)module;
 
-		MomentarySwitch::onChange();
-	}
-};
+            if( mymodule && value == 1.0 )
+            {
+                mymodule->CopyNext();
+            }
 
-//-----------------------------------------------------
-// Procedure:   MySquareButton_Step
-//
-//-----------------------------------------------------
-struct MySquareButton_Pause : MySquareButton 
-{
-    Seq_Triad *mymodule;
-    int stp, i;
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_Step
+    //-----------------------------------------------------
+    struct MySquareButton_Pause : MySquareButton 
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
+        int stp, i;
 
-        if( mymodule && value == 1.0 )
+        void onChange() override 
         {
-            mymodule->m_bPause = !mymodule->m_bPause;
+            mymodule = (Seq_Triad*)module;
 
-            mymodule->m_fLightPause = mymodule->m_bPause ? 1.0 : 0.0;
-        }
+            if( mymodule && value == 1.0 )
+            {
+                mymodule->m_bPause = !mymodule->m_bPause;
 
-		MomentarySwitch::onChange();
-	}
-};
+                mymodule->m_fLightPause = mymodule->m_bPause ? 1.0 : 0.0;
+            }
 
-//-----------------------------------------------------
-// Procedure:   MySquareButton_Step
-//
-//-----------------------------------------------------
-struct MySquareButton_Stp : MySquareButton 
-{
-    Seq_Triad *mymodule;
-    int stp, i;
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_Step
+    //-----------------------------------------------------
+    struct MySquareButton_Stp : MySquareButton 
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
+        int stp, i;
 
-        if( mymodule && value == 1.0 )
+        void onChange() override 
         {
-            stp = paramId - Seq_Triad::PARAM_STEP_NUM;
-            mymodule->SetSteps( stp + 1 );
-        }
+            mymodule = (Seq_Triad*)module;
 
-		MomentarySwitch::onChange();
-	}
-};
+            if( mymodule && value == 1.0 )
+            {
+                stp = paramId - Seq_Triad::PARAM_STEP_NUM;
+                mymodule->SetSteps( stp + 1 );
+            }
 
-//-----------------------------------------------------
-// Procedure:   MyPianoWhiteKey
-//
-//-----------------------------------------------------
-struct MyPianoWhiteKey : PianoWhiteKey
-{
-    Seq_Triad *mymodule;
-    int param, kb, note, key;
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MyPianoWhiteKey
+    //-----------------------------------------------------
+    struct MyPianoWhiteKey : PianoWhiteKey
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
+        int param, kb, note, key;
 
-        if( mymodule && mymodule->m_bJsonInit && value == 1.0 )
+        void onChange() override 
         {
-            param = paramId - Seq_Triad::PARAM_WKEYS;
-            kb = param / nWHITEKEYS;
-            note = param - (kb * nWHITEKEYS);
+            mymodule = (Seq_Triad*)module;
 
-            mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = whiteKeyoff[ note ];
-            mymodule->SetKey( kb );
-            mymodule->SetOut( kb );
-        }
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Seq_Triad::PARAM_WKEYS;
+                kb = param / nWHITEKEYS;
+                note = param - (kb * nWHITEKEYS);
 
-        SVGSwitch::onChange();
-	}
-};
+                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = whiteKeyoff[ note ];
+                mymodule->SetKey( kb );
+                mymodule->SetOut( kb );
+            }
 
-//-----------------------------------------------------
-// Procedure:   MyPianoBlackKey
-//
-//-----------------------------------------------------
-struct MyPianoBlackKey : PianoBlackKey
-{
-    Seq_Triad *mymodule;
-    int param, kb, note, key;
+            SVGSwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MyPianoBlackKey
+    //-----------------------------------------------------
+    struct MyPianoBlackKey : PianoBlackKey
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
+        int param, kb, note, key;
 
-        if( mymodule && mymodule->m_bJsonInit && value == 1.0 )
+        void onChange() override 
         {
-            param = paramId - Seq_Triad::PARAM_BKEYS;
-            kb = param / nBLACKKEYS;
-            note = param - (kb * nBLACKKEYS);
+            mymodule = (Seq_Triad*)module;
 
-            mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = blackKeyoff[ note ];
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Seq_Triad::PARAM_BKEYS;
+                kb = param / nBLACKKEYS;
+                note = param - (kb * nBLACKKEYS);
 
-            mymodule->SetKey( kb );
-            mymodule->SetOut( kb );
-        }
+                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = blackKeyoff[ note ];
 
-        SVGSwitch::onChange();
-	}
-};
+                mymodule->SetKey( kb );
+                mymodule->SetOut( kb );
+            }
 
-//-----------------------------------------------------
-// Procedure:   MySquareButton_Pat
-//
-//-----------------------------------------------------
-struct MySquareButton_Pat : MySquareButton 
-{
-    Seq_Triad *mymodule;
-    int stp, i;
+            SVGSwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_Pat
+    //-----------------------------------------------------
+    struct MySquareButton_Pat : MySquareButton 
     {
-        mymodule = (Seq_Triad*)module;
+        Seq_Triad *mymodule;
+        int stp, i;
 
-        if( mymodule && value == 1.0 )
+        void onChange() override 
         {
-            stp = paramId - Seq_Triad::PARAM_PATTERNS;
-            mymodule->ChangePattern( stp, false );
-        }
+            mymodule = (Seq_Triad*)module;
 
-		MomentarySwitch::onChange();
-	}
-};
+            if( mymodule && value == 1.0 )
+            {
+                stp = paramId - Seq_Triad::PARAM_PATTERNS;
+                mymodule->ChangePattern( stp, false );
+            }
 
-//-----------------------------------------------------
-// Procedure:   MyOCTButton
-//
-//-----------------------------------------------------
-struct MyOCTButton : MySquareButton
-{
-    int kb, oct;
-    Seq_Triad *mymodule;
-    int param;
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MyOCTButton
+    //-----------------------------------------------------
+    struct MyOCTButton : MySquareButton
     {
-        mymodule = (Seq_Triad*)module;
+        int kb, oct;
+        Seq_Triad *mymodule;
+        int param;
 
-        if( mymodule && value == 1.0 )
+        void onChange() override 
         {
-            param = paramId - Seq_Triad::PARAM_OCTAVES;
-            kb = param / nOCTAVESEL;
-            oct = param - (kb * nOCTAVESEL);
+            mymodule = (Seq_Triad*)module;
 
-            mymodule->m_fLightOctaves[ kb ][ 0 ] = 0.0;
-            mymodule->m_fLightOctaves[ kb ][ 1 ] = 0.0;
-            mymodule->m_fLightOctaves[ kb ][ 2 ] = 0.0;
-            mymodule->m_fLightOctaves[ kb ][ 3 ] = 0.0;
-            mymodule->m_fLightOctaves[ kb ][ oct ] = 1.0;
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Seq_Triad::PARAM_OCTAVES;
+                kb = param / nOCTAVESEL;
+                oct = param - (kb * nOCTAVESEL);
 
-            mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].oct = oct;
+                mymodule->m_fLightOctaves[ kb ][ 0 ] = 0.0;
+                mymodule->m_fLightOctaves[ kb ][ 1 ] = 0.0;
+                mymodule->m_fLightOctaves[ kb ][ 2 ] = 0.0;
+                mymodule->m_fLightOctaves[ kb ][ 3 ] = 0.0;
+                mymodule->m_fLightOctaves[ kb ][ oct ] = 1.0;
 
-            mymodule->SetOut( kb );
-        }
+                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].oct = oct;
 
-		MomentarySwitch::onChange();
-	}
+                mymodule->SetOut( kb );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
 };
 
 //-----------------------------------------------------
@@ -331,7 +324,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 		addChild(panel);
 	}
 
-    module->lg.Open("StickyKeysLog.txt");
+    //module->lg.Open("StickyKeysLog.txt");
 
     //----------------------------------------------------
     // Step Select buttons 
@@ -342,7 +335,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 	for ( stp = 0; stp < nPATTERNS; stp++ ) 
     {
         // step button
-		addParam(createParam<MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
+		addParam(createParam<Seq_Triad::MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
 		addChild(createValueLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightStepNumbers[ stp ] ) );
 
         x += 15;
@@ -351,7 +344,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     }
 
     // pause button
-	addParam(createParam<MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
+	addParam(createParam<Seq_Triad::MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
 	addChild(createValueLight<SmallLight<RedValueLight>>( Vec( 45 + 1, 48 + 2 ), &module->m_fLightPause ) );
 
     //----------------------------------------------------
@@ -364,14 +357,14 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 	for ( pat = 0; pat < nPATTERNS; pat++ ) 
     {
         // step button
-		addParam(createParam<MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
+		addParam(createParam<Seq_Triad::MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
 		addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightPatterns[ pat ] ) );
 
         x += 15;
     }
 
     // copy next button
-	addParam(createParam<MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
+	addParam(createParam<Seq_Triad::MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
 	addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( 290 + 1, 32 + 2 ), &module->m_fLightCopyNext ) );
 
     //----------------------------------------------------
@@ -384,7 +377,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
         for( oct = 0; oct < nOCTAVESEL; oct++ )
         {
-            addParam(createParam<MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
+            addParam(createParam<Seq_Triad::MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
             addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x + 1, y -15 ), &module->m_fLightOctaves[ kb ][ oct ] ) );
             x += 18;
         }
@@ -394,7 +387,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
         // add white keys
         for( key = 0; key < nWHITEKEYS; key++ )
         {
-            pWidget = createParam<MyPianoWhiteKey>( Vec( x, y ), module, Seq_Triad::PARAM_WKEYS + ( kb * nWHITEKEYS) + key, 0.0, 1.0, 0.0 );
+            pWidget = createParam<Seq_Triad::MyPianoWhiteKey>( Vec( x, y ), module, Seq_Triad::PARAM_WKEYS + ( kb * nWHITEKEYS) + key, 0.0, 1.0, 0.0 );
             addParam( pWidget );
 
             module->m_Keys[ kb ][ whiteKeyoff[ key ] ].pWidget = pWidget;
@@ -405,7 +398,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
         for( key = 0; key < nBLACKKEYS; key++ )
         {
-            pWidget = createParam<MyPianoBlackKey>( Vec( bkeyoff[ key ] -3, y ), module, Seq_Triad::PARAM_BKEYS + ( kb * nBLACKKEYS) + key, 0.0, 1.0, 0.0 );
+            pWidget = createParam<Seq_Triad::MyPianoBlackKey>( Vec( bkeyoff[ key ] -3, y ), module, Seq_Triad::PARAM_BKEYS + ( kb * nBLACKKEYS) + key, 0.0, 1.0, 0.0 );
             addParam( pWidget );
 
             module->m_Keys[ kb ][ blackKeyoff[ key ] ].pWidget = pWidget;
@@ -432,6 +425,56 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
 }
+
+
+//-----------------------------------------------------
+// Procedure:   initialize
+//
+//-----------------------------------------------------
+void Seq_Triad::initialize()
+{
+    memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    memset( m_fCvOut, 0, sizeof(m_fCvOut) );
+    memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
+    
+    ChangePattern( 0, true );
+}
+
+
+//-----------------------------------------------------
+// Procedure:   randomize
+//
+//-----------------------------------------------------
+int keyscalenotes[ 7 ] = { 0, 2, 4, 5, 7, 9, 11};
+int keyscalenotes_minor[ 7 ] = { 0, 2, 3, 5, 7, 9, 11};
+void Seq_Triad::randomize()
+{
+    int kb, pat, basekey, note, oct;
+
+    memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    memset( m_fCvOut, 0, sizeof(m_fCvOut) );
+    memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
+
+    basekey = (int)(randomf() * 24.4);
+    oct = (int)( randomf() * 3.4 );
+
+    for( kb = 0; kb < nKEYBOARDS; kb++ )
+    {
+        for( pat = 0; pat < nPATTERNS; pat++ )
+        {
+            if( randomf() > 0.7 )
+                note = keyscalenotes_minor[ (int)(randomf() * 7.4 ) ];
+            else
+                note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
+
+            m_PatternNotes[ pat ][ kb ].note = basekey + note; 
+            m_PatternNotes[ pat ][ kb ].oct = oct;
+        }
+    }
+
+    ChangePattern( 0, true );
+}
+
 
 //-----------------------------------------------------
 // Procedure:   CopyNext
@@ -542,19 +585,6 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
         // set outputted note
         SetOut( kb );
     }
-}
-
-//-----------------------------------------------------
-// Procedure:   initialize
-//
-//-----------------------------------------------------
-void Seq_Triad::initialize()
-{
-    memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
-    memset( m_fCvOut, 0, sizeof(m_fCvOut) );
-    memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
-    
-    ChangePattern( 0, true );
 }
 
 //-----------------------------------------------------
