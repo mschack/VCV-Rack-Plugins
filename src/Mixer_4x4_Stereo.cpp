@@ -102,7 +102,7 @@ struct Mix_4x4_Stereo : Module
     SchmittTrigger  m_SchTrigGroupInMutes[ GROUPS ];
 
     // processing
-    bool            m_bMono[ CHANNELS ];
+    bool            m_bMono[ CHANNELS ] = {};
     float           m_fSubMix[ GROUPS ][ 3 ] = {};
 
     // Contructor
@@ -277,6 +277,8 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
     // outputs
     addOutput(createOutput<MyPortOutSmall>( Vec( 636, 305 ), module, Mix_4x4_Stereo::OUT_MAINL ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 668, 335 ), module, Mix_4x4_Stereo::OUT_MAINR ) );
+
+    initialize();
 }
 
 //-----------------------------------------------------
