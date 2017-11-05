@@ -14,6 +14,6 @@
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
 - Mixer: https://www.youtube.com/watch?v=QOjSEM3mPqs
 - Triad Sequencer https://www.youtube.com/watch?v=YBErBzoV_6M
-- Synth Drums 
+- Synth Drums https://www.youtube.com/watch?v=zYrtJ2XsbTw
 
 
