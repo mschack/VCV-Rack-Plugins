@@ -6,7 +6,7 @@
 
 - 3 Channel 16 Step Programmable Sequencer.
 - 4 x 4 Channel Mixer Stereo/Mono
-- 4 x 4 Channel Mixer Stereo/Mono(2) with EQ
+- 4 x 4 Channel Mixer Stereo/Mono(2) with EQ, 4x AUX bus
 - Triad Sequencer
 - Synth Drums
 
