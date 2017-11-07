@@ -121,6 +121,25 @@ struct MyToggle1 : SVGSwitch, ToggleSwitch
 };
 
 //-----------------------------------------------------
+// Procedure:   FilterSelectToggle
+//
+//-----------------------------------------------------
+struct FilterSelectToggle : SVGSwitch, ToggleSwitch
+{
+	FilterSelectToggle()
+    {
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_01.svg")));
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_02.svg")));
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_03.svg")));
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_04.svg")));
+        addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_05.svg")));
+
+		sw->wrap();
+		box.size = sw->box.size;
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   MySlider_01
 //
 //-----------------------------------------------------
@@ -208,6 +227,19 @@ struct Blue2_Small : RoundKnob
 };
 
 //-----------------------------------------------------
+// Procedure:   Blue2_Tiny
+//
+//-----------------------------------------------------
+struct Blue2_Tiny : RoundKnob 
+{
+	Blue2_Tiny() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_small.svg")));
+		box.size = Vec(15, 15);
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   Blue2_Big
 //
 //-----------------------------------------------------
@@ -232,6 +264,20 @@ struct Yellow1_Small : RoundKnob
 		box.size = Vec(26, 26);
 	}
 };
+
+//-----------------------------------------------------
+// Procedure:   Yellow1_Tiny
+//
+//-----------------------------------------------------
+struct Yellow1_Tiny : RoundKnob 
+{
+	Yellow1_Tiny() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow1_small.svg")));
+		box.size = Vec(15, 15);
+	}
+};
+
 
 //-----------------------------------------------------
 // Procedure:   Yellow2_Small
