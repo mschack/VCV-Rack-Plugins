@@ -6,6 +6,7 @@
 #define GROUPS 4
 #define CH_PER_GROUP 4
 #define CHANNELS ( GROUPS * CH_PER_GROUP )
+#define nAUX 4
 
 #define GROUP_OFF_X 52
 #define CHANNEL_OFF_X 34
@@ -41,7 +42,11 @@ struct Mix_4x4_Stereo2 : Module
         PARAM_EQ_MD             = PARAM_EQ_HI + CHANNELS,
         PARAM_EQ_LO             = PARAM_EQ_MD + CHANNELS,
 
-        nPARAMS                 = PARAM_EQ_LO + CHANNELS
+        PARAM_AUX_KNOB         = PARAM_EQ_LO + CHANNELS,
+        PARAM_AUX_PREFADE      = PARAM_AUX_KNOB + (GROUPS * nAUX),
+        PARAM_AUX_OUT          = PARAM_AUX_PREFADE + (GROUPS * nAUX),
+
+        nPARAMS                = PARAM_AUX_OUT + (nAUX)
     };
 
 	enum InputIds 
@@ -52,19 +57,18 @@ struct Mix_4x4_Stereo2 : Module
         IN_PAN                  = IN_LEVEL + CHANNELS, 
         IN_GROUP_LEVEL          = IN_PAN + CHANNELS,
         IN_GROUP_PAN            = IN_GROUP_LEVEL + GROUPS,
-        IN_GROUP_MUTE           = IN_GROUP_PAN + GROUPS,
-        IN_GROUP_SOLO           = IN_GROUP_MUTE + GROUPS,
-        nINPUTS                 = IN_GROUP_SOLO + GROUPS 
+        nINPUTS                 = IN_GROUP_PAN + GROUPS 
 	};
 
 	enum OutputIds 
     {
 		OUT_MAINL,
         OUT_MAINR,
-        OUT_GROUPL,
-        OUT_GROUPR              = OUT_GROUPL + GROUPS,
 
-        nOUTPUTS                = OUT_GROUPR + GROUPS
+        OUT_AUXL,
+        OUT_AUXR              = OUT_AUXL + nAUX,
+
+        nOUTPUTS              = OUT_AUXR + nAUX
 	};
 
     CLog            lg;
@@ -107,6 +111,10 @@ struct Mix_4x4_Stereo2 : Module
     bool            m_bMono[ CHANNELS ];
     float           m_fSubMix[ GROUPS ][ 3 ] = {};
 
+    // aux
+    bool            m_bGroupPreFadeAuxStates[ GROUPS ][ nAUX ] = {};
+    float           m_fLightGroupPreFadeAux[ GROUPS ][ nAUX ] = {};
+
     // EQ Rez
     float           m_hpIn[ CHANNELS ];
     float           m_lpIn[ CHANNELS ];
@@ -132,81 +140,205 @@ struct Mix_4x4_Stereo2 : Module
     void ProcessEQ( int ch, float *pL, float *pR );
 };
 
-//-----------------------------------------------------
-// MyEQHi_Knob
-//-----------------------------------------------------
-struct MyEQHi_Knob : Green1_Tiny
-{
-    Mix_4x4_Stereo2 *mymodule;
-    int param;
-
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_Trig
+    //-----------------------------------------------------
+    struct MySquareButton_Aux : MySquareButton
     {
-        mymodule = (Mix_4x4_Stereo2*)module;
+        int group, knob, param;
 
-        if( mymodule )
+        Mix_4x4_Stereo2 *mymodule;
+
+        void onChange() override 
         {
-            param = paramId - Mix_4x4_Stereo2::PARAM_EQ_HI;
+            mymodule = (Mix_4x4_Stereo2*)module;
 
-            mymodule->m_hpIn[ param ] = value; 
-        }
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Mix_4x4_Stereo2::PARAM_AUX_PREFADE;
+                group = param / GROUPS;
+                knob  = param - (group * GROUPS);
+                mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] = !mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ];
+                mymodule->m_fLightGroupPreFadeAux[ group ][ knob ] = mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] ? 1.0 : 0.0;
+            }
 
-		RoundKnob::onChange();
-	}
-};
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-//-----------------------------------------------------
-// MyEQHi_Knob
-//-----------------------------------------------------
-struct MyEQMid_Knob : Green1_Tiny
-{
-    Mix_4x4_Stereo2 *mymodule;
-    int param;
-
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_ChMute
+    //-----------------------------------------------------
+    struct MySquareButton_ChMute : MySquareButton2
     {
-        mymodule = (Mix_4x4_Stereo2*)module;
+        int ch;
 
-        if( mymodule )
+        Mix_4x4_Stereo2 *mymodule;
+
+        void onChange() override 
         {
-            param = paramId - Mix_4x4_Stereo2::PARAM_EQ_MD;
-            mymodule->m_mpIn[ param ] = value; 
-        }
+            mymodule = (Mix_4x4_Stereo2*)module;
 
-		RoundKnob::onChange();
-	}
-};
+            if( mymodule && value == 1.0 )
+            {
+                ch = paramId - Mix_4x4_Stereo2::PARAM_MUTE_BUTTON;
+                mymodule->ProcessMuteSolo( ch, true, false );
+            }
 
-//-----------------------------------------------------
-// MyEQHi_Knob
-//-----------------------------------------------------
-struct MyEQLo_Knob : Green1_Tiny
-{
-    Mix_4x4_Stereo2 *mymodule;
-    int param;
+		    MomentarySwitch::onChange();
+	    }
+    };
 
-    void onChange() override 
+    //-----------------------------------------------------
+    // MySquareButton_ChSolo
+    //-----------------------------------------------------
+    struct MySquareButton_ChSolo : MySquareButton2
     {
-        mymodule = (Mix_4x4_Stereo2*)module;
+        int ch;
 
-        if( mymodule )
+        Mix_4x4_Stereo2 *mymodule;
+
+        void onChange() override 
         {
-            param = paramId - Mix_4x4_Stereo2::PARAM_EQ_LO;
-            mymodule->m_lpIn[ param ] = value; 
-        }
+            mymodule = (Mix_4x4_Stereo2*)module;
 
-		RoundKnob::onChange();
-	}
-};
+            if( mymodule && value == 1.0 )
+            {
+                ch = paramId - Mix_4x4_Stereo2::PARAM_SOLO_BUTTON;
+
+                mymodule->ProcessMuteSolo( ch, false, false );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MySquareButton_GroupMute
+    //-----------------------------------------------------
+    struct MySquareButton_GroupMute : MySquareButton2
+    {
+        int group;
+
+        Mix_4x4_Stereo2 *mymodule;
+
+        void onChange() override 
+        {
+            mymodule = (Mix_4x4_Stereo2*)module;
+
+            if( mymodule && value == 1.0 )
+            {
+                group = paramId - Mix_4x4_Stereo2::PARAM_GROUP_MUTE;
+
+                mymodule->ProcessMuteSolo( group, true, true );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MySquareButton_GroupSolo
+    //-----------------------------------------------------
+    struct MySquareButton_GroupSolo : MySquareButton2
+    {
+        int group;
+
+        Mix_4x4_Stereo2 *mymodule;
+
+        void onChange() override 
+        {
+            mymodule = (Mix_4x4_Stereo2*)module;
+
+            if( mymodule && value == 1.0 )
+            {
+                group = paramId - Mix_4x4_Stereo2::PARAM_GROUP_SOLO;
+
+                mymodule->ProcessMuteSolo( group, false, true );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQHi_Knob : Green1_Tiny
+    {
+        Mix_4x4_Stereo2 *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Mix_4x4_Stereo2*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_HI;
+
+                mymodule->m_hpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQMid_Knob : Green1_Tiny
+    {
+        Mix_4x4_Stereo2 *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Mix_4x4_Stereo2*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_MD;
+                mymodule->m_mpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQLo_Knob : Green1_Tiny
+    {
+        Mix_4x4_Stereo2 *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Mix_4x4_Stereo2*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_LO;
+                mymodule->m_lpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
 #define CUTOFF (0.025f)
 //-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
+#define AMP_MAX 4.0
+
 Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget() 
 {
     float fx, fx2, fx3, fx5, fx7;
-    int ch, x, y, i, ybase;
+    int ch, x, y, i, ybase, x2, y2;
 	Mix_4x4_Stereo2 *module = new Mix_4x4_Stereo2();
 	setModule(module);
 	box.size = Vec( 15*47, 380);
@@ -218,15 +350,12 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 		addChild(panel);
 	}
 
-    //module->lg.Open("Mix_4x4_Stereo.txt");
+    module->lg.Open("Mix_4x4_Stereo.txt");
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
-
-    //addInput(createInput<MyPortInSmall>( Vec( 6, 40 ), module, Mix_4x4_Stereo::IN_WAVE ) );
-    //addOutput(createOutput<MyPortOutSmall>( Vec( 50, 40 ), module, Mix_4x4_Stereo::OUT_WAVE ) );
 
     //----------------------------------------------------
     // Add mix sliders
@@ -247,7 +376,7 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         y += 26;
 
         // Level knobs
-        addParam(createParam<Blue2_Small>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_LEVEL_IN + ch, 0.0, 2.0, 0.0 ) );
+        addParam(createParam<Blue2_Small>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_LEVEL_IN + ch, 0.0, AMP_MAX, 0.0 ) );
 
         y += 31;
 
@@ -267,13 +396,13 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         y += 22;
 
         // mute buttons
-        addParam(createParam<MySquareButton2>( Vec( x - 7, y ), module, Mix_4x4_Stereo2::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_4x4_Stereo2::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x - 4, y + 5 ), &module->m_fLightMutes[ ch ] ) );
 
         //y += 26;
 
         // solo buttons
-        addParam(createParam<MySquareButton2>( Vec( x + 9, y ), module, Mix_4x4_Stereo2::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_4x4_Stereo2::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 12, y + 5 ), &module->m_fLightSolos[ ch ] ) );
 
         y += 22;
@@ -303,69 +432,112 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 
     // group mixera
     ybase = 278;
-    x = 21;
+    x = 12;
     for( i = 0; i < GROUPS; i++ )
     {
-        // mute/solo inputs
-        y = ybase + 23;
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_GROUP_MUTE + i ) );
-
-        y += 30;
-
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_GROUP_SOLO + i ) );
-
         // mute/solo buttons
-        x += 23;
-        y = ybase + 21;
+        x2 = x + 81;
+        y2 = ybase;
 
-        addParam(createParam<MySquareButton2>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 3, y + 4 ), &module->m_fLightGroupMutes[ i ] ) );
+        addParam(createParam<MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupMutes[ i ] ) );
 
-        y += 30;
+        x2 += 28;
 
-        addParam(createParam<MySquareButton2>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 3, y + 4 ), &module->m_fLightGroupSolos[ i ] ) );
+        addParam(createParam<MySquareButton_GroupSolo>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupSolos[ i ] ) );
 
         // group level and pan inputs
-        x += 24;
-        y = ybase + 11;
+        x2 = x + 79;
+        y2 = ybase + 23;
 
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_GROUP_LEVEL + i ) );
+        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_LEVEL + i ) );
 
-        y += 40;
+        y2 += 32;
 
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
+        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
 
         // group level and pan knobs
-        x += 24;
-        y = ybase + 6;
+        x2 = x + 105;
+        y2 = ybase + 17;
 
-        addParam(createParam<Blue2_Small>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_GROUP_LEVEL_IN + i, 0.0, 2.0, 0.0 ) );
+        addParam(createParam<Blue2_Small>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_LEVEL_IN + i, 0.0, AMP_MAX, 0.0 ) );
 
-        y += 39;
+        y2 += 32;
 
-        addParam(createParam<Yellow2_Small>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_GROUP_PAN_IN + i, -1.0, 1.0, 0.0 ) );
+        addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_PAN_IN + i, -1.0, 1.0, 0.0 ) );
 
-        // group outputs
-        x += 36;
-        y = ybase + 29;
+        // aux 1/3
+#define AUX_H 29
+        x2 = x + 6;
+        y2 = ybase + 20;
+        
+        addParam(createParam<MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 0 ] ) );
 
-        addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::OUT_GROUPL + i ) );
+        y2 += AUX_H;
+        addParam(createParam<MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 2 ] ) );
 
-        y += 31;
+        x2 = x + 20;
+        y2 = ybase + 16;
+        addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 0, 0.0, AMP_MAX, 0.0 ) );
+        y2 += AUX_H;
+        addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 2, 0.0, AMP_MAX, 0.0 ) );
 
-        addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::OUT_GROUPR + i ) );
+        // aux 2/4
+        x2 = x + 38;
+        y2 = ybase + 28;
+        
+        addParam(createParam<Yellow3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 1, 0.0, AMP_MAX, 0.0 ) );
+        y2 += AUX_H;
+        addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 3, 0.0, AMP_MAX, 0.0 ) );
+
+        x2 = x + 62;
+        y2 = ybase + 32;
+        
+        addParam(createParam<MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 1 ] ) );
+
+        y2 += AUX_H;
+        addParam(createParam<MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 3 ] ) );
 
         // account for slight error in pixel conversion to svg area
-        x += 45 + ( i * 2 );
+        x += 155;
     }
 
     // main mixer knob 
-    addParam(createParam<Blue2_Big>( Vec( 633, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, 2.0, 0.0 ) );
+    addParam(createParam<Blue2_Big>( Vec( 633, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
 
     // outputs
+    
     addOutput(createOutput<MyPortOutSmall>( Vec( 636, 305 ), module, Mix_4x4_Stereo2::OUT_MAINL ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 668, 335 ), module, Mix_4x4_Stereo2::OUT_MAINR ) );
+
+    // AUX out
+#define AUX_OUT_H 42
+    x2 = 649;
+    y2 = 25;
+
+    addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 0, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Yellow3_Med>( Vec( x2, y2  ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 1, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 2, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 3, 0.0, AMP_MAX, 0.0 ) );
+
+    x2 = 635;
+    y2 = 45;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 1 ) );  y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 2 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 3 ) );
+
+    x2 = 664;
+    y2 = 45;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 1 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 2 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 3 ) );
 
     // calculate eq rez freq
     fx = 3.141592 * (CUTOFF * 0.026315789473684210526315789473684) * 2 * 3.141592; 
@@ -388,7 +560,7 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 //-----------------------------------------------------
 void Mix_4x4_Stereo2::initialize()
 {
-    int ch, i;
+    int ch, i, aux;
 
     for( ch = 0; ch < CHANNELS; ch++ )
     {
@@ -402,6 +574,12 @@ void Mix_4x4_Stereo2::initialize()
 
     for( i = 0; i < GROUPS; i++ )
     {
+        for( aux = 0; aux < nAUX; aux++ )
+        {
+            m_bGroupPreFadeAuxStates[ i ][ aux ] = false;
+            m_fLightGroupPreFadeAux[ i ][ aux ] = 0.0;
+        }
+
         m_GroupFadeState[ i ] = MUTE_FADE_STATE_IDLE;
         m_fLightGroupMutes[ i ] = 0.0;
         m_fLightGroupSolos[ i ] = 0.0;
@@ -475,6 +653,19 @@ json_t *Mix_4x4_Stereo2::toJson()
 
 	json_object_set_new( rootJ, "group solos", gatesJ );
 
+	// AUX states
+    pbool = &m_bGroupPreFadeAuxStates[ 0 ][ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < GROUPS * nAUX; i++)
+    {
+		json_t *gateJ = json_integer( (int) pbool[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "group AUX prefade states", gatesJ );
+
 	return rootJ;
 }
 
@@ -484,7 +675,7 @@ json_t *Mix_4x4_Stereo2::toJson()
 //-----------------------------------------------------
 void Mix_4x4_Stereo2::fromJson(json_t *rootJ) 
 {
-    int ch, i;
+    int ch, i, aux;
     bool *pbool;
     json_t *StepsJ;
 
@@ -552,6 +743,22 @@ void Mix_4x4_Stereo2::fromJson(json_t *rootJ)
 		}
 	}
 
+    // AUX states
+    pbool = &m_bGroupPreFadeAuxStates[ 0 ][ 0 ];
+
+	StepsJ = json_object_get( rootJ, "group AUX prefade states" );
+
+	if (StepsJ) 
+    {
+		for ( i = 0; i < GROUPS * nAUX; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pbool[ i ] = json_integer_value( gateJ );
+		}
+	}
+
     for( ch = 0; ch < CHANNELS; ch++ )
     {
         m_fMuteFade[ ch ] = m_bMuteStates[ ch ] ? 0.0: 1.0;
@@ -562,6 +769,11 @@ void Mix_4x4_Stereo2::fromJson(json_t *rootJ)
 
     for( i = 0; i < GROUPS; i++ )
     {
+        for( aux = 0; aux < nAUX; aux++ )
+        {
+            m_fLightGroupPreFadeAux[ i ][ aux ] = m_bGroupPreFadeAuxStates[ i ][ aux ] ? 1.0: 0.0;
+        }
+
         m_fGroupMuteFade[ i ] = m_bGroupMuteStates[ i ] ? 0.0: 1.0;
         m_fLightGroupMutes[ i ] = m_bGroupMuteStates[ i ] ? 1.0: 0.0;
 
@@ -821,8 +1033,9 @@ void Mix_4x4_Stereo2::ProcessEQ( int ch, float *pL, float *pR )
 //-----------------------------------------------------
 void Mix_4x4_Stereo2::step() 
 {
-    int ch, group;
-    float inL = 0.0, inR = 0.0, outL, outR, pan, mainL = 0.0, mainR = 0.0;
+    int ch, group, aux;
+    float inL = 0.0, inR = 0.0, inLClean, inRClean, outL, outR, pan, mainL = 0.0, mainR = 0.0;
+    float auxL[ nAUX ] = {}, auxR[ nAUX ] = {};
     bool bGroupActive[ 4 ] = {0};
 
     memset( m_fSubMix, 0, sizeof(m_fSubMix) );
@@ -832,6 +1045,8 @@ void Mix_4x4_Stereo2::step()
     {
         group = ch / 4;
 
+        inLClean = 0.0;
+        inRClean = 0.0;
         inL = 0.0;
         inR = 0.0;
 
@@ -839,22 +1054,11 @@ void Mix_4x4_Stereo2::step()
         {
             bGroupActive[ group ] = true;
 
-            // process mute buttons
-            if( m_SchTrigMutes[ ch ].process( params[ PARAM_MUTE_BUTTON + ch ].value ) )
-            {
-                ProcessMuteSolo( ch, true, false );
-            }
-
-            // process solo buttons
-            if( m_SchTrigSolos[ ch ].process( params[ PARAM_SOLO_BUTTON + ch ].value ) )
-            {
-                ProcessMuteSolo( ch, false, false );
-            }
-
             // check right channel first for possible mono
             if( inputs[ IN_RIGHT + ch ].active )
             {
-                inR = inputs[ IN_RIGHT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ), -1.0, 1.0 ); 
+                inRClean = inputs[ IN_RIGHT + ch ].value;
+                inR = inRClean * ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ); 
                 m_bMono[ ch ] = false;
             }
             else
@@ -863,10 +1067,24 @@ void Mix_4x4_Stereo2::step()
             // left channel
             if( inputs[ IN_LEFT + ch ].active )
             {
-                inL = inputs[ IN_LEFT + ch ].value * clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ), -1.0, 1.0 ); 
+                inLClean = inputs[ IN_LEFT + ch ].value;
+                inL = inLClean * ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ); 
 
                 if( m_bMono[ ch ] )
+                {
+                    inRClean = inLClean;
                     inR = inL;
+                }
+            }
+
+            // put output to aux if pre fader
+            for ( aux = 0; aux < nAUX; aux++ )
+            {
+                if( m_bGroupPreFadeAuxStates[ group ][ aux ] )
+                {
+                    auxL[ aux ] += inRClean * params[ PARAM_AUX_KNOB + (group * nAUX) + aux ].value;
+                    auxR[ aux ] += inRClean * params[ PARAM_AUX_KNOB + (group * nAUX) + aux ].value;
+                }
             }
 
             if( m_FadeState[ ch ] == MUTE_FADE_STATE_DEC )
@@ -904,6 +1122,16 @@ void Mix_4x4_Stereo2::step()
                 inR *= ( 1.0 + pan );
             else
                 inL *= ( 1.0 - pan );
+
+            // put output to aux if not pre fader
+            for ( aux = 0; aux < nAUX; aux++ )
+            {
+                if( !m_bGroupPreFadeAuxStates[ group ][ aux ] )
+                {
+                    auxL[ aux ] += inL * params[ PARAM_AUX_KNOB + (group * nAUX) + aux ].value;
+                    auxR[ aux ] += inR * params[ PARAM_AUX_KNOB + (group * nAUX) + aux ].value;
+                }
+            }
         }
         // this channel not active
         else
@@ -923,37 +1151,8 @@ void Mix_4x4_Stereo2::step()
 
         if( bGroupActive[ group ] )
         {
-		    if( inputs[ IN_GROUP_MUTE + group ].active ) 
-            {
-			    // External clock
-			    if( m_SchTrigGroupInMutes[ group ].process( inputs[ IN_GROUP_MUTE + group ].value ) ) 
-                {
-				    ProcessMuteSolo( group, true, true );
-    		    }
-		    }
-
-		    if( inputs[ IN_GROUP_SOLO + group ].active ) 
-            {
-			    // External clock
-			    if( m_SchTrigGroupInSolos[ group ].process( inputs[ IN_GROUP_SOLO + group ].value ) ) 
-                {
-				    ProcessMuteSolo( group, false, true );
-    		    }
-		    }
-
-            // process mute buttons
-            if( m_SchTrigGroupMutes[ group ].process( params[ PARAM_GROUP_MUTE + group ].value ) )
-            {
-                ProcessMuteSolo( group, true, true );
-            }
-
-            if( m_SchTrigGroupSolos[ group ].process( params[ PARAM_GROUP_SOLO + group ].value ) )
-            {
-                ProcessMuteSolo( group, false, true );
-            }
-
-            outL = m_fSubMix[ group ][ L ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
-            outR = m_fSubMix[ group ][ R ] * clampf( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
+            outL = m_fSubMix[ group ][ L ] * params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 );
+            outR = m_fSubMix[ group ][ R ] * params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 );
 
             // pan
             pan = clampf( params[ PARAM_GROUP_PAN_IN + group ].value + ( inputs[ IN_GROUP_PAN + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
@@ -986,13 +1185,17 @@ void Mix_4x4_Stereo2::step()
 
             outL *= m_fGroupMuteFade[ group ];
             outR *= m_fGroupMuteFade[ group ];
-
-            outputs[ OUT_GROUPL + group ].value = outL;
-            outputs[ OUT_GROUPR + group ].value = outR;
         }
 
         mainL += outL;
         mainR += outR;
+    }
+
+    // put aux output
+    for ( aux = 0; aux < nAUX; aux++ )
+    {
+        outputs[ OUT_AUXL + aux ].value = auxL[ aux ] * params[ PARAM_AUX_OUT + aux ].value;
+        outputs[ OUT_AUXR + aux ].value = auxR[ aux ] * params[ PARAM_AUX_OUT + aux ].value;
     }
 
     outputs[ OUT_MAINL ].value = mainL * params[ PARAM_MAIN_LEVEL ].value;
