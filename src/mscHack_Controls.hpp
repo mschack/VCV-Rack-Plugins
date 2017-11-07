@@ -188,6 +188,58 @@ struct MyPortOutSmall : SVGPort
 };
 
 //-----------------------------------------------------
+// Procedure:   Red1_Med
+//
+//-----------------------------------------------------
+struct Red1_Med : RoundKnob 
+{
+	Red1_Med() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobRed1.svg")));
+		box.size = Vec(20, 20);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Blue3_Med
+//
+//-----------------------------------------------------
+struct Blue3_Med : RoundKnob 
+{
+	Blue3_Med() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobBlue3.svg")));
+		box.size = Vec(20, 20);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow3_Med
+//
+//-----------------------------------------------------
+struct Yellow3_Med : RoundKnob 
+{
+	Yellow3_Med() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobYellow3.svg")));
+		box.size = Vec(20, 20);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Purp1_Med
+//
+//-----------------------------------------------------
+struct Purp1_Med : RoundKnob 
+{
+	Purp1_Med() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobPurp1.svg")));
+		box.size = Vec(20, 20);
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   Green1_Tiny
 //
 //-----------------------------------------------------
