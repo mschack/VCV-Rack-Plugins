@@ -28,4 +28,3 @@ struct Seq_Triad_Widget : ModuleWidget {
 struct Mix_4x4_Stereo2_Widget : ModuleWidget {
 	Mix_4x4_Stereo2_Widget();
 };
-

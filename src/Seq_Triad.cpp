@@ -43,8 +43,10 @@ typedef struct
 
 typedef struct
 {
-    int note;
-    int oct;
+    int     note;
+    int     oct;
+    bool    bTrigOff;
+    int     pad[ 5 ];
 
 }PATTERN_STRUCT;
 
@@ -63,7 +65,9 @@ struct Seq_Triad : Module
         PARAM_PATTERNS          = PARAM_OCTAVES + (nOCTAVESEL * nKEYBOARDS),
         PARAM_WKEYS             = PARAM_PATTERNS + (nPATTERNS ),
         PARAM_BKEYS             = PARAM_WKEYS + (nWHITEKEYS * nKEYBOARDS),
-        nPARAMS                 = PARAM_BKEYS + (nBLACKKEYS * nKEYBOARDS)
+        PARAM_GLIDE             = PARAM_BKEYS + (nWHITEKEYS * nKEYBOARDS),
+        PARAM_TRIGOFF           = PARAM_GLIDE + ( nKEYBOARDS ),
+        nPARAMS                 = PARAM_TRIGOFF + ( nKEYBOARDS )
     };
 
 	enum InputIds 
@@ -84,7 +88,8 @@ struct Seq_Triad : Module
 
     KEYBOARD_KEY_STRUCT m_Keys[ nKEYBOARDS ][ nKEYS ];
 
-    float           m_fCvOut[ nKEYBOARDS ] = {};
+    float           m_fCvStartOut[ nKEYBOARDS ] = {};
+    float           m_fCvEndOut[ nKEYBOARDS ] = {};
     float           m_fLightOctaves[ nKEYBOARDS ][ nOCTAVESEL ] = {};
 
     // patterns
@@ -107,6 +112,16 @@ struct Seq_Triad : Module
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
 
+    // trig off
+    float           m_fLightTrig[ nKEYBOARDS ];
+
+    // glide
+    float           m_fglideInc[ nKEYBOARDS ] = {};
+    int             m_glideCount[ nKEYBOARDS ] = {};
+    float           m_fglide[ nKEYBOARDS ] = {};
+    float           m_fLastNotePlayed[ nKEYBOARDS ];
+    bool            m_bWasLastNotePlayed[ nKEYBOARDS ] = {};
+
     // copy next button
     float           m_fLightCopyNext = {};
     bool            m_bCopy = false;
@@ -126,6 +141,31 @@ struct Seq_Triad : Module
     void    SetOut( int kb );
     void    ChangePattern( int index, bool bForce );
     void    CopyNext( void );
+
+    //-----------------------------------------------------
+    // MySquareButton_Trig
+    //-----------------------------------------------------
+    struct MySquareButton_Trig : MySquareButton
+    {
+        int kb;
+
+        Seq_Triad *mymodule;
+
+        void onChange() override 
+        {
+            mymodule = (Seq_Triad*)module;
+
+            if( mymodule && value == 1.0 )
+            {
+                kb = paramId - Seq_Triad::PARAM_TRIGOFF;
+
+                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff = !mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff;
+                mymodule->m_fLightTrig[ kb ] = mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff ? 1.0 : 0.0;
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
 
     //-----------------------------------------------------
     // MySquareButton_CopyNext
@@ -356,7 +396,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
 	for ( pat = 0; pat < nPATTERNS; pat++ ) 
     {
-        // step button
+        // pattern button
 		addParam(createParam<Seq_Triad::MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
 		addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightPatterns[ pat ] ) );
 
@@ -373,6 +413,15 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
+        x = 15; 
+
+        // trig button
+        addParam(createParam<Seq_Triad::MySquareButton_Trig>( Vec( x, y - 17 ), module, Seq_Triad::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 1, y - 15 ), &module->m_fLightTrig[ kb ] ) );
+
+        // glide knob
+        addParam( createParam<Yellow1_Tiny>( Vec( 120, y - 17 ), module, Seq_Triad::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
+
         x = 230;
 
         for( oct = 0; oct < nOCTAVESEL; oct++ )
@@ -434,7 +483,8 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 void Seq_Triad::initialize()
 {
     memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
-    memset( m_fCvOut, 0, sizeof(m_fCvOut) );
+    memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
+    memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
     
     ChangePattern( 0, true );
@@ -452,7 +502,8 @@ void Seq_Triad::randomize()
     int kb, pat, basekey, note, oct;
 
     memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
-    memset( m_fCvOut, 0, sizeof(m_fCvOut) );
+    memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
+    memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
 
     basekey = (int)(randomf() * 24.4);
@@ -467,6 +518,7 @@ void Seq_Triad::randomize()
             else
                 note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
 
+            m_PatternNotes[ pat ][ kb ].bTrigOff = ( randomf() < 0.10 );
             m_PatternNotes[ pat ][ kb ].note = basekey + note; 
             m_PatternNotes[ pat ][ kb ].oct = oct;
         }
@@ -527,12 +579,31 @@ void Seq_Triad::SetOut( int kb )
     int note;
     float foct;
 
+    // end glide note (current pattern note)
     foct = (float)m_PatternNotes[ m_CurrentPattern ][ kb ].oct;
     note = m_PatternNotes[ m_CurrentPattern ][ kb ].note;
+    m_fCvEndOut[ kb ] = foct + m_Keys[ kb ][ note ].fsemi;
 
-    m_fCvOut[ kb ] = foct + m_Keys[ kb ][ note ].fsemi;
+    // start glide note (last pattern note)
+    if( m_bWasLastNotePlayed[ kb ] )
+    {
+        m_fCvStartOut[ kb ] = m_fLastNotePlayed[ kb ];
+    }
+    else
+    {
+        m_bWasLastNotePlayed[ kb ] = true;
+        m_fCvStartOut[ kb ] = m_fCvEndOut[ kb ];
+    }
 
-    m_bTrig[ kb ] = true;
+    m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ];
+
+    // glide time ( max glide = 0.5 seconds )
+    m_glideCount[ kb ] = 1 + (int)( ( params[ PARAM_GLIDE + kb ].value * 0.5 ) * gSampleRate);
+    m_fglideInc[ kb ] = 1.0 / (float)m_glideCount[ kb ];
+    m_fglide[ kb ] = 1.0;
+
+    if( !m_PatternNotes[ m_CurrentPattern ][ kb ].bTrigOff )
+        m_bTrig[ kb ] = true;
 }
 
 //-----------------------------------------------------
@@ -579,6 +650,8 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
         // set keyboard key
         SetKey( kb );
 
+        m_fLightTrig[ kb ] = m_PatternNotes[ m_CurrentPattern ][ kb ].bTrigOff ? 1.0 : 0.0;
+
         // change octave light
         m_fLightOctaves[ kb ][ m_PatternNotes[ m_CurrentPattern ][ kb ].oct ] = 1.0;
 
@@ -606,7 +679,7 @@ json_t *Seq_Triad::toJson()
 
 	gatesJ = json_array();
 
-	for (int i = 0; i < (nPATTERNS * nKEYBOARDS * 2); i++)
+	for (int i = 0; i < (nPATTERNS * nKEYBOARDS * 8); i++)
     {
 		json_t *gateJ = json_integer( pint[ i ] );
 		json_array_append_new( gatesJ, gateJ );
@@ -639,7 +712,7 @@ void Seq_Triad::fromJson(json_t *rootJ)
 
 	if (StepsJ) 
     {
-		for ( i = 0; i < (nPATTERNS * nKEYBOARDS * 2); i++)
+		for ( i = 0; i < (nPATTERNS * nKEYBOARDS * 8); i++)
         {
 			json_t *gateJ = json_array_get(StepsJ, i);
 
@@ -698,9 +771,12 @@ void Seq_Triad::step()
         }
 
         outputs[ OUT_TRIG + i ].value = m_gatePulse[ i ].process( 1.0 / gSampleRate ) ? 10.0 : 0.0;
-    }
 
-    outputs[ OUT_VOCTS ].value = m_fCvOut[ 0 ];
-    outputs[ OUT_VOCTS + 1 ].value = m_fCvOut[ 1 ];
-    outputs[ OUT_VOCTS + 2 ].value = m_fCvOut[ 2 ];
+        if( --m_glideCount[ i ] > 0 )
+            m_fglide[ i ] -= m_fglideInc[ i ];
+        else
+            m_fglide[ i ] = 0.0;
+
+        outputs[ OUT_VOCTS + i ].value = ( m_fCvStartOut[ i ] * m_fglide[ i ] ) + ( m_fCvEndOut[ i ] * ( 1.0 - m_fglide[ i ] ) );
+    }
 }
