@@ -5,7 +5,7 @@
 # Includes
 
 - 3 Channel 16 Step Programmable Sequencer.
-- Mixer 1x4, 2x4 and 4x4 (with EQ and 4xAUX buses)
+- Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
 - Triad Sequencer
 - Synth Drums
 
