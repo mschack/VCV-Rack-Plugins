@@ -25,6 +25,17 @@ struct Seq_Triad_Widget : ModuleWidget {
 	Seq_Triad_Widget();
 };
 
+struct Mix_1x4_Stereo_Widget : ModuleWidget {
+	Mix_1x4_Stereo_Widget();
+};
+
+struct Mix_2x4_Stereo_Widget : ModuleWidget {
+	Mix_2x4_Stereo_Widget();
+};
+
 struct Mix_4x4_Stereo2_Widget : ModuleWidget {
 	Mix_4x4_Stereo2_Widget();
 };
+
+
+
