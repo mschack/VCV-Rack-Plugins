@@ -506,6 +506,8 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
 	    - (fx3 * 0.16666666666666666666666666666667) 
 	    + (fx5 * 0.0083333333333333333333333333333333) 
 	    - (fx7 * 0.0001984126984126984126984126984127));
+
+    module->initialize();
 }
 
 //-----------------------------------------------------
@@ -539,8 +541,6 @@ void Mix_1x4_Stereo::initialize()
         m_bGroupMuteStates[ i ] = false;
         m_fGroupMuteFade[ i ] = 1.0;
     }
-
-    params[ PARAM_MAIN_LEVEL ].value = 0.0;
 }
 
 //-----------------------------------------------------
@@ -699,6 +699,8 @@ void Mix_1x4_Stereo::fromJson(json_t *rootJ)
             // only open soloing channels
             if( m_bSoloStates[ ch ] )
                 m_fMuteFade[ ch ] = 1.0;
+            else
+                m_fMuteFade[ ch ] = 0.0;
         }
         else
         {
@@ -990,8 +992,6 @@ void Mix_1x4_Stereo::step()
 
             // pan
             inPan = clampf( params[ PARAM_PAN_IN + ch ].value + ( inputs[ IN_PAN + ch ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
-
-            //lg.f("pan = %.3f\n", inputs[ IN_PAN + ch ].value );
 
             if( inPan <= 0.0 )
                 inR *= ( 1.0 + inPan );
