@@ -3,7 +3,7 @@
 #include "dsp/digital.hpp"
 #include "CLog.h"
 
-#define GROUPS 4
+#define GROUPS 2
 #define CH_PER_GROUP 4
 #define CHANNELS ( GROUPS * CH_PER_GROUP )
 #define nAUX 4
@@ -24,7 +24,7 @@
 // Module Definition
 //
 //-----------------------------------------------------
-struct Mix_4x4_Stereo2 : Module 
+struct Mix_2x4_Stereo : Module 
 {
 	enum ParamIds 
     {
@@ -115,7 +115,7 @@ struct Mix_4x4_Stereo2 : Module
 #define R 1
 
     // Contructor
-	Mix_4x4_Stereo2() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	Mix_2x4_Stereo() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
 
     //-----------------------------------------------------
     // MySquareButton_Trig
@@ -124,15 +124,15 @@ struct Mix_4x4_Stereo2 : Module
     {
         int group, knob, param;
 
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule && value == 1.0 )
             {
-                param = paramId - Mix_4x4_Stereo2::PARAM_AUX_PREFADE;
+                param = paramId - Mix_2x4_Stereo::PARAM_AUX_PREFADE;
                 group = param / GROUPS;
                 knob  = param - (group * GROUPS);
                 mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] = !mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ];
@@ -150,15 +150,15 @@ struct Mix_4x4_Stereo2 : Module
     {
         int ch;
 
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule && value == 1.0 )
             {
-                ch = paramId - Mix_4x4_Stereo2::PARAM_MUTE_BUTTON;
+                ch = paramId - Mix_2x4_Stereo::PARAM_MUTE_BUTTON;
                 mymodule->ProcessMuteSolo( ch, true, false );
             }
 
@@ -173,15 +173,15 @@ struct Mix_4x4_Stereo2 : Module
     {
         int ch;
 
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule && value == 1.0 )
             {
-                ch = paramId - Mix_4x4_Stereo2::PARAM_SOLO_BUTTON;
+                ch = paramId - Mix_2x4_Stereo::PARAM_SOLO_BUTTON;
 
                 mymodule->ProcessMuteSolo( ch, false, false );
             }
@@ -197,15 +197,15 @@ struct Mix_4x4_Stereo2 : Module
     {
         int group;
 
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule && value == 1.0 )
             {
-                group = paramId - Mix_4x4_Stereo2::PARAM_GROUP_MUTE;
+                group = paramId - Mix_2x4_Stereo::PARAM_GROUP_MUTE;
 
                 mymodule->ProcessMuteSolo( group, true, true );
             }
@@ -221,15 +221,15 @@ struct Mix_4x4_Stereo2 : Module
     {
         int group;
 
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule && value == 1.0 )
             {
-                group = paramId - Mix_4x4_Stereo2::PARAM_GROUP_SOLO;
+                group = paramId - Mix_2x4_Stereo::PARAM_GROUP_SOLO;
 
                 mymodule->ProcessMuteSolo( group, false, true );
             }
@@ -243,16 +243,16 @@ struct Mix_4x4_Stereo2 : Module
     //-----------------------------------------------------
     struct MyEQHi_Knob : Green1_Tiny
     {
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
         int param;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule )
             {
-                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_HI;
+                param = paramId - Mix_2x4_Stereo::PARAM_EQ_HI;
 
                 mymodule->m_hpIn[ param ] = value; 
             }
@@ -266,16 +266,16 @@ struct Mix_4x4_Stereo2 : Module
     //-----------------------------------------------------
     struct MyEQMid_Knob : Green1_Tiny
     {
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
         int param;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule )
             {
-                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_MD;
+                param = paramId - Mix_2x4_Stereo::PARAM_EQ_MD;
                 mymodule->m_mpIn[ param ] = value; 
             }
 
@@ -288,16 +288,16 @@ struct Mix_4x4_Stereo2 : Module
     //-----------------------------------------------------
     struct MyEQLo_Knob : Green1_Tiny
     {
-        Mix_4x4_Stereo2 *mymodule;
+        Mix_2x4_Stereo *mymodule;
         int param;
 
         void onChange() override 
         {
-            mymodule = (Mix_4x4_Stereo2*)module;
+            mymodule = (Mix_2x4_Stereo*)module;
 
             if( mymodule )
             {
-                param = paramId - Mix_4x4_Stereo2::PARAM_EQ_LO;
+                param = paramId - Mix_2x4_Stereo::PARAM_EQ_LO;
                 mymodule->m_lpIn[ param ] = value; 
             }
 
@@ -324,22 +324,22 @@ struct Mix_4x4_Stereo2 : Module
 //-----------------------------------------------------
 #define AMP_MAX 2.0
 
-Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget() 
+Mix_2x4_Stereo_Widget::Mix_2x4_Stereo_Widget() 
 {
     float fx, fx2, fx3, fx5, fx7;
     int ch, x, y, i, ybase, x2, y2;
-	Mix_4x4_Stereo2 *module = new Mix_4x4_Stereo2();
+	Mix_2x4_Stereo *module = new Mix_2x4_Stereo();
 	setModule(module);
-	box.size = Vec( 15*47, 380);
+	box.size = Vec( 15*27, 380);
 
 	{
 		SVGPanel *panel = new SVGPanel();
 		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Mix_4x4_Stereo2.svg")));
+		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Mix_2x4_Stereo.svg")));
 		addChild(panel);
 	}
 
-    //module->lg.Open("Mix_4x4_Stereo2.txt");
+    //module->lg.Open("Mix_2x4_Stereo.txt");
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
@@ -355,57 +355,57 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 	for ( ch = 0; ch < CHANNELS; ch++ ) 
     {
         // Left channel inputs
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_LEFT + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_2x4_Stereo::IN_LEFT + ch ) );
 
         y += 25;
 
         // Right channel inputs
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_RIGHT + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_2x4_Stereo::IN_RIGHT + ch ) );
 
         y += 26;
 
         // Level knobs
-        addParam(createParam<Blue2_Small>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_LEVEL_IN + ch, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Blue2_Small>( Vec( x - 5, y ), module, Mix_2x4_Stereo::PARAM_LEVEL_IN + ch, 0.0, AMP_MAX, 0.0 ) );
 
         y += 31;
 
         // Level inputs
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_LEVEL + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_2x4_Stereo::IN_LEVEL + ch ) );
 
         y += 23;
 
         // pan knobs
-        addParam(createParam<Yellow2_Small>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_PAN_IN + ch, -1.0, 1.0, 0.0 ) );
+        addParam(createParam<Yellow2_Small>( Vec( x - 5, y ), module, Mix_2x4_Stereo::PARAM_PAN_IN + ch, -1.0, 1.0, 0.0 ) );
 
         y += 31;
 
         // Pan inputs
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_4x4_Stereo2::IN_PAN + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Mix_2x4_Stereo::IN_PAN + ch ) );
 
         y += 22;
 
         // mute buttons
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_4x4_Stereo2::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_2x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x - 4, y + 5 ), &module->m_fLightMutes[ ch ] ) );
 
         //y += 26;
 
         // solo buttons
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_4x4_Stereo2::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_2x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 12, y + 5 ), &module->m_fLightSolos[ ch ] ) );
 
         y += 22;
 
         // eq and rez
-        addParam(createParam<Mix_4x4_Stereo2::MyEQHi_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_HI + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_2x4_Stereo::MyEQHi_Knob>( Vec( x, y ), module, Mix_2x4_Stereo::PARAM_EQ_HI + ch, 0.0, 1.0, 0.5 ) );
 
         y += 19;
 
-        addParam(createParam<Mix_4x4_Stereo2::MyEQMid_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_MD + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_2x4_Stereo::MyEQMid_Knob>( Vec( x, y ), module, Mix_2x4_Stereo::PARAM_EQ_MD + ch, 0.0, 1.0, 0.5 ) );
         
         y += 19;
         
-        addParam(createParam<Mix_4x4_Stereo2::MyEQLo_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_LO + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_2x4_Stereo::MyEQLo_Knob>( Vec( x, y ), module, Mix_2x4_Stereo::PARAM_EQ_LO + ch, 0.0, 1.0, 0.5 ) );
         
         if( ( ch & 3 ) == 3 )
         {
@@ -428,68 +428,68 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         x2 = x + 81;
         y2 = ybase;
 
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupMutes[ i ] ) );
 
         x2 += 28;
 
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_GroupSolo>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_GroupSolo>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupSolos[ i ] ) );
 
         // group level and pan inputs
         x2 = x + 79;
         y2 = ybase + 23;
 
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_LEVEL + i ) );
+        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::IN_GROUP_LEVEL + i ) );
 
         y2 += 32;
 
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
+        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::IN_GROUP_PAN + i ) );
 
         // group level and pan knobs
         x2 = x + 105;
         y2 = ybase + 17;
 
-        addParam(createParam<Blue2_Small>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_LEVEL_IN + i, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Blue2_Small>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_GROUP_LEVEL_IN + i, 0.0, AMP_MAX, 0.0 ) );
 
         y2 += 32;
 
-        addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_PAN_IN + i, -1.0, 1.0, 0.0 ) );
+        addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_GROUP_PAN_IN + i, -1.0, 1.0, 0.0 ) );
 
         // aux 1/3
 #define AUX_H 29
         x2 = x + 6;
         y2 = ybase + 20;
         
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 0 ] ) );
 
         y2 += AUX_H;
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 2 ] ) );
 
         x2 = x + 20;
         y2 = ybase + 16;
-        addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 0, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_KNOB + (i * nAUX) + 0, 0.0, AMP_MAX, 0.0 ) );
         y2 += AUX_H;
-        addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 2, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_KNOB + (i * nAUX) + 2, 0.0, AMP_MAX, 0.0 ) );
 
         // aux 2/4
         x2 = x + 38;
         y2 = ybase + 28;
         
-        addParam(createParam<Yellow3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 1, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Yellow3_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_KNOB + (i * nAUX) + 1, 0.0, AMP_MAX, 0.0 ) );
         y2 += AUX_H;
-        addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_KNOB + (i * nAUX) + 3, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_KNOB + (i * nAUX) + 3, 0.0, AMP_MAX, 0.0 ) );
 
         x2 = x + 62;
         y2 = ybase + 32;
         
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 1 ] ) );
 
         y2 += AUX_H;
-        addParam(createParam<Mix_4x4_Stereo2::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Mix_2x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
         addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 3 ] ) );
 
         // account for slight error in pixel conversion to svg area
@@ -497,36 +497,36 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
     }
 
     // main mixer knob 
-    addParam(createParam<Blue2_Big>( Vec( 633, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
+    addParam(createParam<Blue2_Big>( Vec( 324, 237 ), module, Mix_2x4_Stereo::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
 
     // outputs
     
-    addOutput(createOutput<MyPortOutSmall>( Vec( 636, 305 ), module, Mix_4x4_Stereo2::OUT_MAINL ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( 668, 335 ), module, Mix_4x4_Stereo2::OUT_MAINR ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 327, 305 ), module, Mix_2x4_Stereo::OUT_MAINL ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 359, 335 ), module, Mix_2x4_Stereo::OUT_MAINR ) );
 
     // AUX out
 #define AUX_OUT_H 42
-    x2 = 649;
+    x2 = 340;
     y2 = 25;
 
-    addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 0, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
-    addParam(createParam<Yellow3_Med>( Vec( x2, y2  ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 1, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
-    addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 2, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
-    addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_AUX_OUT + 3, 0.0, AMP_MAX, 0.0 ) );
+    addParam(createParam<Red1_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_OUT + 0, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Yellow3_Med>( Vec( x2, y2  ), module, Mix_2x4_Stereo::PARAM_AUX_OUT + 1, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Blue3_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_OUT + 2, 0.0, AMP_MAX, 0.0 ) ); y2 += AUX_OUT_H;
+    addParam(createParam<Purp1_Med>( Vec( x2, y2 ), module, Mix_2x4_Stereo::PARAM_AUX_OUT + 3, 0.0, AMP_MAX, 0.0 ) );
 
-    x2 = 635;
+    x2 = 326;
     y2 = 45;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL ) ); y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 1 ) );  y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 2 ) ); y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXL + 3 ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXL ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXL + 1 ) );  y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXL + 2 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXL + 3 ) );
 
-    x2 = 664;
+    x2 = 355;
     y2 = 45;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR ) ); y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 1 ) ); y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 2 ) ); y2 += AUX_OUT_H;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::OUT_AUXR + 3 ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXR ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXR + 1 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXR + 2 ) ); y2 += AUX_OUT_H;
+    addOutput(createOutput<MyPortOutSmall>( Vec( x2, y2 ), module, Mix_2x4_Stereo::OUT_AUXR + 3 ) );
 
     // calculate eq rez freq
     fx = 3.141592 * (CUTOFF * 0.026315789473684210526315789473684) * 2 * 3.141592; 
@@ -545,7 +545,7 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 // Procedure:   initialize
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo2::initialize()
+void Mix_2x4_Stereo::initialize()
 {
     int ch, i, aux;
 
@@ -582,7 +582,7 @@ void Mix_4x4_Stereo2::initialize()
 // Procedure:   
 //
 //-----------------------------------------------------
-json_t *Mix_4x4_Stereo2::toJson() 
+json_t *Mix_2x4_Stereo::toJson() 
 {
     bool *pbool;
     json_t *gatesJ;
@@ -660,7 +660,7 @@ json_t *Mix_4x4_Stereo2::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo2::fromJson(json_t *rootJ) 
+void Mix_2x4_Stereo::fromJson(json_t *rootJ) 
 {
     int ch, i, aux;
     bool *pbool;
@@ -812,7 +812,7 @@ void Mix_4x4_Stereo2::fromJson(json_t *rootJ)
 // Procedure:   ProcessMuteSolo
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo2::ProcessMuteSolo( int index, bool bMute, bool bGroup )
+void Mix_2x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
 {
     int i, group, si, ei;
     bool bSoloEnabled = false, bSoloOff = false;
@@ -1008,7 +1008,7 @@ void Mix_4x4_Stereo2::ProcessMuteSolo( int index, bool bMute, bool bGroup )
 //
 //-----------------------------------------------------
 #define MULTI (0.33333333333333333333333333333333f)
-void Mix_4x4_Stereo2::ProcessEQ( int ch, float *pL, float *pR )
+void Mix_2x4_Stereo::ProcessEQ( int ch, float *pL, float *pR )
 {
     float rez, hp1; 
     float input[ 2 ], out[ 2 ], lowpass, bandpass, highpass;
@@ -1057,7 +1057,7 @@ void Mix_4x4_Stereo2::ProcessEQ( int ch, float *pL, float *pR )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo2::step() 
+void Mix_2x4_Stereo::step() 
 {
     int ch, group, aux;
     float inL = 0.0, inR = 0.0, inLClean, inRClean, outL, outR, mainL = 0.0, mainR = 0.0;
