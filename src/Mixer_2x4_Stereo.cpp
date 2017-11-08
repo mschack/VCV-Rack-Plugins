@@ -76,7 +76,7 @@ struct Mix_2x4_Stereo : Module
     // mute buttons
     float           m_fLightMutes[ CHANNELS ] = {};
     bool            m_bMuteStates[ CHANNELS ] = {};
-    float           m_fMuteFade[ CHANNELS ] = {};
+    float           m_fMuteFade[ CHANNELS ] = {1.0};
     
     int             m_FadeState[ CHANNELS ] = {MUTE_FADE_STATE_IDLE};
 
@@ -87,7 +87,7 @@ struct Mix_2x4_Stereo : Module
     // group mute buttons
     float           m_fLightGroupMutes[ GROUPS ] = {};
     bool            m_bGroupMuteStates[ GROUPS ] = {};
-    float           m_fGroupMuteFade[ GROUPS ] = {};
+    float           m_fGroupMuteFade[ GROUPS ] = {1.0};
 
     int             m_GroupFadeState[ GROUPS ] = {MUTE_FADE_STATE_IDLE};
 
@@ -539,6 +539,8 @@ Mix_2x4_Stereo_Widget::Mix_2x4_Stereo_Widget()
 	    - (fx3 * 0.16666666666666666666666666666667) 
 	    + (fx5 * 0.0083333333333333333333333333333333) 
 	    - (fx7 * 0.0001984126984126984126984126984127));
+
+    module->initialize();
 }
 
 //-----------------------------------------------------
@@ -574,8 +576,6 @@ void Mix_2x4_Stereo::initialize()
         m_bGroupSoloStates[ i ] = false;
         m_fGroupMuteFade[ i ] = 1.0;
     }
-
-    params[ PARAM_MAIN_LEVEL ].value = 0.0;
 }
 
 //-----------------------------------------------------
@@ -763,6 +763,8 @@ void Mix_2x4_Stereo::fromJson(json_t *rootJ)
             // only open soloing channels
             if( m_bSoloStates[ ch ] )
                 m_fMuteFade[ ch ] = 1.0;
+            else
+                m_fMuteFade[ ch ] = 0.0;
         }
         else
         {
@@ -796,6 +798,8 @@ void Mix_2x4_Stereo::fromJson(json_t *rootJ)
             // only open soloing channels
             if( m_bGroupSoloStates[ i ] )
                 m_fGroupMuteFade[ i ] = 1.0;
+            else
+                m_fGroupMuteFade[ i ] = 0.0;
         }
         else
         {
