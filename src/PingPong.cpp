@@ -161,10 +161,10 @@ struct MySquareButton_Reverse : MySquareButton2
             if( !mymodule->m_bReverseState )
             {
                 delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
-                mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0xFFFFF;
+                mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
 
                 delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
-                mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0xFFFFF;
+                mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
             }
         }
 
