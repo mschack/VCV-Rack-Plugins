@@ -37,5 +37,9 @@ struct Mix_4x4_Stereo2_Widget : ModuleWidget {
 	Mix_4x4_Stereo2_Widget();
 };
 
+struct PingPong_Widget : ModuleWidget {
+	PingPong_Widget();
+};
+
 
 

@@ -132,7 +132,7 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_02.svg")));
 		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_03.svg")));
 		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_04.svg")));
-        addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_05.svg")));
+        //addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_05.svg")));
 
 		sw->wrap();
 		box.size = sw->box.size;
@@ -253,6 +253,19 @@ struct Green1_Tiny : RoundKnob
 };
 
 //-----------------------------------------------------
+// Procedure:   Green1_Big
+//
+//-----------------------------------------------------
+struct Green1_Big : RoundKnob 
+{
+	Green1_Big() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Green1_small.svg")));
+		box.size = Vec(40, 40);
+	}
+};
+
+//-----------------------------------------------------
 // Procedure:   Blue1_Small
 //
 //-----------------------------------------------------
@@ -288,6 +301,19 @@ struct Blue2_Tiny : RoundKnob
     {
 		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_small.svg")));
 		box.size = Vec(15, 15);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Blue2_Med
+//
+//-----------------------------------------------------
+struct Blue2_Med : RoundKnob 
+{
+	Blue2_Med() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_big.svg")));
+		box.size = Vec(40, 40);
 	}
 };
 
@@ -341,5 +367,18 @@ struct Yellow2_Small : RoundKnob
     {
 		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
 		box.size = Vec(26, 26);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow2_Big
+//
+//-----------------------------------------------------
+struct Yellow2_Big : RoundKnob 
+{
+	Yellow2_Big() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+		box.size = Vec(40, 40);
 	}
 };

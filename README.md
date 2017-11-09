@@ -8,6 +8,7 @@
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
 - Triad Sequencer
 - Synth Drums
+- Ping Pong Delay (with Gnip Gnop mode)
 
 # Demo Vids
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
@@ -15,5 +16,6 @@
 - Triad Sequencer https://www.youtube.com/watch?v=YBErBzoV_6M
 - Triad Sequencer Update https://www.youtube.com/watch?v=fxXCc2HoNaQ
 - Synth Drums https://www.youtube.com/watch?v=zYrtJ2XsbTw
+- Pong https://www.youtube.com/watch?v=hTsco8omRT0
 
 
