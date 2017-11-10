@@ -9,6 +9,7 @@
 - Triad Sequencer
 - Synth Drums
 - Ping Pong Delay (with Gnip Gnop mode)
+- 3 Channel Oscillator with Filter and Amp Envelope
 
 # Demo Vids
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
@@ -17,5 +18,6 @@
 - Triad Sequencer Update https://www.youtube.com/watch?v=fxXCc2HoNaQ
 - Synth Drums https://www.youtube.com/watch?v=zYrtJ2XsbTw
 - Pong https://www.youtube.com/watch?v=hTsco8omRT0
+- 3 Channel OSC https://www.youtube.com/watch?v=Az5DUEGg5hw
 
 

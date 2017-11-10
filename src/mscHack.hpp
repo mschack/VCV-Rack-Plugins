@@ -23,6 +23,7 @@ struct Mix_4x4_Stereo_Widget : ModuleWidget {
 
 struct Seq_Triad_Widget : ModuleWidget {
 	Seq_Triad_Widget();
+    Menu *createContextMenu() override;
 };
 
 struct Mix_1x4_Stereo_Widget : ModuleWidget {
@@ -39,6 +40,10 @@ struct Mix_4x4_Stereo2_Widget : ModuleWidget {
 
 struct PingPong_Widget : ModuleWidget {
 	PingPong_Widget();
+};
+
+struct Osc_3Ch_Widget : ModuleWidget {
+	Osc_3Ch_Widget();
 };
 
 

@@ -17,4 +17,5 @@ void init(rack::Plugin *p)
     createModel<Mix_4x4_Stereo2_Widget> (plugin, "Mix_4x4_Stereo(2)", "MIXER 4x4 Stereo/Mono");
     createModel<Mix_4x4_Stereo_Widget>  (plugin, "Mix_4x4_Stereo", "MIXER 4x4 (old)");
     createModel<PingPong_Widget>        (plugin, "PingPong_Widget", "DELAY Ping Pong");
+    createModel<Osc_3Ch_Widget>         (plugin, "Osc_3Ch_Widget", "OSC 3 Channel");
 }
