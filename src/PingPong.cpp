@@ -1,4 +1,4 @@
-#include "mscHack.hpp"
+﻿#include "mscHack.hpp"
 #include "mscHack_Controls.hpp"
 #include "dsp/digital.hpp"
 #include "CLog.h"
@@ -258,7 +258,7 @@ json_t *PingPong::toJson()
 {
 	json_t *rootJ = json_object();
 
-    // number of steps
+    // reverse state
     json_object_set_new(rootJ, "ReverseState", json_boolean (m_bReverseState));
 
 	return rootJ;
@@ -274,7 +274,7 @@ void PingPong::fromJson(json_t *rootJ)
 	json_t *revJ = json_object_get(rootJ, "ReverseState");
 
 	if (revJ)
-		m_bReverseState = json_boolean( revJ );
+		m_bReverseState = json_is_true( revJ );
 
     m_fLightReverse = m_bReverseState ? 1.0 : 0.0;
 }

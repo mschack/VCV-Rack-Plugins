@@ -1,4 +1,4 @@
-#include "mscHack.hpp"
+﻿#include "mscHack.hpp"
 #include "mscHack_Controls.hpp"
 #include "dsp/digital.hpp"
 #include "CLog.h"
@@ -85,6 +85,8 @@ struct Seq_Triad : Module
 
     CLog            lg;
     bool            m_bJsonInit = false;
+
+    bool            m_bChangeAllPatternOctaves = false;
 
     KEYBOARD_KEY_STRUCT m_Keys[ nKEYBOARDS ][ nKEYS ];
 
@@ -314,7 +316,7 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     struct MyOCTButton : MySquareButton
     {
-        int kb, oct;
+        int kb, oct, i;
         Seq_Triad *mymodule;
         int param;
 
@@ -334,7 +336,15 @@ struct Seq_Triad : Module
                 mymodule->m_fLightOctaves[ kb ][ 3 ] = 0.0;
                 mymodule->m_fLightOctaves[ kb ][ oct ] = 1.0;
 
-                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].oct = oct;
+                if( mymodule->m_bChangeAllPatternOctaves )
+                {
+                    for( i = 0; i < nPATTERNS; i++ )
+                        mymodule->m_PatternNotes[ i ][ kb ].oct = oct;
+                }
+                else
+                {
+                    mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].oct = oct;
+                }
 
                 mymodule->SetOut( kb );
             }
@@ -473,6 +483,58 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     y += CHANNEL_OFF_Y;
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
+}
+
+//-----------------------------------------------------
+// Procedure:   initialize
+//
+//-----------------------------------------------------
+struct Seq_TriadItem : MenuItem 
+{
+	Seq_Triad *seq;
+	bool bAllOctave;
+
+	void onAction() override 
+    {
+		seq->m_bChangeAllPatternOctaves = bAllOctave;
+	}
+	void step() override 
+    {
+		rightText = (seq->m_bChangeAllPatternOctaves == bAllOctave) ? "✔" : "";
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   initialize
+//
+//-----------------------------------------------------
+Menu *Seq_Triad_Widget::createContextMenu() 
+{
+	Menu *menu = ModuleWidget::createContextMenu();
+
+	MenuLabel *spacerLabel = new MenuLabel();
+	menu->pushChild(spacerLabel);
+
+	Seq_Triad *seq = dynamic_cast<Seq_Triad*>(module);
+	assert(seq);
+
+	MenuLabel *modeLabel = new MenuLabel();
+	modeLabel->text = "Octave Change";
+	menu->pushChild(modeLabel);
+
+	Seq_TriadItem *ChangeAllOffItem = new Seq_TriadItem();
+	ChangeAllOffItem->text = "Change All Patterns Off";
+	ChangeAllOffItem->seq = seq;
+	ChangeAllOffItem->bAllOctave = false;
+	menu->pushChild(ChangeAllOffItem);
+
+	Seq_TriadItem *ChangeAllOnItem = new Seq_TriadItem();
+	ChangeAllOnItem->text = "Change All Patterns";
+	ChangeAllOnItem->seq = seq;
+	ChangeAllOnItem->bAllOctave = true;
+	menu->pushChild(ChangeAllOnItem);
+
+	return menu;
 }
 
 
@@ -670,6 +732,9 @@ json_t *Seq_Triad::toJson()
     json_t *gatesJ;
 	json_t *rootJ = json_object();
 
+    // reverse state
+    json_object_set_new(rootJ, "m_bChangeAllPatternOctaves", json_boolean (m_bChangeAllPatternOctaves));
+
     // number of steps
 	gatesJ = json_integer( m_nSteps );
 	json_object_set_new(rootJ, "numberofsteps", gatesJ );
@@ -699,6 +764,12 @@ void Seq_Triad::fromJson(json_t *rootJ)
     int *pint;
     int i;
     json_t *StepsJ;
+
+	// reverse state
+	json_t *revJ = json_object_get(rootJ, "m_bChangeAllPatternOctaves");
+
+	if (revJ)
+		m_bChangeAllPatternOctaves = json_is_true( revJ );
 
     // number of steps
 	StepsJ = json_object_get(rootJ, "numberofsteps");
