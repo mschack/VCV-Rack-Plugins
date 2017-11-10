@@ -6,7 +6,7 @@
 
 - 3 Channel 16 Step Programmable Sequencer.
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
-- Triad Sequencer
+- Triad Sequencer ( v0.4.10 and above will not load notes properly from pre v0.4.10 builds )
 - Synth Drums
 - Ping Pong Delay (with Gnip Gnop mode)
 - 3 Channel Oscillator with Filter and Amp Envelope

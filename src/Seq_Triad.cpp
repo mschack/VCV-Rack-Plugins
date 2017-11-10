@@ -9,6 +9,7 @@
 #define nKEYS       ( nBLACKKEYS + nWHITEKEYS )
 #define nOCTAVESEL  4
 #define nPATTERNS   16
+#define nPHRASE_SAVES 16
 
 #define CHANNEL_X       15
 #define CHANNEL_Y       78
@@ -67,12 +68,14 @@ struct Seq_Triad : Module
         PARAM_BKEYS             = PARAM_WKEYS + (nWHITEKEYS * nKEYBOARDS),
         PARAM_GLIDE             = PARAM_BKEYS + (nWHITEKEYS * nKEYBOARDS),
         PARAM_TRIGOFF           = PARAM_GLIDE + ( nKEYBOARDS ),
-        nPARAMS                 = PARAM_TRIGOFF + ( nKEYBOARDS )
+        PARAM_PHRASE_SAVES      = PARAM_TRIGOFF + ( nKEYBOARDS ),
+        nPARAMS                 = PARAM_PHRASE_SAVES + ( nKEYBOARDS * nPHRASE_SAVES )
     };
 
 	enum InputIds 
     {
         IN_PATTERN_TRIG,
+        IN_VOCT_OFF,
         nINPUTS
 	};
 
@@ -87,6 +90,7 @@ struct Seq_Triad : Module
     bool            m_bJsonInit = false;
 
     bool            m_bChangeAllPatternOctaves = false;
+    bool            m_bChangeAllPatternNotes = false;
 
     KEYBOARD_KEY_STRUCT m_Keys[ nKEYBOARDS ][ nKEYS ];
 
@@ -96,10 +100,14 @@ struct Seq_Triad : Module
 
     // patterns
     int             m_CurrentPattern = 0;
-    PATTERN_STRUCT  m_PatternNotes[ nPATTERNS ][ nKEYBOARDS ] = {};
+    PATTERN_STRUCT  m_PatternNotes[ nKEYBOARDS ][ nPHRASE_SAVES ][ nPATTERNS ] = {};
     float           m_fLightPatterns[ nPATTERNS ] = {};
     SchmittTrigger  m_SchTrigPatternSelect[ nPATTERNS ] = {};
     SchmittTrigger  m_SchTrigPatternSelectInput;
+
+    // phrase save
+    int             m_CurrentPhrase[ nKEYBOARDS ] = {};
+    float           m_fLightPhraseSaves[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};
 
     // number of steps
     int             m_nSteps = nPATTERNS;    
@@ -142,7 +150,33 @@ struct Seq_Triad : Module
     void    SetKey( int kb );
     void    SetOut( int kb );
     void    ChangePattern( int index, bool bForce );
+    void    ChangePhrase( int kb, int index, bool bForce );
     void    CopyNext( void );
+
+    //-----------------------------------------------------
+    // MySquareButton_Phrase
+    //-----------------------------------------------------
+    struct MySquareButton_Phrase : MySquareButtonSmall 
+    {
+        Seq_Triad *mymodule;
+        int i, kb, param;
+
+        void onChange() override 
+        {
+            mymodule = (Seq_Triad*)module;
+
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Seq_Triad::PARAM_PHRASE_SAVES;
+                kb = param / nPHRASE_SAVES;
+                i = param - (kb * nPHRASE_SAVES);
+
+                mymodule->ChangePhrase( kb, i, false );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
 
     //-----------------------------------------------------
     // MySquareButton_Trig
@@ -161,8 +195,8 @@ struct Seq_Triad : Module
             {
                 kb = paramId - Seq_Triad::PARAM_TRIGOFF;
 
-                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff = !mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff;
-                mymodule->m_fLightTrig[ kb ] = mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].bTrigOff ? 1.0 : 0.0;
+                mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].bTrigOff = !mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].bTrigOff;
+                mymodule->m_fLightTrig[ kb ] = mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].bTrigOff ? 1.0 : 0.0;
             }
 
 		    MomentarySwitch::onChange();
@@ -240,7 +274,7 @@ struct Seq_Triad : Module
     struct MyPianoWhiteKey : PianoWhiteKey
     {
         Seq_Triad *mymodule;
-        int param, kb, note, key;
+        int param, kb, note, key, i;
 
         void onChange() override 
         {
@@ -252,7 +286,18 @@ struct Seq_Triad : Module
                 kb = param / nWHITEKEYS;
                 note = param - (kb * nWHITEKEYS);
 
-                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = whiteKeyoff[ note ];
+                if( mymodule->m_bChangeAllPatternNotes )
+                {
+                    for( i = 0; i < nPATTERNS; i++ )
+                    {
+                        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = whiteKeyoff[ note ];
+                    }
+                }
+                else
+                {
+                    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = whiteKeyoff[ note ];
+                }
+
                 mymodule->SetKey( kb );
                 mymodule->SetOut( kb );
             }
@@ -267,7 +312,7 @@ struct Seq_Triad : Module
     struct MyPianoBlackKey : PianoBlackKey
     {
         Seq_Triad *mymodule;
-        int param, kb, note, key;
+        int param, kb, note, key, i;
 
         void onChange() override 
         {
@@ -279,7 +324,17 @@ struct Seq_Triad : Module
                 kb = param / nBLACKKEYS;
                 note = param - (kb * nBLACKKEYS);
 
-                mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].note = blackKeyoff[ note ];
+                if( mymodule->m_bChangeAllPatternNotes )
+                {
+                    for( i = 0; i < nPATTERNS; i++ )
+                    {
+                        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = blackKeyoff[ note ];
+                    }
+                }
+                else
+                {
+                    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = blackKeyoff[ note ];
+                }
 
                 mymodule->SetKey( kb );
                 mymodule->SetOut( kb );
@@ -339,11 +394,11 @@ struct Seq_Triad : Module
                 if( mymodule->m_bChangeAllPatternOctaves )
                 {
                     for( i = 0; i < nPATTERNS; i++ )
-                        mymodule->m_PatternNotes[ i ][ kb ].oct = oct;
+                        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].oct = oct;
                 }
                 else
                 {
-                    mymodule->m_PatternNotes[ mymodule->m_CurrentPattern ][ kb ].oct = oct;
+                    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].oct = oct;
                 }
 
                 mymodule->SetOut( kb );
@@ -423,11 +478,11 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
-        x = 15; 
+        x = 45; 
 
         // trig button
-        addParam(createParam<Seq_Triad::MySquareButton_Trig>( Vec( x, y - 17 ), module, Seq_Triad::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 1, y - 15 ), &module->m_fLightTrig[ kb ] ) );
+        addParam(createParam<Seq_Triad::MySquareButton_Trig>( Vec( x, y - 15 ), module, Seq_Triad::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
+        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 1, y - 13 ), &module->m_fLightTrig[ kb ] ) );
 
         // glide knob
         addParam( createParam<Yellow1_Tiny>( Vec( 120, y - 17 ), module, Seq_Triad::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
@@ -464,6 +519,15 @@ Seq_Triad_Widget::Seq_Triad_Widget()
             module->m_Keys[ kb ][ blackKeyoff[ key ] ].fsemi = fBlackKeyNotes[ key ];
         }
 
+        x = 65;
+
+        for( pat = 0; pat < nPHRASE_SAVES; pat++ )
+        {
+            addParam(createParam<Seq_Triad::MySquareButton_Phrase>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_SAVES + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
+            addChild(createValueLight<TinyLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), &module->m_fLightPhraseSaves[ kb ][ pat ] ) );
+            x += 12;
+        }
+
         y += CHANNEL_OFF_Y;
     }
 
@@ -471,6 +535,9 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+
+    // VOCT offset input
+    addInput(createInput<MyPortInSmall>( Vec( 40, 360 ), module, Seq_Triad::IN_VOCT_OFF ) );
 
     // outputs
     x = 307;
@@ -508,6 +575,25 @@ struct Seq_TriadItem : MenuItem
 // Procedure:   initialize
 //
 //-----------------------------------------------------
+struct Seq_TriadItem2 : MenuItem 
+{
+	Seq_Triad *seq;
+	bool bAllNotes;
+
+	void onAction() override 
+    {
+		seq->m_bChangeAllPatternNotes = bAllNotes;
+	}
+	void step() override 
+    {
+		rightText = (seq->m_bChangeAllPatternNotes == bAllNotes) ? "✔" : "";
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   initialize
+//
+//-----------------------------------------------------
 Menu *Seq_Triad_Widget::createContextMenu() 
 {
 	Menu *menu = ModuleWidget::createContextMenu();
@@ -534,9 +620,25 @@ Menu *Seq_Triad_Widget::createContextMenu()
 	ChangeAllOnItem->bAllOctave = true;
 	menu->pushChild(ChangeAllOnItem);
 
+
+	modeLabel = new MenuLabel();
+	modeLabel->text = "Note Change";
+	menu->pushChild(modeLabel);
+
+	Seq_TriadItem2 *ChangeAllOffItem2 = new Seq_TriadItem2();
+	ChangeAllOffItem2->text = "Change All Notes Off";
+	ChangeAllOffItem2->seq = seq;
+	ChangeAllOffItem2->bAllNotes = false;
+	menu->pushChild(ChangeAllOffItem2);
+
+	Seq_TriadItem2 *ChangeAllOnItem2 = new Seq_TriadItem2();
+	ChangeAllOnItem2->text = "Change All Notes";
+	ChangeAllOnItem2->seq = seq;
+	ChangeAllOnItem2->bAllNotes = true;
+	menu->pushChild(ChangeAllOnItem2);
+
 	return menu;
 }
-
 
 //-----------------------------------------------------
 // Procedure:   initialize
@@ -552,7 +654,6 @@ void Seq_Triad::initialize()
     ChangePattern( 0, true );
 }
 
-
 //-----------------------------------------------------
 // Procedure:   randomize
 //
@@ -561,7 +662,7 @@ int keyscalenotes[ 7 ] = { 0, 2, 4, 5, 7, 9, 11};
 int keyscalenotes_minor[ 7 ] = { 0, 2, 3, 5, 7, 9, 11};
 void Seq_Triad::randomize()
 {
-    int kb, pat, basekey, note, oct;
+    int kb, pat, phrase, basekey, note, oct;
 
     memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
     memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
@@ -575,20 +676,22 @@ void Seq_Triad::randomize()
     {
         for( pat = 0; pat < nPATTERNS; pat++ )
         {
-            if( randomf() > 0.7 )
-                note = keyscalenotes_minor[ (int)(randomf() * 7.4 ) ];
-            else
-                note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
+            for( phrase = 0; phrase < nPHRASE_SAVES; phrase++ )
+            {
+                if( randomf() > 0.7 )
+                    note = keyscalenotes_minor[ (int)(randomf() * 7.4 ) ];
+                else
+                    note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
 
-            m_PatternNotes[ pat ][ kb ].bTrigOff = ( randomf() < 0.10 );
-            m_PatternNotes[ pat ][ kb ].note = basekey + note; 
-            m_PatternNotes[ pat ][ kb ].oct = oct;
+                m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomf() < 0.10 );
+                m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note; 
+                m_PatternNotes[ kb ][ phrase ][ pat ].oct = oct;
+            }
         }
     }
 
     ChangePattern( 0, true );
 }
-
 
 //-----------------------------------------------------
 // Procedure:   CopyNext
@@ -598,9 +701,9 @@ void Seq_Triad::CopyNext( void )
 {
     if( m_CurrentPattern < ( nPATTERNS - 1 ) )
     {
-        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 0 ], &m_PatternNotes[ m_CurrentPattern ][ 0 ], sizeof(PATTERN_STRUCT ) );
-        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 1 ], &m_PatternNotes[ m_CurrentPattern ][ 1 ], sizeof(PATTERN_STRUCT ) );
-        memcpy( &m_PatternNotes[ m_CurrentPattern + 1 ][ 2 ], &m_PatternNotes[ m_CurrentPattern ][ 2 ], sizeof(PATTERN_STRUCT ) );
+        memcpy( &m_PatternNotes[ 0 ][ m_CurrentPattern + 1 ], &m_PatternNotes[ 0 ][ m_CurrentPattern ], sizeof(PATTERN_STRUCT ) );
+        memcpy( &m_PatternNotes[ 1 ][ m_CurrentPattern + 1 ], &m_PatternNotes[ 1 ][ m_CurrentPattern ], sizeof(PATTERN_STRUCT ) );
+        memcpy( &m_PatternNotes[ 2 ][ m_CurrentPattern + 1 ], &m_PatternNotes[ 2 ][ m_CurrentPattern ], sizeof(PATTERN_STRUCT ) );
 
         ChangePattern( m_CurrentPattern + 1, true );
 
@@ -639,32 +742,34 @@ void Seq_Triad::SetSteps( int nSteps )
 void Seq_Triad::SetOut( int kb )
 {
     int note;
-    float foct;
+    float foct, offset;
+
+    offset = inputs[ IN_VOCT_OFF ].normalize( 0.0 );
 
     // end glide note (current pattern note)
-    foct = (float)m_PatternNotes[ m_CurrentPattern ][ kb ].oct;
-    note = m_PatternNotes[ m_CurrentPattern ][ kb ].note;
-    m_fCvEndOut[ kb ] = foct + m_Keys[ kb ][ note ].fsemi;
+    foct = (float)m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].oct;
+    note = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note;
+    m_fCvEndOut[ kb ] = foct + m_Keys[ kb ][ note ].fsemi + offset;
 
     // start glide note (last pattern note)
     if( m_bWasLastNotePlayed[ kb ] )
     {
-        m_fCvStartOut[ kb ] = m_fLastNotePlayed[ kb ];
+        m_fCvStartOut[ kb ] = m_fLastNotePlayed[ kb ] + offset;
     }
     else
     {
         m_bWasLastNotePlayed[ kb ] = true;
-        m_fCvStartOut[ kb ] = m_fCvEndOut[ kb ];
+        m_fCvStartOut[ kb ] = m_fCvEndOut[ kb ] + offset;
     }
 
-    m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ];
+    m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ] + offset;
 
     // glide time ( max glide = 0.5 seconds )
     m_glideCount[ kb ] = 1 + (int)( ( params[ PARAM_GLIDE + kb ].value * 0.5 ) * gSampleRate);
     m_fglideInc[ kb ] = 1.0 / (float)m_glideCount[ kb ];
     m_fglide[ kb ] = 1.0;
 
-    if( !m_PatternNotes[ m_CurrentPattern ][ kb ].bTrigOff )
+    if( !m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].bTrigOff )
         m_bTrig[ kb ] = true;
 }
 
@@ -679,7 +784,40 @@ void Seq_Triad::SetKey( int kb )
     for( i = 0; i < nKEYS; i ++ )
         m_Keys[ kb ][ i ].pWidget->setValue( 0.0 );
 
-    m_Keys[ kb ][ m_PatternNotes[ m_CurrentPattern ][ kb ].note ].pWidget->setValue( 0.9 );
+    m_Keys[ kb ][ m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note ].pWidget->setValue( 0.9 );
+}
+
+//-----------------------------------------------------
+// Procedure:   ChangePhrase
+//
+//-----------------------------------------------------
+void Seq_Triad::ChangePhrase( int kb, int index, bool bForce )
+{
+    if( !bForce && index == m_CurrentPhrase[ kb ] )
+        return;
+
+    if( index < 0 )
+        index = nPHRASE_SAVES - 1;
+    else if( index >= nPHRASE_SAVES )
+        index = 0;
+
+    m_CurrentPhrase[ kb ] = index;
+
+    // change phrase save light
+    memset ( &m_fLightPhraseSaves[ kb ], 0, sizeof(float) * nPHRASE_SAVES );
+    m_fLightPhraseSaves[ kb ][ index ] = 1.0;
+
+    // set keyboard key
+    SetKey( kb );
+
+    m_fLightTrig[ kb ] = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].bTrigOff ? 1.0 : 0.0;
+
+    // change octave light
+     memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    m_fLightOctaves[ kb ][ m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].oct ] = 1.0;
+
+    // set outputted note
+    SetOut( kb );
 }
 
 //-----------------------------------------------------
@@ -712,10 +850,10 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
         // set keyboard key
         SetKey( kb );
 
-        m_fLightTrig[ kb ] = m_PatternNotes[ m_CurrentPattern ][ kb ].bTrigOff ? 1.0 : 0.0;
+        m_fLightTrig[ kb ] = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].bTrigOff ? 1.0 : 0.0;
 
         // change octave light
-        m_fLightOctaves[ kb ][ m_PatternNotes[ m_CurrentPattern ][ kb ].oct ] = 1.0;
+        m_fLightOctaves[ kb ][ m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].oct ] = 1.0;
 
         // set outputted note
         SetOut( kb );
@@ -732,25 +870,39 @@ json_t *Seq_Triad::toJson()
     json_t *gatesJ;
 	json_t *rootJ = json_object();
 
-    // reverse state
     json_object_set_new(rootJ, "m_bChangeAllPatternOctaves", json_boolean (m_bChangeAllPatternOctaves));
+
+    json_object_set_new(rootJ, "m_bChangeAllPatternNotes", json_boolean (m_bChangeAllPatternNotes));
 
     // number of steps
 	gatesJ = json_integer( m_nSteps );
 	json_object_set_new(rootJ, "numberofsteps", gatesJ );
 
-    // patterns
-    pint = (int*)&m_PatternNotes[ 0 ][ 0 ];
+    // phrase select
+    pint = (int*)&m_CurrentPhrase[ 0 ];
 
 	gatesJ = json_array();
 
-	for (int i = 0; i < (nPATTERNS * nKEYBOARDS * 8); i++)
+	for (int i = 0; i < nKEYBOARDS; i++)
     {
 		json_t *gateJ = json_integer( pint[ i ] );
 		json_array_append_new( gatesJ, gateJ );
 	}
 
-	json_object_set_new( rootJ, "patterns", gatesJ );
+	json_object_set_new( rootJ, "m_CurrentPhrase", gatesJ );
+
+    // patterns
+    pint = (int*)&m_PatternNotes[ 0 ][ 0 ][ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < (nPHRASE_SAVES * nPATTERNS * nKEYBOARDS * 8); i++)
+    {
+		json_t *gateJ = json_integer( pint[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "m_PatternNotes", gatesJ );
 
 	return rootJ;
 }
@@ -765,25 +917,44 @@ void Seq_Triad::fromJson(json_t *rootJ)
     int i;
     json_t *StepsJ;
 
-	// reverse state
 	json_t *revJ = json_object_get(rootJ, "m_bChangeAllPatternOctaves");
 
 	if (revJ)
 		m_bChangeAllPatternOctaves = json_is_true( revJ );
+
+    revJ = json_object_get(rootJ, "m_bChangeAllPatternNotes");
+
+ 	if (revJ)
+		m_bChangeAllPatternNotes = json_is_true( revJ );   
+
+    // phrase select
+    pint = (int*)&m_CurrentPhrase[ 0 ];
+	StepsJ = json_object_get( rootJ, "m_CurrentPhrase" );
+
+	if (StepsJ) 
+    {
+		for ( i = 0; i < nKEYBOARDS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pint[ i ] = json_integer_value( gateJ );
+		}
+	}
 
     // number of steps
 	StepsJ = json_object_get(rootJ, "numberofsteps");
 	if (StepsJ)
 		m_nSteps = json_integer_value( StepsJ );
 
-    // patterns
-    pint = (int*)&m_PatternNotes[ 0 ][ 0 ];
+    // all patterns and phrases
+    pint = (int*)&m_PatternNotes[ 0 ][ 0 ][ 0 ];
 
-	StepsJ = json_object_get( rootJ, "patterns" );
+	StepsJ = json_object_get( rootJ, "m_PatternNotes" );
 
 	if (StepsJ) 
     {
-		for ( i = 0; i < (nPATTERNS * nKEYBOARDS * 8); i++)
+		for ( i = 0; i < (nPHRASE_SAVES * nPATTERNS * nKEYBOARDS * 8); i++)
         {
 			json_t *gateJ = json_array_get(StepsJ, i);
 
@@ -793,6 +964,9 @@ void Seq_Triad::fromJson(json_t *rootJ)
 	}
 
     SetSteps( m_nSteps );
+    ChangePhrase( 0, 0, true );
+    ChangePhrase( 1, 0, true );
+    ChangePhrase( 2, 0, true );
     ChangePattern( 0, true );
 
     m_bJsonInit = true;

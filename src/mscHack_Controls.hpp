@@ -50,6 +50,20 @@ struct MyScrew : SVGScrew
 // Procedure:   MySquareButton
 //
 //-----------------------------------------------------
+struct MySquareButtonSmall : SVGSwitch, MomentarySwitch 
+{
+	MySquareButtonSmall() 
+    {
+		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_square_button.svg")));
+		sw->wrap();
+		box.size = Vec(9, 9);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   MySquareButton
+//
+//-----------------------------------------------------
 struct MySquareButton : SVGSwitch, MomentarySwitch 
 {
 	MySquareButton() 
