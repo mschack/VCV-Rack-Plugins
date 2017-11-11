@@ -9,7 +9,7 @@
 #define nKEYS       ( nBLACKKEYS + nWHITEKEYS )
 #define nOCTAVESEL  4
 #define nPATTERNS   16
-#define nPHRASE_SAVES 16
+#define nPHRASE_SAVES 4
 
 #define CHANNEL_X       15
 #define CHANNEL_Y       78
@@ -51,6 +51,12 @@ typedef struct
 
 }PATTERN_STRUCT;
 
+typedef struct
+{
+    bool    bPending;
+    int     phrase;
+}PHRASE_CHANGE_STRUCT;
+
 //-----------------------------------------------------
 // Module Definition
 //
@@ -69,14 +75,16 @@ struct Seq_Triad : Module
         PARAM_GLIDE             = PARAM_BKEYS + (nWHITEKEYS * nKEYBOARDS),
         PARAM_TRIGOFF           = PARAM_GLIDE + ( nKEYBOARDS ),
         PARAM_PHRASE_SAVES      = PARAM_TRIGOFF + ( nKEYBOARDS ),
-        nPARAMS                 = PARAM_PHRASE_SAVES + ( nKEYBOARDS * nPHRASE_SAVES )
+        PARAM_PHRASE_USED       = PARAM_PHRASE_SAVES + ( nKEYBOARDS * nPHRASE_SAVES ),
+        nPARAMS                 = PARAM_PHRASE_USED + ( nKEYBOARDS * nPHRASE_SAVES )
     };
 
 	enum InputIds 
     {
         IN_PATTERN_TRIG,
         IN_VOCT_OFF,
-        nINPUTS
+        IN_PROG_CHANGE,
+        nINPUTS                 = IN_PROG_CHANGE + ( nKEYBOARDS ),
 	};
 
 	enum OutputIds 
@@ -94,6 +102,7 @@ struct Seq_Triad : Module
 
     KEYBOARD_KEY_STRUCT m_Keys[ nKEYBOARDS ][ nKEYS ];
 
+    // octaves
     float           m_fCvStartOut[ nKEYBOARDS ] = {};
     float           m_fCvEndOut[ nKEYBOARDS ] = {};
     float           m_fLightOctaves[ nKEYBOARDS ][ nOCTAVESEL ] = {};
@@ -108,6 +117,10 @@ struct Seq_Triad : Module
     // phrase save
     int             m_CurrentPhrase[ nKEYBOARDS ] = {};
     float           m_fLightPhraseSaves[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};
+    PHRASE_CHANGE_STRUCT m_PhrasePending[ nKEYBOARDS ] = {};
+    SchmittTrigger  m_SchTrigPhraseSelect[ nKEYBOARDS ] = {};
+    int             m_PhrasesUsed[ nKEYBOARDS ] = {0};
+    float           m_fLightPhraseUsed[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};
 
     // number of steps
     int             m_nSteps = nPATTERNS;    
@@ -146,12 +159,38 @@ struct Seq_Triad : Module
     void    initialize() override;
     void    randomize() override;
     //void    reset() override;
+    void    SetPhraseSteps( int kb, int nSteps );
     void    SetSteps( int steps );
     void    SetKey( int kb );
     void    SetOut( int kb );
     void    ChangePattern( int index, bool bForce );
     void    ChangePhrase( int kb, int index, bool bForce );
     void    CopyNext( void );
+
+    //-----------------------------------------------------
+    // MySquareButton_Phrase
+    //-----------------------------------------------------
+    struct MySquareButton_Used : MySquareButtonSmall 
+    {
+        Seq_Triad *mymodule;
+        int i, kb, param;
+
+        void onChange() override 
+        {
+            mymodule = (Seq_Triad*)module;
+
+            if( mymodule && value == 1.0 )
+            {
+                param = paramId - Seq_Triad::PARAM_PHRASE_USED;
+                kb = param / nPHRASE_SAVES;
+                i = param - (kb * nPHRASE_SAVES);
+
+                mymodule->SetPhraseSteps( kb, i );
+            }
+
+		    MomentarySwitch::onChange();
+	    }
+    };
 
     //-----------------------------------------------------
     // MySquareButton_Phrase
@@ -171,7 +210,15 @@ struct Seq_Triad : Module
                 kb = param / nPHRASE_SAVES;
                 i = param - (kb * nPHRASE_SAVES);
 
-                mymodule->ChangePhrase( kb, i, false );
+                // change immediately if clock paused or clock not used
+                if( mymodule->m_bPause || !mymodule->inputs[ IN_PATTERN_TRIG ].active )
+                    mymodule->ChangePhrase( kb, i, false );
+                else
+                {
+                    mymodule->m_fLightPhraseSaves[ kb ][ i ] = 0.4;
+                    mymodule->m_PhrasePending[ kb ].bPending = true;
+                    mymodule->m_PhrasePending[ kb ].phrase = i;
+                }
             }
 
 		    MomentarySwitch::onChange();
@@ -469,8 +516,8 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     }
 
     // copy next button
-	addParam(createParam<Seq_Triad::MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
-	addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( 290 + 1, 32 + 2 ), &module->m_fLightCopyNext ) );
+	//addParam(createParam<Seq_Triad::MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
+	//addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( 290 + 1, 32 + 2 ), &module->m_fLightCopyNext ) );
 
     //----------------------------------------------------
     // Keyboard Keys 
@@ -519,12 +566,21 @@ Seq_Triad_Widget::Seq_Triad_Widget()
             module->m_Keys[ kb ][ blackKeyoff[ key ] ].fsemi = fBlackKeyNotes[ key ];
         }
 
-        x = 65;
+        x = 55;
 
         for( pat = 0; pat < nPHRASE_SAVES; pat++ )
         {
             addParam(createParam<Seq_Triad::MySquareButton_Phrase>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_SAVES + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
-            addChild(createValueLight<TinyLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), &module->m_fLightPhraseSaves[ kb ][ pat ] ) );
+            addChild(createValueLight<TinyLight<YellowValueLight>>( Vec( x + 2, y + 69 + 2 ), &module->m_fLightPhraseSaves[ kb ][ pat ] ) );
+            x += 12;
+        }
+
+        x = 118;
+
+        for( pat = 0; pat < nPHRASE_SAVES; pat++ )
+        {
+            addParam(createParam<Seq_Triad::MySquareButton_Used>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_USED + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
+            addChild(createValueLight<TinyLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), &module->m_fLightPhraseUsed[ kb ][ pat ] ) );
             x += 12;
         }
 
@@ -535,6 +591,13 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+
+    // prog change input triggers
+    x = 200;
+    y = 360;
+    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE ) ); x += 32;
+    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE + 1 ) ); x += 32;
+    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE + 2 ) );
 
     // VOCT offset input
     addInput(createInput<MyPortInSmall>( Vec( 40, 360 ), module, Seq_Triad::IN_VOCT_OFF ) );
@@ -550,6 +613,14 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     y += CHANNEL_OFF_Y;
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
+
+    module->SetPhraseSteps( 0, 3 );
+    module->SetPhraseSteps( 1, 3 );
+    module->SetPhraseSteps( 2, 3 );
+    module->ChangePattern( 0, true );
+    module->ChangePhrase( 0, 0, true );
+    module->ChangePhrase( 1, 0, true );
+    module->ChangePhrase( 2, 0, true );
 }
 
 //-----------------------------------------------------
@@ -591,7 +662,7 @@ struct Seq_TriadItem2 : MenuItem
 };
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   createContextMenu
 //
 //-----------------------------------------------------
 Menu *Seq_Triad_Widget::createContextMenu() 
@@ -651,7 +722,13 @@ void Seq_Triad::initialize()
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
     
+    SetPhraseSteps( 0, 3 );
+    SetPhraseSteps( 1, 3 );
+    SetPhraseSteps( 2, 3 );
     ChangePattern( 0, true );
+    ChangePhrase( 0, 0, true );
+    ChangePhrase( 1, 0, true );
+    ChangePhrase( 2, 0, true );
 }
 
 //-----------------------------------------------------
@@ -709,6 +786,28 @@ void Seq_Triad::CopyNext( void )
 
         m_fLightCopyNext = 1.0;
         m_bCopy = true;
+    }
+}
+
+//-----------------------------------------------------
+// Procedure:   SetPhraseSteps
+//
+//-----------------------------------------------------
+void Seq_Triad::SetPhraseSteps( int kb, int nSteps )
+{
+    int i;
+
+    if( nSteps < 0 || nSteps >= nPHRASE_SAVES )
+        nSteps = 0;
+
+    m_PhrasesUsed[ kb ] = nSteps;
+                
+    for( i = 0; i < nPHRASE_SAVES; i++ )
+    {
+        if( i < (nSteps+1) )
+            m_fLightPhraseUsed[ kb ][ i ] = 1.0f;
+        else
+            m_fLightPhraseUsed[ kb ][ i ] = 0.0f;
     }
 }
 
@@ -797,8 +896,8 @@ void Seq_Triad::ChangePhrase( int kb, int index, bool bForce )
         return;
 
     if( index < 0 )
-        index = nPHRASE_SAVES - 1;
-    else if( index >= nPHRASE_SAVES )
+        index = m_PhrasesUsed[ kb ];
+    else if( index > m_PhrasesUsed[ kb ] )
         index = 0;
 
     m_CurrentPhrase[ kb ] = index;
@@ -813,7 +912,7 @@ void Seq_Triad::ChangePhrase( int kb, int index, bool bForce )
     m_fLightTrig[ kb ] = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].bTrigOff ? 1.0 : 0.0;
 
     // change octave light
-     memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    memset( &m_fLightOctaves[ kb ], 0, sizeof(float) * nOCTAVESEL );
     m_fLightOctaves[ kb ][ m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].oct ] = 1.0;
 
     // set outputted note
@@ -904,6 +1003,20 @@ json_t *Seq_Triad::toJson()
 
 	json_object_set_new( rootJ, "m_PatternNotes", gatesJ );
 
+
+    // phrase used
+    pint = (int*)&m_PhrasesUsed[ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < nKEYBOARDS; i++)
+    {
+		json_t *gateJ = json_integer( pint[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "m_PhrasesUsed", gatesJ );
+
 	return rootJ;
 }
 
@@ -963,7 +1076,26 @@ void Seq_Triad::fromJson(json_t *rootJ)
 		}
 	}
 
+    // phrase steps
+    pint = (int*)&m_PhrasesUsed[ 0 ];
+
+	StepsJ = json_object_get( rootJ, "m_PhrasesUsed" );
+
+	if (StepsJ) 
+    {
+		for ( i = 0; i < nKEYBOARDS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pint[ i ] = json_integer_value( gateJ );
+		}
+	}
+
     SetSteps( m_nSteps );
+    SetPhraseSteps( 0, m_PhrasesUsed[ 0 ] );
+    SetPhraseSteps( 1, m_PhrasesUsed[ 1 ] );
+    SetPhraseSteps( 2, m_PhrasesUsed[ 2 ] );
     ChangePhrase( 0, 0, true );
     ChangePhrase( 1, 0, true );
     ChangePhrase( 2, 0, true );
@@ -979,7 +1111,7 @@ void Seq_Triad::fromJson(json_t *rootJ)
 #define LIGHT_LAMBDA ( 0.065f )
 void Seq_Triad::step() 
 {
-    int i;
+    int i, phrase;
 
     if( m_bCopy )
     {
@@ -989,6 +1121,21 @@ void Seq_Triad::step()
         {
             m_bCopy = false;
             m_fLightCopyNext = 0.0;
+        }
+    }
+
+    // process triggered phrase changes
+    for( i = 0; i < nKEYBOARDS; i++ )
+    {
+        if( inputs[ IN_PROG_CHANGE + i ].active && !m_bPause && inputs[ IN_PATTERN_TRIG ].active )
+        {
+	        if( m_SchTrigPhraseSelect[ i ].process( inputs[ IN_PROG_CHANGE + i ].value ) )
+            {
+                phrase = ( m_CurrentPhrase[ i ] + 1 ) & 0x3;
+                m_fLightPhraseSaves[ i ][ phrase ] = 0.4;
+                m_PhrasePending[ i ].bPending = true;
+                m_PhrasePending[ i ].phrase = phrase;
+            }
         }
     }
 
@@ -1003,6 +1150,31 @@ void Seq_Triad::step()
 	    if( m_SchTrigPatternSelectInput.process( inputs[ IN_PATTERN_TRIG ].value ) ) 
         {
             ChangePattern( m_CurrentPattern + 1, true );
+
+            if( m_CurrentPattern == 0 )
+            {
+                // process pending phrase changes
+                for( i = 0; i < nKEYBOARDS; i++ )
+                {
+                    if( m_PhrasePending[ i ].bPending )
+                    {
+                        m_PhrasePending[ i ].bPending = false;
+                        ChangePhrase( i, m_PhrasePending[ i ].phrase, false );
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        // resolve any left over phrase triggers
+        for( i = 0; i < nKEYBOARDS; i++ )
+        {
+            if( m_PhrasePending[ i ].bPending )
+            {
+                m_PhrasePending[ i ].bPending = false;
+                ChangePhrase( i, m_PhrasePending[ i ].phrase, false );
+            }
         }
     }
 
