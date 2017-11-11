@@ -913,7 +913,7 @@ void Mix_2x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
     // !bGroup
     else
     {
-        group = index / CHANNELS;
+        group = index / CH_PER_GROUP;
 
         si = group * CH_PER_GROUP;
         ei = si + CH_PER_GROUP;
