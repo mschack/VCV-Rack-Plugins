@@ -14,8 +14,7 @@
 # Demo Vids
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
 - Mixer: https://www.youtube.com/watch?v=QOjSEM3mPqs
-- Triad Sequencer https://www.youtube.com/watch?v=YBErBzoV_6M
-- Triad Sequencer Update https://www.youtube.com/watch?v=fxXCc2HoNaQ
+- Triad Sequencer https://www.youtube.com/watch?v=InOgQA91cs8
 - Synth Drums https://www.youtube.com/watch?v=zYrtJ2XsbTw
 - Pong https://www.youtube.com/watch?v=hTsco8omRT0
 - 3 Channel OSC https://www.youtube.com/watch?v=Az5DUEGg5hw
