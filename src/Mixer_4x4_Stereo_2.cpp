@@ -103,6 +103,11 @@ struct Mix_4x4_Stereo2 : Module
     bool            m_bGroupPreFadeAuxStates[ GROUPS ][ nAUX ] = {};
     float           m_fLightGroupPreFadeAux[ GROUPS ][ nAUX ] = {};
 
+    // LED Meters
+    LEDMeterWidget  *m_pLEDMeterChannel[ CHANNELS ][ 2 ] ={};
+    LEDMeterWidget  *m_pLEDMeterGroup[ GROUPS ][ 2 ] ={};
+    LEDMeterWidget  *m_pLEDMeterMain[ 2 ] ={};
+
     // EQ Rez
     float           lp1[ CHANNELS ][ 2 ] = {}, bp1[ CHANNELS ][ 2 ] = {}; 
     float           m_hpIn[ CHANNELS ];
@@ -339,7 +344,7 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 		addChild(panel);
 	}
 
-    //module->lg.Open("Mix_4x4_Stereo2.txt");
+    module->lg.Open("Mix_4x4_Stereo2.txt");
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
@@ -395,17 +400,24 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 12, y + 5 ), &module->m_fLightSolos[ ch ] ) );
 
         y += 22;
+        y2 = y;
 
         // eq and rez
-        addParam(createParam<Mix_4x4_Stereo2::MyEQHi_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_HI + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_4x4_Stereo2::MyEQHi_Knob>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_EQ_HI + ch, 0.0, 1.0, 0.5 ) );
 
         y += 19;
 
-        addParam(createParam<Mix_4x4_Stereo2::MyEQMid_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_MD + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_4x4_Stereo2::MyEQMid_Knob>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_EQ_MD + ch, 0.0, 1.0, 0.5 ) );
         
         y += 19;
         
-        addParam(createParam<Mix_4x4_Stereo2::MyEQLo_Knob>( Vec( x, y ), module, Mix_4x4_Stereo2::PARAM_EQ_LO + ch, 0.0, 1.0, 0.5 ) );
+        addParam(createParam<Mix_4x4_Stereo2::MyEQLo_Knob>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_EQ_LO + ch, 0.0, 1.0, 0.5 ) );
+
+        // LED Meters
+        module->m_pLEDMeterChannel[ ch ][ 0 ] = new LEDMeterWidget( x + 13, y2 + 33, 4, 2, 5, true );
+        addChild( module->m_pLEDMeterChannel[ ch ][ 0 ] );
+        module->m_pLEDMeterChannel[ ch ][ 1 ] = new LEDMeterWidget( x + 18, y2 + 33, 4, 2, 5, true );
+        addChild( module->m_pLEDMeterChannel[ ch ][ 1 ] );
         
         if( ( ch & 3 ) == 3 )
         {
@@ -440,17 +452,23 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         x2 = x + 79;
         y2 = ybase + 23;
 
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_LEVEL + i ) );
+        //addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_LEVEL + i ) );
 
-        y2 += 32;
+        //y2 += 32;
 
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
+        //addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
+
+        // group VU Meters
+        module->m_pLEDMeterGroup[ i ][ 0 ] = new LEDMeterWidget( x2 + 2, y2 + 21, 5, 3, 7, true );
+        addChild( module->m_pLEDMeterGroup[ i ][ 0 ] );
+        module->m_pLEDMeterGroup[ i ][ 1 ] = new LEDMeterWidget( x2 + 9, y2 + 21, 5, 3, 7, true );
+        addChild( module->m_pLEDMeterGroup[ i ][ 1 ] );
 
         // group level and pan knobs
         x2 = x + 105;
         y2 = ybase + 17;
 
-        addParam(createParam<Blue2_Small>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::PARAM_GROUP_LEVEL_IN + i, 0.0, AMP_MAX, 0.0 ) );
+        addParam(createParam<Blue2_Small>( Vec( x2, y2 + 3 ), module, Mix_4x4_Stereo2::PARAM_GROUP_LEVEL_IN + i, 0.0, AMP_MAX, 0.0 ) );
 
         y2 += 32;
 
@@ -497,7 +515,12 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
     }
 
     // main mixer knob 
-    addParam(createParam<Blue2_Big>( Vec( 633, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
+    addParam(createParam<Blue2_Big>( Vec( 626, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
+
+    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 684, 257, 5, 3, 7, true );
+    addChild( module->m_pLEDMeterMain[ 0 ] );
+    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 691, 257, 5, 3, 7, true );
+    addChild( module->m_pLEDMeterMain[ 1 ] );
 
     // outputs
     
@@ -1174,6 +1197,11 @@ void Mix_4x4_Stereo2::step()
 
         m_fSubMix[ group ][ L ] += inL;
         m_fSubMix[ group ][ R ] += inR;
+
+        if( m_pLEDMeterChannel[ ch ][ 0 ] )
+            m_pLEDMeterChannel[ ch ][ 0 ]->Process( inL );
+        if( m_pLEDMeterChannel[ ch ][ 1 ] )
+            m_pLEDMeterChannel[ ch ][ 1 ]->Process( inR );
     }
 
     // group mixers
@@ -1222,9 +1250,19 @@ void Mix_4x4_Stereo2::step()
             outR *= m_fGroupMuteFade[ group ];
         }
 
+        if( m_pLEDMeterGroup[ group ][ 0 ] )
+            m_pLEDMeterGroup[ group ][ 0 ]->Process( outL );
+        if( m_pLEDMeterGroup[ group ][ 1 ] )
+            m_pLEDMeterGroup[ group ][ 1 ]->Process( outR );
+
         mainL += outL;
         mainR += outR;
     }
+
+    if( m_pLEDMeterMain[ 0 ] )
+        m_pLEDMeterMain[ 0 ]->Process( mainL * params[ PARAM_MAIN_LEVEL ].value );
+    if( m_pLEDMeterMain[ 1 ] )
+        m_pLEDMeterMain[ 1 ]->Process( mainR * params[ PARAM_MAIN_LEVEL ].value );
 
     // put aux output
     for ( aux = 0; aux < nAUX; aux++ )
