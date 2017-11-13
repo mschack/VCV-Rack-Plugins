@@ -34,6 +34,10 @@ struct Mix_2x4_Stereo_Widget : ModuleWidget {
 	Mix_2x4_Stereo_Widget();
 };
 
+/*struct Mix_2x4_Stereo_Chained_Widget : ModuleWidget {
+	Mix_2x4_Stereo_Chained_Widget();
+};*/
+
 struct Mix_4x4_Stereo2_Widget : ModuleWidget {
 	Mix_4x4_Stereo2_Widget();
 };

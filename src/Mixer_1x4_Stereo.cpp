@@ -106,6 +106,9 @@ struct Mix_1x4_Stereo : Module
     float           m_rezIn[ CHANNELS ] = {0};
     float           m_Freq;
 
+    // mixers
+    //LEDMeterWidget  *m_pLEDMeterOut[ 2 ] = {0};
+
 #define L 0
 #define R 1
 
@@ -470,6 +473,12 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
     
     addOutput(createOutput<MyPortOutSmall>( Vec( 172, 305 ), module, Mix_1x4_Stereo::OUT_MAINL ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 204, 335 ), module, Mix_1x4_Stereo::OUT_MAINR ) );
+
+	//module->m_pLEDMeterOut[ 0 ] = new LEDMeterWidget( 215, 235, 5, 3, 7, true );
+	//addChild( module->m_pLEDMeterOut[ 0 ] );
+
+	//module->m_pLEDMeterOut[ 1 ] = new LEDMeterWidget( 222, 235, 5, 3, 7, true );
+	//addChild( module->m_pLEDMeterOut[ 1 ] );
 
     // AUX out
 #define AUX_OUT_H 42
@@ -1074,6 +1083,9 @@ void Mix_1x4_Stereo::step()
         outputs[ OUT_AUXL + aux ].value = clampf( auxL[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -5.0, 5.0 );
         outputs[ OUT_AUXR + aux ].value = clampf( auxR[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -5.0, 5.0 );
     }
+
+    //m_pLEDMeterOut[ L ]->Process( mainL * params[ PARAM_MAIN_LEVEL ].value );
+    //m_pLEDMeterOut[ R ]->Process( mainR * params[ PARAM_MAIN_LEVEL ].value );
 
     outputs[ OUT_MAINL ].value = clampf( mainL * params[ PARAM_MAIN_LEVEL ].value, -5.0, 5.0 );
     outputs[ OUT_MAINR ].value = clampf( mainR * params[ PARAM_MAIN_LEVEL ].value, -5.0, 5.0 );

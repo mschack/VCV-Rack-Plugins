@@ -4,9 +4,7 @@
 #include "CLog.h"
 
 #define nKEYBOARDS  3
-#define nBLACKKEYS  15
-#define nWHITEKEYS  22
-#define nKEYS       ( nBLACKKEYS + nWHITEKEYS )
+#define nKEYS       37
 #define nOCTAVESEL  4
 #define nPATTERNS   16
 #define nPHRASE_SAVES 4
@@ -17,28 +15,9 @@
 
 #define SEMI ( 1.0f / 12.0f )
 
-float fWhiteKeyNotes[ nWHITEKEYS ] = 
-{
-    ( SEMI * 0.0 ), ( SEMI * 2.0 ), ( SEMI * 4.0 ), ( SEMI * 5.0 ), ( SEMI * 7.0 ), ( SEMI * 9.0 ), ( SEMI * 11.0 ),
-    ( SEMI * 12.0 ), ( SEMI * 14.0 ), ( SEMI * 16.0 ), ( SEMI * 17.0 ), ( SEMI * 19.0 ), ( SEMI * 21.0 ), ( SEMI * 23.0 ),
-    ( SEMI * 24.0 ), ( SEMI * 26.0 ), ( SEMI * 28.0 ), ( SEMI * 29.0 ), ( SEMI * 31.0 ), ( SEMI * 33.0 ), ( SEMI * 35.0 ),
-    ( SEMI * 36.0 )
-};
-
-float fBlackKeyNotes[ nBLACKKEYS ] = 
-{
-    ( SEMI * 1.0 ), ( SEMI * 3.0 ), ( SEMI * 6.0 ), ( SEMI * 8.0 ), ( SEMI * 10.0 ),
-    ( SEMI * 13.0 ), ( SEMI * 15.0 ),( SEMI * 18.0 ), ( SEMI * 20.0 ), ( SEMI * 22.0 ), 
-    ( SEMI * 25.0 ), ( SEMI * 27.0 ), ( SEMI * 30.0 ), ( SEMI * 32.0 ), ( SEMI * 34.0 )
-};
-
-int blackKeyoff[ nBLACKKEYS ] = { 1, 3, 6, 8, 10,   13, 15, 18, 20, 22,   25, 27, 30, 32, 34 };
-int whiteKeyoff[ nWHITEKEYS ] = { 0, 2, 4, 5, 7, 9, 11,   12, 14, 16, 17, 19, 21, 23,   24, 26, 28, 29, 31, 33, 35, 36 };
-
 typedef struct
 {
     float        fsemi;
-    ParamWidget  *pWidget;
 
 }KEYBOARD_KEY_STRUCT;
 
@@ -70,9 +49,7 @@ struct Seq_Triad : Module
         PARAM_STEP_NUM,
         PARAM_OCTAVES           = PARAM_STEP_NUM + (nPATTERNS),
         PARAM_PATTERNS          = PARAM_OCTAVES + (nOCTAVESEL * nKEYBOARDS),
-        PARAM_WKEYS             = PARAM_PATTERNS + (nPATTERNS ),
-        PARAM_BKEYS             = PARAM_WKEYS + (nWHITEKEYS * nKEYBOARDS),
-        PARAM_GLIDE             = PARAM_BKEYS + (nWHITEKEYS * nKEYBOARDS),
+        PARAM_GLIDE             = PARAM_PATTERNS + (nPATTERNS ),
         PARAM_TRIGOFF           = PARAM_GLIDE + ( nKEYBOARDS ),
         PARAM_PHRASE_SAVES      = PARAM_TRIGOFF + ( nKEYBOARDS ),
         PARAM_PHRASE_USED       = PARAM_PHRASE_SAVES + ( nKEYBOARDS * nPHRASE_SAVES ),
@@ -99,8 +76,6 @@ struct Seq_Triad : Module
 
     bool            m_bChangeAllPatternOctaves = false;
     bool            m_bChangeAllPatternNotes = false;
-
-    KEYBOARD_KEY_STRUCT m_Keys[ nKEYBOARDS ][ nKEYS ];
 
     // octaves
     float           m_fCvStartOut[ nKEYBOARDS ] = {};
@@ -149,8 +124,20 @@ struct Seq_Triad : Module
     float           m_fLightCopyNext = {};
     bool            m_bCopy = false;
 
+    Keyboard_3Oct_Widget *pKeyboardWidget[ nKEYBOARDS ];
+    float           m_fKeyNotes[ 37 ];
+
+    float           m_VoctOffsetIn = 0.0;
+
     // Contructor
-	Seq_Triad() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	Seq_Triad() : Module(nPARAMS, nINPUTS, nOUTPUTS)
+    {
+        int i;
+
+        for( i = 0; i < 37; i++ )
+            m_fKeyNotes[ i ] = (float)i * SEMI;
+    
+    }
 
     // Overrides 
 	void    step() override;
@@ -316,82 +303,6 @@ struct Seq_Triad : Module
     };
 
     //-----------------------------------------------------
-    // MyPianoWhiteKey
-    //-----------------------------------------------------
-    struct MyPianoWhiteKey : PianoWhiteKey
-    {
-        Seq_Triad *mymodule;
-        int param, kb, note, key, i;
-
-        void onChange() override 
-        {
-            mymodule = (Seq_Triad*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                param = paramId - Seq_Triad::PARAM_WKEYS;
-                kb = param / nWHITEKEYS;
-                note = param - (kb * nWHITEKEYS);
-
-                if( mymodule->m_bChangeAllPatternNotes )
-                {
-                    for( i = 0; i < nPATTERNS; i++ )
-                    {
-                        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = whiteKeyoff[ note ];
-                    }
-                }
-                else
-                {
-                    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = whiteKeyoff[ note ];
-                }
-
-                mymodule->SetKey( kb );
-                mymodule->SetOut( kb );
-            }
-
-            SVGSwitch::onChange();
-	    }
-    };
-
-    //-----------------------------------------------------
-    // MyPianoBlackKey
-    //-----------------------------------------------------
-    struct MyPianoBlackKey : PianoBlackKey
-    {
-        Seq_Triad *mymodule;
-        int param, kb, note, key, i;
-
-        void onChange() override 
-        {
-            mymodule = (Seq_Triad*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                param = paramId - Seq_Triad::PARAM_BKEYS;
-                kb = param / nBLACKKEYS;
-                note = param - (kb * nBLACKKEYS);
-
-                if( mymodule->m_bChangeAllPatternNotes )
-                {
-                    for( i = 0; i < nPATTERNS; i++ )
-                    {
-                        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = blackKeyoff[ note ];
-                    }
-                }
-                else
-                {
-                    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = blackKeyoff[ note ];
-                }
-
-                mymodule->SetKey( kb );
-                mymodule->SetOut( kb );
-            }
-
-            SVGSwitch::onChange();
-	    }
-    };
-
-    //-----------------------------------------------------
     // MySquareButton_Pat
     //-----------------------------------------------------
     struct MySquareButton_Pat : MySquareButton 
@@ -460,11 +371,38 @@ struct Seq_Triad : Module
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-int bkeyoff[ nBLACKKEYS ] = { 26, 41, 66, 79, 92, 117, 132, 157, 170, 183, 209, 222, 248, 261, 274 };
+void NoteChangeCallback ( void *pClass, int kb, int note )
+{
+    int i;
+    Seq_Triad *mymodule = (Seq_Triad *)pClass;
+
+    if( !pClass )
+        return;
+
+    //mymodule->lg.f( "kb = %d, note = %d\n", kb, note );
+
+    if( mymodule->m_bChangeAllPatternNotes )
+    {
+        for( i = 0; i < nPATTERNS; i++ )
+        {
+            mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = note;
+        }
+    }
+    else
+    {
+        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = note;
+    }
+
+    mymodule->SetOut( kb );    
+}
+
+//-----------------------------------------------------
+// Procedure:   Widget
+//
+//-----------------------------------------------------
 Seq_Triad_Widget::Seq_Triad_Widget() 
 {
-    ParamWidget *pWidget;
-    int kb, key, oct, x, y, pat, stp;
+    int kb, oct, x, y, pat, stp;
 	Seq_Triad *module = new Seq_Triad();
 	setModule(module);
 	box.size = Vec( 15*22, 380);
@@ -545,26 +483,9 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
         x = CHANNEL_X;
 
-        // add white keys
-        for( key = 0; key < nWHITEKEYS; key++ )
-        {
-            pWidget = createParam<Seq_Triad::MyPianoWhiteKey>( Vec( x, y ), module, Seq_Triad::PARAM_WKEYS + ( kb * nWHITEKEYS) + key, 0.0, 1.0, 0.0 );
-            addParam( pWidget );
-
-            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].pWidget = pWidget;
-            module->m_Keys[ kb ][ whiteKeyoff[ key ] ].fsemi = fWhiteKeyNotes[ key ];
-
-            x += 13;
-        }
-
-        for( key = 0; key < nBLACKKEYS; key++ )
-        {
-            pWidget = createParam<Seq_Triad::MyPianoBlackKey>( Vec( bkeyoff[ key ] -3, y ), module, Seq_Triad::PARAM_BKEYS + ( kb * nBLACKKEYS) + key, 0.0, 1.0, 0.0 );
-            addParam( pWidget );
-
-            module->m_Keys[ kb ][ blackKeyoff[ key ] ].pWidget = pWidget;
-            module->m_Keys[ kb ][ blackKeyoff[ key ] ].fsemi = fBlackKeyNotes[ key ];
-        }
+        // keyboard widget
+        module->pKeyboardWidget[ kb ] = new Keyboard_3Oct_Widget( x, y - 1, kb, module, NoteChangeCallback, &module->lg );
+	    addChild( module->pKeyboardWidget[ kb ] );
 
         x = 55;
 
@@ -841,27 +762,25 @@ void Seq_Triad::SetSteps( int nSteps )
 void Seq_Triad::SetOut( int kb )
 {
     int note;
-    float foct, offset;
-
-    offset = inputs[ IN_VOCT_OFF ].normalize( 0.0 );
+    float foct;
 
     // end glide note (current pattern note)
     foct = (float)m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].oct;
     note = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note;
-    m_fCvEndOut[ kb ] = foct + m_Keys[ kb ][ note ].fsemi + offset;
+    m_fCvEndOut[ kb ] = foct + m_fKeyNotes[ note ] + m_VoctOffsetIn;
 
     // start glide note (last pattern note)
     if( m_bWasLastNotePlayed[ kb ] )
     {
-        m_fCvStartOut[ kb ] = m_fLastNotePlayed[ kb ] + offset;
+        m_fCvStartOut[ kb ] = m_fLastNotePlayed[ kb ] + m_VoctOffsetIn;
     }
     else
     {
         m_bWasLastNotePlayed[ kb ] = true;
-        m_fCvStartOut[ kb ] = m_fCvEndOut[ kb ] + offset;
+        m_fCvStartOut[ kb ] = m_fCvEndOut[ kb ] + m_VoctOffsetIn;
     }
 
-    m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ] + offset;
+    m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ] + m_VoctOffsetIn;
 
     // glide time ( max glide = 0.5 seconds )
     m_glideCount[ kb ] = 1 + (int)( ( params[ PARAM_GLIDE + kb ].value * 0.5 ) * gSampleRate);
@@ -878,12 +797,7 @@ void Seq_Triad::SetOut( int kb )
 //-----------------------------------------------------
 void Seq_Triad::SetKey( int kb )
 {
-    int i;
-
-    for( i = 0; i < nKEYS; i ++ )
-        m_Keys[ kb ][ i ].pWidget->setValue( 0.0 );
-
-    m_Keys[ kb ][ m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note ].pWidget->setValue( 0.9 );
+    pKeyboardWidget[ kb ]->setkey( m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note );
 }
 
 //-----------------------------------------------------
@@ -935,6 +849,9 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
     else if( index >= nPATTERNS )
         index = 0;
 
+    // update octave offset immediately when not running
+    m_VoctOffsetIn = inputs[ IN_VOCT_OFF ].normalize( 0.0 );
+
     m_CurrentPattern = index;
 
     // change pattern light
@@ -968,6 +885,9 @@ json_t *Seq_Triad::toJson()
     int *pint;
     json_t *gatesJ;
 	json_t *rootJ = json_object();
+
+
+    json_object_set_new(rootJ, "m_bPause", json_boolean (m_bPause));
 
     json_object_set_new(rootJ, "m_bChangeAllPatternOctaves", json_boolean (m_bChangeAllPatternOctaves));
 
@@ -1030,7 +950,12 @@ void Seq_Triad::fromJson(json_t *rootJ)
     int i;
     json_t *StepsJ;
 
-	json_t *revJ = json_object_get(rootJ, "m_bChangeAllPatternOctaves");
+	json_t *revJ = json_object_get(rootJ, "m_bPause");
+
+	if (revJ)
+		m_bPause = json_is_true( revJ );
+
+	revJ = json_object_get(rootJ, "m_bChangeAllPatternOctaves");
 
 	if (revJ)
 		m_bChangeAllPatternOctaves = json_is_true( revJ );
@@ -1091,6 +1016,8 @@ void Seq_Triad::fromJson(json_t *rootJ)
 				pint[ i ] = json_integer_value( gateJ );
 		}
 	}
+
+    m_fLightPause = m_bPause ? 1.0 : 0.0;
 
     SetSteps( m_nSteps );
     SetPhraseSteps( 0, m_PhrasesUsed[ 0 ] );
