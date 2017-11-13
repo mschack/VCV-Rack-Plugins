@@ -8,6 +8,9 @@
 #define CHANNEL_Y 65
 #define CHANNEL_X 10
 
+#define MAX_nWAVES 7
+#define MAX_DETUNE 100 //Hz
+
 #define freqMAX 300.0f
 #define ADS_MAX_TIME_SECONDS 0.5f
 
@@ -29,17 +32,13 @@ typedef struct
     int   filtertype;
 
     // wave
-    float phase;
-    float freq;
+    float phase[ MAX_nWAVES ];
+    float freq[ MAX_nWAVES ];
 
     //filter
     float q, f;
-    
 
-    float lp1, bp1;
-    float hpIn;
-    float lpIn;
-    float mpIn;
+    float lp1[ 2 ] = {}, bp1[ 2 ] = {};
 
     // ads
     ADR_STRUCT adr_wave;
@@ -73,7 +72,10 @@ struct Osc_3Ch : Module
         PARAM_RES       = PARAM_CUTOFF + nCHANNELS,
         PARAM_OUTLVL    = PARAM_RES + nCHANNELS,
         PARAM_FILTER_MODE = PARAM_OUTLVL + nCHANNELS,
-        nPARAMS         = PARAM_FILTER_MODE + nCHANNELS
+        PARAM_nWAVES    = PARAM_FILTER_MODE + nCHANNELS,
+        PARAM_SPREAD    = PARAM_nWAVES + nCHANNELS,
+        PARAM_DETUNE    = PARAM_SPREAD + nCHANNELS,
+        nPARAMS         = PARAM_DETUNE + nCHANNELS
     };
 
 	enum InputIds 
@@ -89,7 +91,7 @@ struct Osc_3Ch : Module
 	enum OutputIds 
     {
         OUTPUT_AUDIO,
-        nOUTPUTS        = OUTPUT_AUDIO + nCHANNELS
+        nOUTPUTS        = OUTPUT_AUDIO + (nCHANNELS * 2)
 	};
 
     enum ADRSTATES
@@ -119,6 +121,14 @@ struct Osc_3Ch : Module
     // waveforms
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
     float           m_fLightWaveSelect[ nCHANNELS ][ nWAVEFORMS ] = {};
+
+    float           m_DetuneIn[ nCHANNELS ] = {};
+    float           m_Detune[ nCHANNELS ][ MAX_nWAVES ][ MAX_nWAVES ];
+
+    float           m_SpreadIn[ nCHANNELS ] = {};
+    float           m_Pan[ nCHANNELS ][ MAX_nWAVES ][ MAX_nWAVES ][ 2 ];
+
+    int             m_nWaves[ nCHANNELS ] = {};
 
     // Contructor
 	Osc_3Ch() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
@@ -150,6 +160,76 @@ struct Osc_3Ch : Module
 	    }
     };
 
+    //-----------------------------------------------------
+    // MynWaves_Knob
+    //-----------------------------------------------------
+    struct MynWaves_Knob : Yellow3_Med
+    {
+        Osc_3Ch *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Osc_3Ch*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Osc_3Ch::PARAM_nWAVES;
+                mymodule->m_nWaves[ param ] = (int)( value * (float)(MAX_nWAVES - 1) ); 
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyDetune_Knob : Yellow3_Med
+    {
+        Osc_3Ch *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Osc_3Ch*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Osc_3Ch::PARAM_DETUNE;
+
+                mymodule->m_DetuneIn[ param ] = value;
+                mymodule->CalcDetune( param );
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MySpread_Knob : Yellow3_Med
+    {
+        Osc_3Ch *mymodule;
+        int param;
+
+        void onChange() override 
+        {
+            mymodule = (Osc_3Ch*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Osc_3Ch::PARAM_SPREAD;
+
+                mymodule->m_SpreadIn[ param ] = value;
+                mymodule->CalcSpread( param );
+            }
+
+		    RoundKnob::onChange();
+	    }
+    };
+
     // Overrides 
 	void    step() override;
     json_t* toJson() override;
@@ -158,13 +238,15 @@ struct Osc_3Ch : Module
     void    randomize() override;
     //void    reset() override;
 
+    void    CalcSpread( int ch );
+    void    CalcDetune( int ch );
     void    SetWaveLights( void );
     void    BuildWaves( void );
     void    ChangeFilterCutoff( int ch, float cutfreq );
-    float   Filter( int ch, float in, bool bHighPass );
+    void    Filter( int ch, float *InL, float *InR );
     float   GetWave( int type, float phase );
     float   ProcessADR( int ch );
-    float   GetAudio( int ch );
+    void    GetAudio( int ch, float *pOutL, float *pOutR );
 };
 
 //-----------------------------------------------------
@@ -211,7 +293,19 @@ void Osc_3Ch::fromJson(json_t *rootJ)
 			if (gateJ)
 				m_Wave[ i ].wavetype = json_integer_value( gateJ );
 		}
-	}
+	
+    }
+
+    // set up parameters
+    for ( i = 0; i < nCHANNELS; i++)
+    {
+        m_nWaves[ i ] = (int)( params[ PARAM_nWAVES + i ].value * (float)(MAX_nWAVES - 1) );
+               
+        m_SpreadIn[ i ] = params[ PARAM_SPREAD + i ].value;
+        CalcSpread( i );
+        m_DetuneIn[ i ] = params[ PARAM_DETUNE + i ].value;
+        CalcDetune( i );
+    }
 
     SetWaveLights();
 }
@@ -262,44 +356,54 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
             x2 += 16;
         }
 
-        x2 = x + 27;
+        x2 = x + 24;
         y2 = y + 18;
 
         // params
         addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_ATT + ch, 0.0, 1.0, 0.0 ) );
 
-        x2 += 34;
+        x2 += 31;
 
         addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_DELAY + ch, 0.0, 1.0, 0.0 ) );
 
-        x2 += 34;
+        x2 += 31;
 
         addParam(createParam<Yellow2_Small>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_REL + ch, 0.0, 1.0, 0.0 ) );
 
-        // inputs
+        // waves/detune/spread
         x2 = x + 149;
         y2 = y + 56;
 
+        addParam(createParam<Osc_3Ch::MynWaves_Knob>( Vec( x + 129, y + 11 ), module, Osc_3Ch::PARAM_nWAVES + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Osc_3Ch::MyDetune_Knob>( Vec( x + 116, y + 48 ), module, Osc_3Ch::PARAM_DETUNE + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Osc_3Ch::MySpread_Knob>( Vec( x + 116 + 28, y + 48 ), module, Osc_3Ch::PARAM_SPREAD + ch, 0.0, 1.0, 0.0 ) );
+
+        // inputs
+        x2 = x + 178;
+        y2 = y + 51;
+
         addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Osc_3Ch::IN_FILTER + ch ) );
-        x2 += 42;
+        x2 += 36;
         addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Osc_3Ch::IN_REZ + ch ) );
-        x2 += 50;
+        x2 += 40;
         addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Osc_3Ch::IN_LEVEL + ch ) );
 
         // filter
-        y2 = y + 11;
-        x2 = x + 138; 
+        y2 = y + 6;
+        x2 = x + 167; 
         addParam(createParam<Green1_Big>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_CUTOFF + ch, 0.0, 0.4, 0.0 ) );
-        addParam(createParam<FilterSelectToggle>( Vec( x2 + 47, y2 ), module, Osc_3Ch::PARAM_FILTER_MODE + ch, 0.0, 3.0, 0.0 ) );
-        addParam(createParam<Purp1_Med>( Vec( x2 + 51, y2 + 21 ), module, Osc_3Ch::PARAM_RES + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<FilterSelectToggle>( Vec( x2 + 43, y2 + 2 ), module, Osc_3Ch::PARAM_FILTER_MODE + ch, 0.0, 3.0, 0.0 ) );
+        addParam(createParam<Purp1_Med>( Vec( x2 + 46, y2 + 20 ), module, Osc_3Ch::PARAM_RES + ch, 0.0, 1.0, 0.0 ) );
 
         // main level
-        addParam(createParam<Blue2_Med>( Vec( x + 228, y2 ), module, Osc_3Ch::PARAM_OUTLVL + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Blue2_Med>( Vec( x2 + 76, y2 ), module, Osc_3Ch::PARAM_OUTLVL + ch, 0.0, 1.0, 0.0 ) );
 
         // outputs
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 277, y + 24 ), module, Osc_3Ch::OUTPUT_AUDIO + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 283, y + 4 ), module, Osc_3Ch::OUTPUT_AUDIO + (ch * 2) ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 283, y + 53 ), module, Osc_3Ch::OUTPUT_AUDIO + (ch * 2) + 1 ) );
         
         y += CHANNEL_H;
+        module->m_nWaves[ ch ] = 0;
     }
 
     module->BuildWaves();
@@ -522,89 +626,158 @@ void Osc_3Ch::ChangeFilterCutoff( int ch, float cutfreq )
 //
 //-----------------------------------------------------
 #define MULTI (0.33333333333333333333333333333333f)
-float Osc_3Ch::Filter( int ch, float in, bool bHighPass )
+void Osc_3Ch::Filter( int ch, float *InL, float *InR )
 {
     OSC_PARAM_STRUCT *p;
-    float rez, hp1, out = 0.0; 
-    float lowpass, highpass, bandpass;
+    float rez, hp1; 
+    float input[ 2 ], out[ 2 ], lowpass, bandpass, highpass;
 
     if( (int)params[ PARAM_FILTER_MODE + ch ].value == 0 )
-        return in;
+        return;
 
     p = &m_Wave[ ch ];
 
     rez = 1.0 - params[ PARAM_RES + ch ].value;
 
-    in = in + 0.000000001;
+    input[ 0 ] = *InL;
+    input[ 1 ] = *InR;
 
-    p->lp1   = p->lp1 + p->f * p->bp1; 
-    hp1      = in - p->lp1 - rez * p->bp1; 
-    p->bp1   = p->f * hp1 + p->bp1; 
-    lowpass  = p->lp1; 
-    highpass = hp1; 
-    bandpass = p->bp1; 
-
-    p->lp1   = p->lp1 + p->f * p->bp1; 
-    hp1      = in - p->lp1 - rez * p->bp1; 
-    p->bp1   = p->f * hp1 + p->bp1; 
-    lowpass  = lowpass  + p->lp1; 
-    highpass = highpass + hp1; 
-    bandpass = bandpass + p->bp1; 
-
-    in = in - 0.000000001;
-
-    p->lp1   = p->lp1 + p->f * p->bp1; 
-    hp1      = in - p->lp1 - rez * p->bp1; 
-    p->bp1   = p->f * hp1 + p->bp1; 
-
-    lowpass  = (lowpass  + p->lp1) * MULTI; 
-    highpass = (highpass + hp1) * MULTI; 
-    bandpass = (bandpass + p->bp1) * MULTI;
-
-    switch( (int)params[ PARAM_FILTER_MODE + ch ].value )
+    // do left and right channels
+    for( int i = 0; i < 2; i++ )
     {
-    case FILTER_LP:
-        out = lowpass;
-        break;
-    case FILTER_HP:
-        out = highpass;
-        break;
-    case FILTER_BP:
-        out = bandpass;
-        break;
-    default:
-        break;
+        input[ i ]  = input[ i ] + 0.000000001;
+
+        p->lp1[ i ] = p->lp1[ i ] + p->f * p->bp1[ i ]; 
+        hp1         = input[ i ] - p->lp1[ i ] - rez * p->bp1[ i ]; 
+        p->bp1[ i ] = p->f * hp1 + p->bp1[ i ]; 
+        lowpass     = p->lp1[ i ]; 
+        highpass    = hp1; 
+        bandpass    = p->bp1[ i ]; 
+
+        p->lp1[ i ] = p->lp1[ i ] + p->f * p->bp1[ i ]; 
+        hp1         = input[ i ] - p->lp1[ i ] - rez * p->bp1[ i ]; 
+        p->bp1[ i ] = p->f * hp1 + p->bp1[ i ]; 
+        lowpass     = lowpass  + p->lp1[ i ]; 
+        highpass    = highpass + hp1; 
+        bandpass    = bandpass + p->bp1[ i ]; 
+
+        input[ i ]  = input[ i ] - 0.000000001;
+
+        p->lp1[ i ] = p->lp1[ i ] + p->f * p->bp1[ i ]; 
+        hp1         = input[ i ] - p->lp1[ i ] - rez * p->bp1[ i ]; 
+        p->bp1[ i ] = p->f * hp1 + p->bp1[ i ]; 
+
+        lowpass  = (lowpass  + p->lp1[ i ]) * MULTI; 
+        highpass = (highpass + hp1) * MULTI; 
+        bandpass = (bandpass + p->bp1[ i ]) * MULTI;
+
+        switch( (int)params[ PARAM_FILTER_MODE + ch ].value )
+        {
+        case FILTER_LP:
+            out[ i ] = lowpass;
+            break;
+        case FILTER_HP:
+            out[ i ]  = highpass;
+            break;
+        case FILTER_BP:
+            out[ i ]  = bandpass;
+            break;
+        default:
+            break;
+        }
     }
 
-    return out;
+    *InL = out[ 0 ];
+    *InR = out[ 1 ];
+}
+
+//-----------------------------------------------------
+// Procedure:   CalcSpread
+//
+//-----------------------------------------------------
+typedef struct
+{
+    float pan[ 2 ];
+    float maxdetune;
+}PAN_DETUNE;
+
+PAN_DETUNE pandet[ 7 ][ 7 ] = 
+{
+    { { {1.0, 1.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.5}, 0.1 }, { {0.5, 1.0}, 0.2 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.5}, 0.3 }, { {1.0, 1.0}, 0.0 }, { {0.5, 1.0}, 0.2 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.3}, 0.4 }, { {1.0, 0.5}, 0.2 }, { {0.5, 1.0}, 0.2 }, { {0.3, 1.0}, 0.3 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.3}, 0.5 }, { {1.0, 0.5}, 0.4 }, { {1.0, 1.0}, 0.0 }, { {0.5, 1.0}, 0.3 }, { {0.3, 1.0}, 0.1 }, { {0.0, 0.0}, 0.0 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.2}, 0.6 }, { {1.0, 0.3}, 0.4 }, { {1.0, 0.5}, 0.2 }, { {0.5, 1.0}, 0.3 }, { {0.3, 1.0}, 0.5 }, { {0.2, 1.0}, 0.8 }, { {0.0, 0.0}, 0.0 } },
+    { { {1.0, 0.0}, 0.9 }, { {1.0, 0.2}, 0.7 }, { {1.0, 0.3}, 0.5 }, { {1.0, 1.0}, 0.0 }, { {0.3, 1.0}, 0.4 }, { {0.2, 1.0}, 0.8 }, { {0.0, 1.0}, 1.0 } },
+};
+
+void Osc_3Ch::CalcSpread( int ch )
+{
+    int used;  // number of waves being used by channel
+    int wave;  // values for each individual wave
+
+    // calculate pans for each possible number of waves being used
+    for( used = 0; used < MAX_nWAVES; used++ )
+    {
+        for( wave = 0; wave <= used; wave++ )
+        {
+            m_Pan[ ch ][ used ][ wave ][ 0 ] =  ( 1.0 - m_SpreadIn[ ch ] ) + ( pandet[ used ][ wave ].pan[ 0 ] * m_SpreadIn[ ch ] );
+            m_Pan[ ch ][ used ][ wave ][ 1 ] =  ( 1.0 - m_SpreadIn[ ch ] ) + ( pandet[ used ][ wave ].pan[ 1 ] * m_SpreadIn[ ch ] );
+        }
+    }
+}
+
+void Osc_3Ch::CalcDetune( int ch )
+{
+    int used;  // number of waves being used by channel
+    int wave;  // values for each individual wave
+
+    // calculate detunes for each possible number of waves being used
+    for( used = 0; used < MAX_nWAVES; used++ )
+    {
+        for( wave = 0; wave <= used; wave++ )
+            m_Detune[ ch ][ used ][ wave ] = pandet[ used ][ wave ].maxdetune * MAX_DETUNE * m_DetuneIn[ ch ];
+    }
 }
 
 //-----------------------------------------------------
 // Procedure:   GetAudio
 //
 //-----------------------------------------------------
-float Osc_3Ch::GetAudio( int ch )
+void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
 {
-    float fout = 0, cutoff;
+    float foutL = 0, foutR = 0, cutoff, adr;
+    int i;
 
-    if( outputs[ OUTPUT_AUDIO + ch ].active )
+    for( i = 0; i <= m_nWaves[ ch ]; i++ )
     {
-        fout = ProcessADR( ch ) * GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase );
+        foutL = GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase[ i ] );
+        foutR = foutL;
+
+        foutL *= m_Pan[ ch ][ m_nWaves[ ch ] ][ i ][ 0 ];
+        foutR *= m_Pan[ ch ][ m_nWaves[ ch ] ][ i ][ 1 ];
 
         // 38.8909 65.4064
-        m_Wave[ ch ].phase += 38.8909 * powf( 2.0, inputs[ IN_VOCT + ch ].value );
+        m_Wave[ ch ].phase[ i ] += 38.8909 * powf( 2.0, inputs[ IN_VOCT + ch ].value ) + m_Detune[ ch ][ m_nWaves[ ch ] ][ i ];
 
-        if( m_Wave[ ch ].phase >= gSampleRate )
-            m_Wave[ ch ].phase = m_Wave[ ch ].phase - gSampleRate;
+        if( m_Wave[ ch ].phase[ i ] >= gSampleRate )
+            m_Wave[ ch ].phase[ i ] = m_Wave[ ch ].phase[ i ] - gSampleRate;
 
-        cutoff = clampf( params[ PARAM_CUTOFF + ch ].value + ( inputs[ IN_FILTER + ch ].normalize( 0.0 ) / 10.0 ), 0.0, 1.0 );
-
-        ChangeFilterCutoff( ch, cutoff );
-
-        fout = Filter( ch, fout, ( m_Wave[ ch ].wavetype == WAVE_NOISE ) );
+        *pOutL += foutL;
+        *pOutR += foutR;
     }
 
-    return fout;
+    adr = ProcessADR( ch );
+
+    *pOutL = *pOutL * adr;
+    *pOutR = *pOutR * adr;
+
+    cutoff = clampf( params[ PARAM_CUTOFF + ch ].value + ( inputs[ IN_FILTER + ch ].normalize( 0.0 ) / 10.0 ), 0.0, 1.0 );
+
+    ChangeFilterCutoff( ch, cutoff );
+
+    Filter( ch, pOutL, pOutR );
 }
 
 //-----------------------------------------------------
@@ -614,10 +787,14 @@ float Osc_3Ch::GetAudio( int ch )
 void Osc_3Ch::step() 
 {
     int ch;
+    float outL, outR;
 
     // check for triggers
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
+        outL = 0.0;
+        outR = 0.0;
+
 	    if( inputs[ IN_TRIG + ch ].active ) 
         {
 		    if( m_SchTrig[ ch ].process( inputs[ IN_TRIG + ch ].value ) )
@@ -626,6 +803,12 @@ void Osc_3Ch::step()
             }
 	    }
 
-        outputs[ OUTPUT_AUDIO + ch ].value = clampf( ( GetAudio( ch ) * 5.0 ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ), -5.0, 5.0 );
+        GetAudio( ch, &outL, &outR );
+
+        outL = clampf( ( outL * 5.0 ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ), -5.0, 5.0 );
+        outR = clampf( ( outR * 5.0 ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ), -5.0, 5.0 );
+
+        outputs[ OUTPUT_AUDIO + (ch * 2 ) ].value = outL;
+        outputs[ OUTPUT_AUDIO + (ch * 2 ) + 1 ].value = outR;
     }
 }
