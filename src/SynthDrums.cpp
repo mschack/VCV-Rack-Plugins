@@ -635,7 +635,7 @@ void SynthDrums::step()
     }
 
     // process sounds
-    outputs[ OUTPUT_AUDIO + 0 ].value = GetAudio( 0 ) * 5.0 * clampf( (inputs[ IN_LEVEL + 0 ].value / 10.0), 0.0, 1.0 );
-    outputs[ OUTPUT_AUDIO + 1 ].value = GetAudio( 1 ) * 5.0 * clampf( (inputs[ IN_LEVEL + 1 ].value / 10.0), 0.0, 1.0 );
-    outputs[ OUTPUT_AUDIO + 2 ].value = GetAudio( 2 ) * 5.0 * clampf( (inputs[ IN_LEVEL + 2 ].value / 10.0), 0.0, 1.0 );
+    outputs[ OUTPUT_AUDIO + 0 ].value = GetAudio( 0 ) * AUDIO_MAX * clampf( (inputs[ IN_LEVEL + 0 ].value / CV_MAX), 0.0, 1.0 );
+    outputs[ OUTPUT_AUDIO + 1 ].value = GetAudio( 1 ) * AUDIO_MAX * clampf( (inputs[ IN_LEVEL + 1 ].value / CV_MAX), 0.0, 1.0 );
+    outputs[ OUTPUT_AUDIO + 2 ].value = GetAudio( 2 ) * AUDIO_MAX * clampf( (inputs[ IN_LEVEL + 2 ].value / CV_MAX), 0.0, 1.0 );
 }

@@ -1114,7 +1114,7 @@ void Seq_Triad::step()
             m_gatePulse[ i ].trigger(1e-3);
         }
 
-        outputs[ OUT_TRIG + i ].value = m_gatePulse[ i ].process( 1.0 / gSampleRate ) ? 10.0 : 0.0;
+        outputs[ OUT_TRIG + i ].value = m_gatePulse[ i ].process( 1.0 / gSampleRate ) ? CV_MAX : 0.0;
 
         if( --m_glideCount[ i ] > 0 )
             m_fglide[ i ] -= m_fglideInc[ i ];

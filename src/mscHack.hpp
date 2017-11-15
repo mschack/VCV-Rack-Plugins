@@ -5,6 +5,10 @@ using namespace rack;
 
 extern Plugin *plugin;
 
+#define CV_MAX (15.0f)
+#define AUDIO_MAX (6.0f)
+#define VOCT_MAX (6.0f)
+
 ////////////////////
 // module widgets
 ////////////////////
@@ -49,6 +53,11 @@ struct PingPong_Widget : ModuleWidget {
 struct Osc_3Ch_Widget : ModuleWidget {
 	Osc_3Ch_Widget();
 };
+
+struct Compressor_Widget : ModuleWidget {
+	Compressor_Widget();
+};
+
 
 
 

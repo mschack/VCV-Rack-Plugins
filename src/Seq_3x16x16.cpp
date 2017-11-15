@@ -958,7 +958,7 @@ void Seq_3x16x16::step()
 	    }
 
         // trigger
-        outputs[ OUT_GATES + ch ].value = bChTrig ? 10.0 : 0.0;
+        outputs[ OUT_GATES + ch ].value = bChTrig ? CV_MAX : 0.0;
     }
 
     // outputs

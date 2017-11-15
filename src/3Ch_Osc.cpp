@@ -773,7 +773,7 @@ void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
     *pOutL = *pOutL * adr;
     *pOutR = *pOutR * adr;
 
-    cutoff = clampf( params[ PARAM_CUTOFF + ch ].value + ( inputs[ IN_FILTER + ch ].normalize( 0.0 ) / 10.0 ), 0.0, 1.0 );
+    cutoff = clampf( params[ PARAM_CUTOFF + ch ].value + ( inputs[ IN_FILTER + ch ].normalize( 0.0 ) / CV_MAX ), 0.0, 1.0 );
 
     ChangeFilterCutoff( ch, cutoff );
 
@@ -805,8 +805,8 @@ void Osc_3Ch::step()
 
         GetAudio( ch, &outL, &outR );
 
-        outL = clampf( ( outL * 5.0 ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ), -5.0, 5.0 );
-        outR = clampf( ( outR * 5.0 ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ), -5.0, 5.0 );
+        outL = clampf( ( outL * AUDIO_MAX ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / CV_MAX ), -AUDIO_MAX, AUDIO_MAX );
+        outR = clampf( ( outR * AUDIO_MAX ) * params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / CV_MAX ), -AUDIO_MAX, AUDIO_MAX );
 
         outputs[ OUTPUT_AUDIO + (ch * 2 ) ].value = outL;
         outputs[ OUTPUT_AUDIO + (ch * 2 ) + 1 ].value = outR;

@@ -344,7 +344,7 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
 		addChild(panel);
 	}
 
-    module->lg.Open("Mix_4x4_Stereo2.txt");
+    //module->lg.Open("Mix_4x4_Stereo2.txt");
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
@@ -414,9 +414,9 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         addParam(createParam<Mix_4x4_Stereo2::MyEQLo_Knob>( Vec( x - 5, y ), module, Mix_4x4_Stereo2::PARAM_EQ_LO + ch, 0.0, 1.0, 0.5 ) );
 
         // LED Meters
-        module->m_pLEDMeterChannel[ ch ][ 0 ] = new LEDMeterWidget( x + 13, y2 + 33, 4, 2, 5, true );
+        module->m_pLEDMeterChannel[ ch ][ 0 ] = new LEDMeterWidget( x + 13, y2 + 30, 4, 1, 1, true );
         addChild( module->m_pLEDMeterChannel[ ch ][ 0 ] );
-        module->m_pLEDMeterChannel[ ch ][ 1 ] = new LEDMeterWidget( x + 18, y2 + 33, 4, 2, 5, true );
+        module->m_pLEDMeterChannel[ ch ][ 1 ] = new LEDMeterWidget( x + 18, y2 + 30, 4, 1, 1, true );
         addChild( module->m_pLEDMeterChannel[ ch ][ 1 ] );
         
         if( ( ch & 3 ) == 3 )
@@ -459,9 +459,9 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         //addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_4x4_Stereo2::IN_GROUP_PAN + i ) );
 
         // group VU Meters
-        module->m_pLEDMeterGroup[ i ][ 0 ] = new LEDMeterWidget( x2 + 2, y2 + 21, 5, 3, 7, true );
+        module->m_pLEDMeterGroup[ i ][ 0 ] = new LEDMeterWidget( x2 + 2, y2 + 21, 5, 2, 1, true );
         addChild( module->m_pLEDMeterGroup[ i ][ 0 ] );
-        module->m_pLEDMeterGroup[ i ][ 1 ] = new LEDMeterWidget( x2 + 9, y2 + 21, 5, 3, 7, true );
+        module->m_pLEDMeterGroup[ i ][ 1 ] = new LEDMeterWidget( x2 + 9, y2 + 21, 5, 2, 1, true );
         addChild( module->m_pLEDMeterGroup[ i ][ 1 ] );
 
         // group level and pan knobs
@@ -514,12 +514,15 @@ Mix_4x4_Stereo2_Widget::Mix_4x4_Stereo2_Widget()
         x += 155;
     }
 
+    //for( int i = 0; i < 15; i++ )
+        //module->lg.f("level %d = %.3f\n", i, module->m_pLEDMeterChannel[ 0 ][ 0 ]->flevels[ i ] );
+
     // main mixer knob 
     addParam(createParam<Blue2_Big>( Vec( 626, 237 ), module, Mix_4x4_Stereo2::PARAM_MAIN_LEVEL, 0.0, AMP_MAX, 0.0 ) );
 
-    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 684, 257, 5, 3, 7, true );
+    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 684, 242, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 0 ] );
-    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 691, 257, 5, 3, 7, true );
+    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 691, 242, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 1 ] );
 
     // outputs
@@ -1040,8 +1043,8 @@ void Mix_4x4_Stereo2::ProcessEQ( int ch, float *pL, float *pR )
     float rez, hp1; 
     float input[ 2 ], out[ 2 ], lowpass, bandpass, highpass;
 
-    input[ L ] = *pL / 5.0;
-    input[ R ] = *pR / 5.0;
+    input[ L ] = *pL / AUDIO_MAX;
+    input[ R ] = *pR / AUDIO_MAX;
 
     rez = 1.00;
 
@@ -1076,8 +1079,8 @@ void Mix_4x4_Stereo2::ProcessEQ( int ch, float *pL, float *pR )
         out[ i ] = ( highpass * m_hpIn[ ch ] ) + ( lowpass * m_lpIn[ ch ] ) + ( bandpass * m_mpIn[ ch ] );
     }
 
-    *pL = clampf( out[ L ] * 5.0, -5.0, 5.0 );
-    *pR = clampf( out[ R ] * 5.0, -5.0, 5.0 );
+    *pL = clampf( out[ L ] * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
+    *pR = clampf( out[ R ] * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
 }
 
 //-----------------------------------------------------
@@ -1106,7 +1109,7 @@ void Mix_4x4_Stereo2::step()
 
         if( inputs[ IN_RIGHT + ch ].active || inputs[ IN_LEFT + ch ].active )
         {
-            inLvl = clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 10.0 ) ), 0.0, AMP_MAX ); 
+            inLvl = clampf( ( params[ PARAM_LEVEL_IN + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / CV_MAX ) ), 0.0, AMP_MAX ); 
 
             bGroupActive[ group ] = true;
 
@@ -1170,7 +1173,7 @@ void Mix_4x4_Stereo2::step()
             inR *= m_fMuteFade[ ch ];
 
             // pan
-            inPan = clampf( params[ PARAM_PAN_IN + ch ].value + ( inputs[ IN_PAN + ch ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
+            inPan = clampf( params[ PARAM_PAN_IN + ch ].value + ( inputs[ IN_PAN + ch ].normalize( 0.0 ) / CV_MAX ), -1.0, 1.0 );
 
             //lg.f("pan = %.3f\n", inputs[ IN_PAN + ch ].value );
 
@@ -1199,9 +1202,9 @@ void Mix_4x4_Stereo2::step()
         m_fSubMix[ group ][ R ] += inR;
 
         if( m_pLEDMeterChannel[ ch ][ 0 ] )
-            m_pLEDMeterChannel[ ch ][ 0 ]->Process( inL );
+            m_pLEDMeterChannel[ ch ][ 0 ]->Process( inL / AUDIO_MAX );
         if( m_pLEDMeterChannel[ ch ][ 1 ] )
-            m_pLEDMeterChannel[ ch ][ 1 ]->Process( inR );
+            m_pLEDMeterChannel[ ch ][ 1 ]->Process( inR / AUDIO_MAX);
     }
 
     // group mixers
@@ -1212,13 +1215,13 @@ void Mix_4x4_Stereo2::step()
 
         if( bGroupActive[ group ] )
         {
-            inLvl = clampf( ( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / 10.0 ) ), 0.0, AMP_MAX ); 
+            inLvl = clampf( ( params[ PARAM_GROUP_LEVEL_IN + group ].value + ( inputs[ IN_GROUP_LEVEL + group ].normalize( 0.0 ) / CV_MAX ) ), 0.0, AMP_MAX ); 
 
             outL = m_fSubMix[ group ][ L ] * inLvl;
             outR = m_fSubMix[ group ][ R ] * inLvl;
 
             // pan
-            inPan = clampf( params[ PARAM_GROUP_PAN_IN + group ].value + ( inputs[ IN_GROUP_PAN + group ].normalize( 0.0 ) / 10.0 ), -1.0, 1.0 );
+            inPan = clampf( params[ PARAM_GROUP_PAN_IN + group ].value + ( inputs[ IN_GROUP_PAN + group ].normalize( 0.0 ) / CV_MAX ), -1.0, 1.0 );
 
             if( inPan <= 0.0 )
                 outR *= ( 1.0 + inPan );
@@ -1251,26 +1254,26 @@ void Mix_4x4_Stereo2::step()
         }
 
         if( m_pLEDMeterGroup[ group ][ 0 ] )
-            m_pLEDMeterGroup[ group ][ 0 ]->Process( outL );
+            m_pLEDMeterGroup[ group ][ 0 ]->Process( outL / AUDIO_MAX );
         if( m_pLEDMeterGroup[ group ][ 1 ] )
-            m_pLEDMeterGroup[ group ][ 1 ]->Process( outR );
+            m_pLEDMeterGroup[ group ][ 1 ]->Process( outR / AUDIO_MAX );
 
         mainL += outL;
         mainR += outR;
     }
 
     if( m_pLEDMeterMain[ 0 ] )
-        m_pLEDMeterMain[ 0 ]->Process( mainL * params[ PARAM_MAIN_LEVEL ].value );
+        m_pLEDMeterMain[ 0 ]->Process( ( mainL / AUDIO_MAX )  * params[ PARAM_MAIN_LEVEL ].value );
     if( m_pLEDMeterMain[ 1 ] )
-        m_pLEDMeterMain[ 1 ]->Process( mainR * params[ PARAM_MAIN_LEVEL ].value );
+        m_pLEDMeterMain[ 1 ]->Process( ( mainR / AUDIO_MAX ) * params[ PARAM_MAIN_LEVEL ].value );
 
     // put aux output
     for ( aux = 0; aux < nAUX; aux++ )
     {
-        outputs[ OUT_AUXL + aux ].value = clampf( auxL[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -5.0, 5.0 );
-        outputs[ OUT_AUXR + aux ].value = clampf( auxR[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -5.0, 5.0 );
+        outputs[ OUT_AUXL + aux ].value = clampf( auxL[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -AUDIO_MAX, AUDIO_MAX );
+        outputs[ OUT_AUXR + aux ].value = clampf( auxR[ aux ] * params[ PARAM_AUX_OUT + aux ].value, -AUDIO_MAX, AUDIO_MAX );
     }
 
-    outputs[ OUT_MAINL ].value = clampf( mainL * params[ PARAM_MAIN_LEVEL ].value, -5.0, 5.0 );
-    outputs[ OUT_MAINR ].value = clampf( mainR * params[ PARAM_MAIN_LEVEL ].value, -5.0, 5.0 );
+    outputs[ OUT_MAINL ].value = clampf( mainL * params[ PARAM_MAIN_LEVEL ].value, -AUDIO_MAX, AUDIO_MAX );
+    outputs[ OUT_MAINR ].value = clampf( mainR * params[ PARAM_MAIN_LEVEL ].value, -AUDIO_MAX, AUDIO_MAX );
 }
