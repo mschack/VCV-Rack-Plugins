@@ -52,6 +52,8 @@ struct DarkYellow2ValueLight : ColorValueLight
 #define lvl_to_db( x ) ( 20.0 * log10( x ) )
 #define db_to_lvl( x ) ( 1.0 / pow( 10, x / 20.0 ) )
 
+
+
 typedef struct
 {
     union
@@ -76,80 +78,186 @@ typedef struct
 //-----------------------------------------------------
 // LEDMeterWidget
 //-----------------------------------------------------
-struct LEDMeterWidget : TransparentWidget 
+#define nDISPLAY_LEDS 10
+const float fleveldb[ nDISPLAY_LEDS ] = { 0, 3, 6, 10, 20, 30, 40, 50, 60, 80 };
+struct CompressorLEDMeterWidget : TransparentWidget 
 {
-    bool            m_bOn[ 7 ] = {};
-    int             m_nLEDs;
+    bool            m_bOn[ nDISPLAY_LEDS ] = {};
     int             m_StepCount;
-    bool            m_bVert;
-    float           m_fLevel = 0;
-    RECT_STRUCT     m_Rects[ 7 ];
-    RGB_STRUCT      m_ColoursOn[ 7 ];
-    RGB_STRUCT      m_ColoursOff[ 7 ];
+    float           m_fLargest = 0;
+    RECT_STRUCT     m_Rects[ nDISPLAY_LEDS ];
+    RGB_STRUCT      m_ColourOn;
+    RGB_STRUCT      m_ColourOff;
+    bool            m_bInvert;
 
-    const float flevelsmax[ 5 ][ 7 ] =
-    {
-        {1.0, 0.708, 0.00001, 0, 0, 0, 0 }, 
-        {1.0, 0.708, 0.5, 0.00001, 0, 0, 0 }, 
-        {1.0, 0.708, 0.5, 0.316, 0.00001, 0, 0 }, 
-        {1.0, 0.708, 0.5, 0.316, 0.1, 0.00001, 0 }, 
-        {1.0, 0.708, 0.5, 0.316, 0.1, 0.032, 0.00001 } 
-    };
-
-    const int ledcolourratio[ 5 ][ 7 ] = 
-    { 
-        {0, 1, 2, 0, 0, 0, 0 }, 
-        {0, 1, 2, 2, 0, 0, 0 }, 
-        {0, 1, 2, 2, 2, 0, 0 }, 
-        {0, 1, 1, 2, 2, 2, 0 }, 
-        {0, 1, 1, 2, 2, 2, 2 } 
-    };
+    float flevels[ nDISPLAY_LEDS ];
 
     //-----------------------------------------------------
     // Procedure:   Constructor
     //-----------------------------------------------------
-    LEDMeterWidget( int x, int y, int w, int h, int nLEDs, bool bVert )
+    CompressorLEDMeterWidget( bool bInvert, int x, int y, int w, int h, int colouron, int colouroff )
+    {
+        int i;
+
+        m_bInvert = bInvert;
+        m_ColourOn.dwCol = colouron;
+        m_ColourOff.dwCol = colouroff;
+
+		box.pos = Vec(x, y);
+        box.size = Vec( w, h * nDISPLAY_LEDS + ( nDISPLAY_LEDS * 2 ) );
+
+        y = 1;
+
+        for( i = 0; i < nDISPLAY_LEDS; i++ )
+        {
+            flevels[ i ] = db_to_lvl( fleveldb[ i ] );
+
+            m_Rects[ i ].x = 0;
+            m_Rects[ i ].y = y;
+            m_Rects[ i ].x2 = w;
+            m_Rects[ i ].y2 = y + h;
+
+            y += ( h + 2 );
+        }
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw(NVGcontext *vg) override
+    {
+        int i;
+
+		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(vg);
+		nvgMoveTo(vg, -1, -1 );
+		nvgLineTo(vg, box.size.x + 1, -1 );
+		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(vg, -1, box.size.y + 1 );
+		nvgClosePath(vg);
+		nvgFill(vg);
+
+        for( i = 0; i < nDISPLAY_LEDS; i++ )
+        {
+            if( m_bOn[ i ] )
+                nvgFillColor( vg, nvgRGB( m_ColourOn.Col[ 2 ], m_ColourOn.Col[ 1 ], m_ColourOn.Col[ 0 ] ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_ColourOff.Col[ 2 ], m_ColourOff.Col[ 1 ], m_ColourOff.Col[ 0 ] ) );
+
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, m_Rects[ i ].x, m_Rects[ i ].y );
+			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y );
+			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y2 );
+			nvgLineTo(vg, m_Rects[ i ].x, m_Rects[ i ].y2 );
+			nvgClosePath(vg);
+		    nvgFill(vg);
+        }
+	}
+
+    //-----------------------------------------------------
+    // Procedure:   Process
+    //-----------------------------------------------------
+    void Process( float level )
+    {
+        int steptime = (int)( gSampleRate * 0.05 );
+        int i;
+
+        if( abs( level ) > m_fLargest )
+            m_fLargest = abs( level );
+
+        // only process every 1/10th of a second
+        if( ++m_StepCount >= steptime )
+        {
+            m_StepCount = 0;
+
+            if( m_bInvert )
+            {
+                for( i = 0; i < nDISPLAY_LEDS; i++ )
+                {
+                    if( m_fLargest >= flevels[ i ] )
+                        m_bOn[ ( nDISPLAY_LEDS - 1 ) - i ] = true;
+                    else
+                        m_bOn[ ( nDISPLAY_LEDS - 1 ) - i ] = false;
+                }
+            }
+            else
+            {
+                for( i = 0; i < nDISPLAY_LEDS; i++ )
+                {
+                    if( m_fLargest >= flevels[ i ] )
+                        m_bOn[ i ] = true;
+                    else
+                        m_bOn[ i ] = false;
+                }
+            }
+
+            m_fLargest = 0.0f;
+        }
+    }
+};
+
+//-----------------------------------------------------
+// LEDMeterWidget
+//-----------------------------------------------------
+struct LEDMeterWidget : TransparentWidget 
+{
+    bool            m_bOn[ nDISPLAY_LEDS ] = {};
+    int             m_space;
+    int             m_StepCount;
+    bool            m_bVert;
+    float           m_fLargest = 0.0;
+    RECT_STRUCT     m_Rects[ nDISPLAY_LEDS ];
+    RGB_STRUCT      m_ColoursOn[ nDISPLAY_LEDS ];
+    RGB_STRUCT      m_ColoursOff[ nDISPLAY_LEDS ];
+    float           flevels[ nDISPLAY_LEDS ] = {};
+
+    //-----------------------------------------------------
+    // Procedure:   Constructor
+    //-----------------------------------------------------
+    LEDMeterWidget( int x, int y, int w, int h, int space, bool bVert )
     {
         int i, xoff = 0, yoff = 0, xpos = 0, ypos = 0;
 
-        if( nLEDs < 3 || nLEDs > 7 )
-            return;
-
+        m_space = space;
 		box.pos = Vec(x, y);
-        m_nLEDs = nLEDs;
 
         if( bVert )
         {
-            box.size = Vec( w, h * nLEDs + ( nLEDs * 2 ) );
-            yoff = h+2; 
+            box.size = Vec( w, h * nDISPLAY_LEDS + (m_space * nDISPLAY_LEDS) );
+            yoff = h + m_space; 
         }
         else
         {
-            box.size = Vec( w * nLEDs + ( nLEDs * 2 ), h );
-            xoff = w+2;
+            box.size = Vec( w * nDISPLAY_LEDS + (m_space * nDISPLAY_LEDS), h );
+            xoff = w + m_space;
         }
 
-        for( i = 0; i < m_nLEDs; i++ )
+        for( i = 0; i < nDISPLAY_LEDS; i++ )
         {
+            flevels[ i ] = db_to_lvl( fleveldb[ i ] );
+
             m_Rects[ i ].x = xpos;
             m_Rects[ i ].y = ypos;
             m_Rects[ i ].x2 = xpos + w;
             m_Rects[ i ].y2 = ypos + h;
 
-            switch( ledcolourratio[ m_nLEDs - 3 ][ i ] )
+            // always red
+            if( i == 0 )
             {
-            case 0: // red
                 m_ColoursOn[ i ].dwCol = DWRGB( 0xFF, 0, 0 );
                 m_ColoursOff[ i ].dwCol= DWRGB( 0x80, 0, 0 );
-                break;
-            case 1: // yellow
+            }
+            // yellow
+            else if( i < 3 )
+            {
                 m_ColoursOn[ i ].dwCol = DWRGB( 0xFF, 0xFF, 0 );
                 m_ColoursOff[ i ].dwCol= DWRGB( 0x80, 0x80, 0 );
-                break;
-            case 2: // green
+            }
+            // green
+            else
+            {
                 m_ColoursOn[ i ].dwCol = DWRGB( 0, 0xFF, 0 );
                 m_ColoursOff[ i ].dwCol= DWRGB( 0, 0x80, 0 );
-                break;
             }
 
             xpos += xoff;
@@ -173,7 +281,7 @@ struct LEDMeterWidget : TransparentWidget
 		nvgClosePath(vg);
 		nvgFill(vg);
 
-        for( i = 0; i < m_nLEDs; i++ )
+        for( i = 0; i < nDISPLAY_LEDS; i++ )
         {
             if( m_bOn[ i ] )
                 nvgFillColor( vg, nvgRGB( m_ColoursOn[ i ].Col[ 2 ], m_ColoursOn[ i ].Col[ 1 ], m_ColoursOn[ i ].Col[ 0 ] ) );
@@ -198,29 +306,29 @@ struct LEDMeterWidget : TransparentWidget
         int steptime = (int)( gSampleRate * 0.05 );
         int i;
 
+        if( abs( level ) > m_fLargest )
+            m_fLargest = abs( level );
+
         // only process every 1/10th of a second
         if( ++m_StepCount >= steptime )
         {
-            if( m_fLevel < abs( level ) )
-                m_fLevel += fmin( 0.1, abs( level ) - m_fLevel );
-            else
-                m_fLevel -= fmin( 0.1, m_fLevel - abs( level ) );
-
             m_StepCount = 0;
 
-            for( i = 0; i < m_nLEDs; i++ )
+            for( i = 0; i < nDISPLAY_LEDS; i++ )
             {
-                if( abs( m_fLevel ) >= flevelsmax[ m_nLEDs - 3 ][ i ] )
+                if( m_fLargest >= flevels[ i ] )
                     m_bOn[ i ] = true;
                 else
                     m_bOn[ i ] = false;
             }
+
+            m_fLargest = 0.0;
         }
     }
 };
 
 //-----------------------------------------------------
-// LEDMeterWidget
+// Keyboard_3Oct_Widget
 //-----------------------------------------------------
 
 typedef struct

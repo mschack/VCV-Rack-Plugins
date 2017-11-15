@@ -378,7 +378,7 @@ void PingPong::step()
     // check right channel first for possible mono
     if( inputs[ INPUT_R ].active )
     {
-        inR = clampf( inputs[ INPUT_R ].value / 5.0, -1.0, 1.0 );
+        inR = clampf( inputs[ INPUT_R ].value / AUDIO_MAX, -1.0, 1.0 );
         inR = Filter( R, inR );
         inOrigR = inR;
         bMono = false;
@@ -389,7 +389,7 @@ void PingPong::step()
     // left channel
     if( inputs[ INPUT_L ].active )
     {
-        inL = clampf( inputs[ INPUT_L ].value / 5.0, -1.0, 1.0 );
+        inL = clampf( inputs[ INPUT_L ].value / AUDIO_MAX, -1.0, 1.0 );
         inL = Filter( L, inL );
         inOrigL = inL;
 
@@ -423,6 +423,6 @@ void PingPong::step()
     m_LastOut[ R ] = outR;
 
     // output
-    outputs[ OUT_L ].value = clampf( ( inOrigL * ( 1.0 - params[ PARAM_MIX ].value ) ) + ( (outL * 5.0) * params[ PARAM_MIX ].value ), -5.0, 5.0 );
-    outputs[ OUT_R ].value = clampf( ( inOrigR * ( 1.0 - params[ PARAM_MIX ].value ) ) + ( (outR * 5.0) * params[ PARAM_MIX ].value ), -5.0, 5.0 );
+    outputs[ OUT_L ].value = clampf( ( inOrigL * ( 1.0 - params[ PARAM_MIX ].value ) ) + ( (outL * AUDIO_MAX) * params[ PARAM_MIX ].value ), -AUDIO_MAX, AUDIO_MAX );
+    outputs[ OUT_R ].value = clampf( ( inOrigR * ( 1.0 - params[ PARAM_MIX ].value ) ) + ( (outR * AUDIO_MAX) * params[ PARAM_MIX ].value ), -AUDIO_MAX, AUDIO_MAX );
 }
