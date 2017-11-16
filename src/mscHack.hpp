@@ -58,6 +58,10 @@ struct Compressor_Widget : ModuleWidget {
 	Compressor_Widget();
 };
 
+struct XFade_Widget : ModuleWidget {
+	XFade_Widget();
+};
+
 
 
 

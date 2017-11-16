@@ -947,3 +947,16 @@ struct Yellow2_Big : RoundKnob
 		box.size = Vec(40, 40);
 	}
 };
+
+//-----------------------------------------------------
+// Procedure:   Yellow2_Huge
+//
+//-----------------------------------------------------
+struct Yellow2_Huge : RoundKnob 
+{
+	Yellow2_Huge() 
+    {
+		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+		box.size = Vec(56, 56);
+	}
+};

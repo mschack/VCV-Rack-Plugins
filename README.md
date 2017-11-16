@@ -11,6 +11,7 @@
 - Ping Pong Delay (with Gnip Gnop mode)
 - 3 Channel Oscillator with Filter and Amp Envelope (latest has multi oscillator capability)
 - Compressor (a work in progress...)
+- X Fade, 3 stereo channel cross fader
 
 # Demo Vids
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
@@ -20,5 +21,6 @@
 - Pong https://www.youtube.com/watch?v=hTsco8omRT0
 - 3 Channel OSC https://www.youtube.com/watch?v=BV9nWX9Izq0
 - Compressor https://www.youtube.com/watch?v=0F9KCk0IgFU
+- X Fade https://www.youtube.com/watch?v=1NN4ly77nXo
 
 
