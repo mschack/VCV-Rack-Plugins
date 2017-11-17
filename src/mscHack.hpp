@@ -21,13 +21,13 @@ struct SynthDrums_Widget : ModuleWidget {
 	SynthDrums_Widget();
 };
 
-struct Mix_4x4_Stereo_Widget : ModuleWidget {
-	Mix_4x4_Stereo_Widget();
-};
-
 struct Seq_Triad_Widget : ModuleWidget {
 	Seq_Triad_Widget();
     Menu *createContextMenu() override;
+};
+
+struct Seq_Triad2_Widget : ModuleWidget {
+	Seq_Triad2_Widget();
 };
 
 struct Mix_1x4_Stereo_Widget : ModuleWidget {
@@ -38,12 +38,12 @@ struct Mix_2x4_Stereo_Widget : ModuleWidget {
 	Mix_2x4_Stereo_Widget();
 };
 
-/*struct Mix_2x4_Stereo_Chained_Widget : ModuleWidget {
-	Mix_2x4_Stereo_Chained_Widget();
-};*/
+struct Mix_4x4_Stereo_Widget : ModuleWidget {
+	Mix_4x4_Stereo_Widget();
+};
 
-struct Mix_4x4_Stereo2_Widget : ModuleWidget {
-	Mix_4x4_Stereo2_Widget();
+struct Mix_4x4_Stereo_Widget_old : ModuleWidget {
+	Mix_4x4_Stereo_Widget_old();
 };
 
 struct PingPong_Widget : ModuleWidget {

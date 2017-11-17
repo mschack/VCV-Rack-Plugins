@@ -656,8 +656,8 @@ void Seq_Triad::initialize()
 // Procedure:   randomize
 //
 //-----------------------------------------------------
-int keyscalenotes[ 7 ] = { 0, 2, 4, 5, 7, 9, 11};
-int keyscalenotes_minor[ 7 ] = { 0, 2, 3, 5, 7, 9, 11};
+const int keyscalenotes[ 7 ] = { 0, 2, 4, 5, 7, 9, 11};
+const int keyscalenotes_minor[ 7 ] = { 0, 2, 3, 5, 7, 9, 11};
 void Seq_Triad::randomize()
 {
     int kb, pat, phrase, basekey, note, oct;

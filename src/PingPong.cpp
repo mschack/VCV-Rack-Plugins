@@ -17,7 +17,7 @@ typedef struct
 
 #define DELAY_BUFF_LEN 0x80000
 
-#define MAC_DELAY_SECONDS 1.0f
+#define MAC_DELAY_SECONDS 4.0f
 
 //-----------------------------------------------------
 // Module Definition
@@ -45,6 +45,7 @@ struct PingPong : Module
     {
         INPUT_L,
         INPUT_R,
+        INPUT_SYNC,
         nINPUTS
 	};
 
@@ -77,6 +78,12 @@ struct PingPong : Module
     float           m_fLightReverse = 0.0;
     bool            m_bReverseState = false;
 
+    // sync clock
+    SchmittTrigger  m_SchmittSync;
+    int             m_LastSyncCount = 0;
+    int             m_SyncCount = 0;
+    int             m_SyncTime = 0;
+
     // Contructor
 	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
 
@@ -106,33 +113,6 @@ struct MyCutoffKnob : Green1_Big
         if( mymodule )
         {
             mymodule->ChangeFilterCutoff( value ); 
-        }
-
-		RoundKnob::onChange();
-	}
-};
-
-//-----------------------------------------------------
-// MyDelayButton
-//-----------------------------------------------------
-struct MyDelayButton : Yellow2_Big
-{
-    int ch;
-    float delay;
-
-    PingPong *mymodule;
-
-    void onChange() override 
-    {
-        mymodule = (PingPong*)module;
-
-        if( mymodule )
-        {
-            ch = paramId - PingPong::PARAM_DELAYL;
-
-            delay = value * MAC_DELAY_SECONDS * gSampleRate;
-
-            mymodule->m_DelayOut[ ch ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
         }
 
 		RoundKnob::onChange();
@@ -192,7 +172,10 @@ PingPong_Widget::PingPong_Widget()
 		addChild(panel);
 	}
 
-    //module->lg.Open("PingPong.txt");
+    module->lg.Open("PingPong.txt");
+
+    // sync clock
+    addInput(createInput<MyPortInSmall>( Vec( 10, 110 ), module, PingPong::INPUT_SYNC ) );
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
@@ -209,7 +192,7 @@ PingPong_Widget::PingPong_Widget()
 
     // Left
     addInput(createInput<MyPortInSmall>( Vec( 10, 154 ), module, PingPong::INPUT_L ) );
-    addParam(createParam<MyDelayButton>( Vec( 38, 143 ), module, PingPong::PARAM_DELAYL, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Yellow2_Big>( Vec( 38, 143 ), module, PingPong::PARAM_DELAYL, 0.0, 1.0, 0.0 ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 90, 154 ), module, PingPong::OUT_L ) );
 
     // R to L level and L to R levels
@@ -221,7 +204,7 @@ PingPong_Widget::PingPong_Widget()
 
     // Left
     addInput(createInput<MyPortInSmall>( Vec( 10, 266 ), module, PingPong::INPUT_R ) );
-    addParam(createParam<MyDelayButton>( Vec( 38, 255 ), module, PingPong::PARAM_DELAYR, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Yellow2_Big>( Vec( 38, 255 ), module, PingPong::PARAM_DELAYR, 0.0, 1.0, 0.0 ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 90, 266 ), module, PingPong::OUT_R ) );
 
     // R Feedback
@@ -370,10 +353,62 @@ float PingPong::Filter( int ch, float in )
 // Procedure:   step
 //
 //-----------------------------------------------------
+float syncQuant[ 10 ] = { 0.125, 0.25, 0.333, 0.4, 0.5, 0.625, 0.666, 0.750, 0.800, 1.0 };
 void PingPong::step() 
 {
-    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0;
+    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0, delay;
     bool bMono = false;
+    int i;
+
+    // check right channel first for possible mono
+    if( inputs[ INPUT_SYNC ].active )
+    {
+        m_SyncCount++;
+
+        // sync'd delay
+        if( m_SchmittSync.process( inputs[ INPUT_SYNC ].value ) )
+        {
+            m_SyncTime = m_SyncCount;
+
+            for( i = 0; i < 10; i++ )
+            {
+                if( params[ PARAM_DELAYL ].value <= syncQuant[ i ] )
+                {
+                    syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
+                    break;
+                }
+            }
+
+            delay = syncq * m_SyncTime;
+            m_DelayOut[ 0 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+
+
+            for( i = 0; i < 10; i++ )
+            {
+                if( params[ PARAM_DELAYR ].value <= syncQuant[ i ] )
+                {
+                    syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
+                    break;
+                }
+            }
+
+            delay = syncq * m_SyncTime;
+            m_DelayOut[ 1 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+            
+            m_SyncCount = 0;
+        }
+    }
+    else
+    {
+        // non sync'd delay
+        delay = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
+        m_DelayOut[ 0 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+
+        delay = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
+        m_DelayOut[ 1 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+
+        m_SyncCount = 0;
+    }
 
     // check right channel first for possible mono
     if( inputs[ INPUT_R ].active )
