@@ -15,7 +15,7 @@
    version="1.1"
    id="svg992"
    inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
-   sodipodi:docname="KnobYellow3.svg">
+   sodipodi:docname="mschack_KnobYellow3.svg">
   <defs
      id="defs986" />
   <sodipodi:namedview
@@ -26,7 +26,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="22.4"
-     inkscape:cx="1.5327069"
+     inkscape:cx="-6.0789002"
      inkscape:cy="10.008418"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -45,7 +45,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -63,11 +63,11 @@
        rx="3.4341764"
        ry="3.4449039" />
     <rect
-       style="opacity:1;fill:#ffffff;fill-opacity:0.98895024;stroke:none;stroke-width:0.05104504;stroke-opacity:1"
+       style="opacity:1;fill:#000000;fill-opacity:0.98895024;stroke:none;stroke-width:0.04947157;stroke-opacity:1"
        id="rect1561"
        width="0.32060009"
-       height="2.724287"
+       height="2.5589225"
        x="3.295047"
-       y="289.9772" />
+       y="290.14258" />
   </g>
 </svg>

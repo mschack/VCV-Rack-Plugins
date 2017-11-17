@@ -1,6 +1,9 @@
 #include "rack.hpp"
 #include "CLog.h"
 
+//#define RESOURCE_LOCATION "res/"
+#define RESOURCE_LOCATION "plugins/mschack/res/"
+
 struct CyanValueLight : ColorValueLight 
 {
 	CyanValueLight() 
@@ -76,7 +79,223 @@ typedef struct
 }POINT_STRUCT;
 
 //-----------------------------------------------------
-// LEDMeterWidget
+// PatternSelectStrip
+//-----------------------------------------------------
+#define MAX_PAT 16
+struct PatternSelectStrip : OpaqueWidget, FramebufferWidget 
+{
+    typedef void PATCHANGECALLBACK ( void *pClass, int id, int pat, int maxpat );
+
+    bool            m_bInitialized = false;
+    int             m_Id;
+    int             m_nLEDs;
+    int             m_MaxPat = 0;
+    int             m_PatSel = 0;
+    int             m_PatPending = -1;
+    int             m_StepCount;
+
+    PATCHANGECALLBACK *m_pCallback;
+    void              *m_pClass;
+
+    RECT_STRUCT     m_RectsMaxPat[ MAX_PAT ];
+    RECT_STRUCT     m_RectsPatSel[ MAX_PAT ];
+    RGB_STRUCT      m_PatCol[ 2 ];
+    RGB_STRUCT      m_MaxCol[ 2 ];
+
+    //-----------------------------------------------------
+    // Procedure:   Constructor
+    //-----------------------------------------------------
+    PatternSelectStrip( int x, int y, int w, int h, int colourPaton, int colourPatoff, int colourMaxon, int colourMaxoff, int nleds, int id, void *pClass, PATCHANGECALLBACK *pCallback )
+    {
+        int i;
+
+        if ( nleds < 0 || nleds > MAX_PAT )
+            return;
+
+        m_Id = id;
+        m_pCallback = pCallback;
+        m_pClass = pClass;
+        m_nLEDs = nleds;
+
+        m_PatCol[ 0 ].dwCol = colourPatoff;
+        m_PatCol[ 1 ].dwCol = colourPaton;
+
+        m_MaxCol[ 0 ].dwCol = colourMaxoff;
+        m_MaxCol[ 1 ].dwCol = colourMaxon;
+
+		box.pos = Vec(x, y);
+        box.size = Vec( w * m_nLEDs + ( m_nLEDs * 2 ) - 1, ( h * 2 ) + 2 );
+
+        x = 0;
+
+        for( i = 0; i < m_nLEDs; i++ )
+        {
+            m_RectsMaxPat[ i ].x = x;
+            m_RectsMaxPat[ i ].y = 0;
+            m_RectsMaxPat[ i ].x2 = x + w;
+            m_RectsMaxPat[ i ].y2 = h;
+
+            m_RectsPatSel[ i ].x = x;
+            m_RectsPatSel[ i ].y = h + 2;
+            m_RectsPatSel[ i ].x2 = x + w;
+            m_RectsPatSel[ i ].y2 = ( h * 2 ) + 2;
+
+            x += ( w + 2 );
+        }
+
+        m_bInitialized = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetPat
+    //-----------------------------------------------------
+    void SetPat( int pat, bool bPending )
+    {
+        if( bPending )
+            m_PatPending = pat;
+        else
+        {
+            m_PatPending = -1;
+            m_PatSel = pat;
+        }
+
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetMax
+    //-----------------------------------------------------
+    void SetMax( int max )
+    {
+        m_MaxPat = max;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw(NVGcontext *vg) override
+    {
+        int i;
+
+        if( !m_bInitialized )
+            return;
+
+		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(vg);
+		nvgMoveTo(vg, -1, -1 );
+		nvgLineTo(vg, box.size.x + 1, -1 );
+		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(vg, -1, box.size.y + 1 );
+		nvgClosePath(vg);
+		nvgFill(vg);
+
+        for( i = 0; i < m_nLEDs; i++ )
+        {
+            if( i <= m_MaxPat )
+                nvgFillColor( vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
+
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y2 );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );
+			nvgClosePath(vg);
+		    nvgFill(vg);
+
+            if( m_PatSel == i )
+                nvgFillColor( vg, nvgRGB( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ] ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_PatCol[ 0 ].Col[ 2 ], m_PatCol[ 0 ].Col[ 1 ], m_PatCol[ 0 ].Col[ 0 ] ) );
+
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			nvgClosePath(vg);
+		    nvgFill(vg);
+
+            if( m_PatPending == i )
+            {
+                nvgFillColor( vg, nvgRGBA( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ], 0x50 ) );
+
+			    nvgBeginPath(vg);
+			    nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			    nvgClosePath(vg);
+		        nvgFill(vg);
+            }
+        }
+	}
+
+    //-----------------------------------------------------
+    // Procedure:   isPoint
+    //-----------------------------------------------------
+    bool isPoint( RECT_STRUCT *prect, int x, int y )
+    {
+        if( x < prect->x || x > prect->x2 || y < prect->y || y > prect->y2 )
+            return false;
+
+        return true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onMouseDown
+    //-----------------------------------------------------
+    Widget *onMouseDown( Vec pos, int button ) override
+    {
+        int i;
+
+        if( !m_bInitialized )
+            return NULL;
+
+        if( button != 0 )
+            return NULL;
+
+        for( i = 0; i < m_nLEDs; i++)
+        {
+            if( isPoint( &m_RectsMaxPat[ i ], (int)pos.x, (int)pos.y ) )
+            {
+                m_MaxPat = i;
+
+                if( m_pCallback )
+                    m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
+
+                dirty = true;
+                return NULL;
+            }
+
+            if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
+            {
+                m_PatSel = i;
+
+                if( m_pCallback )
+                    m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
+
+                dirty = true;
+                return NULL;
+            }
+        }
+
+        return NULL;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void step() 
+    {
+	    FramebufferWidget::step();
+    }
+};
+
+//-----------------------------------------------------
+// CompressorLEDMeterWidget
 //-----------------------------------------------------
 #define nDISPLAY_LEDS 10
 const float fleveldb[ nDISPLAY_LEDS ] = { 0, 3, 6, 10, 20, 30, 40, 50, 60, 80 };
@@ -351,18 +570,18 @@ struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
 
 KEY_VECT_STRUCT OctaveKeyDrawVects[ 37 ] = 
 {
-    { 6, { {1, 1}, {1, 67}, {12, 67}, {12, 44}, {7, 44}, {7, 1}, {0, 0}, {0, 0} } },
-    { 4, { {8, 1}, {8, 43}, {16, 43}, {16, 1},  {0, 0},  {0, 0}, {0, 0}, {0, 0} } },
-    { 8, { {17, 1}, {17, 44}, {14, 44}, {14, 67}, {25, 67}, {25, 44}, {22, 44}, {22, 1} } },
-    { 4, { {23, 1}, {23, 43}, {31, 43}, {31, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
-    { 6, { {32, 1}, {32, 44}, {27, 44}, {27, 67}, {38, 67}, {38, 1}, {0, 0}, {0, 0} } },
-    { 6, { {40, 1}, {40, 67}, {51, 67}, {51, 44}, {46, 44}, {46, 1}, {0, 0}, {0, 0} } },
-    { 4, { {47, 1}, {47, 43}, {55, 43}, {55, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
-    { 8, { {56, 1}, {56, 44}, {53, 44}, {53, 67}, {64, 67}, {64, 44}, {60, 44}, {60, 1} } },
-    { 4, { {61, 1}, {61, 43}, {69, 43}, {69, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
-    { 8, { {70, 1}, {70, 44}, {66, 44}, {66, 67}, {77, 67}, {77, 44}, {74, 44}, {74, 1} } },
-    { 4, { {75, 1}, {75, 43}, {83, 43}, {83, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
-    { 6, { {84, 1}, {84, 44}, {79, 44}, {79, 67}, {90, 67}, {90, 1}, {0, 0}, {0, 0} } },
+    { 6, { {1, 1}, {1, 62}, {12, 62}, {12, 39}, {7, 39}, {7, 1}, {0, 0}, {0, 0} } },
+    { 4, { {8, 1}, {8, 38}, {16, 38}, {16, 1},  {0, 0},  {0, 0}, {0, 0}, {0, 0} } },
+    { 8, { {17, 1}, {17, 39}, {14, 39}, {14, 62}, {25, 62}, {25, 39}, {22, 39}, {22, 1} } },
+    { 4, { {23, 1}, {23, 38}, {31, 38}, {31, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
+    { 6, { {32, 1}, {32, 39}, {27, 39}, {27, 62}, {38, 62}, {38, 1}, {0, 0}, {0, 0} } },
+    { 6, { {40, 1}, {40, 62}, {51, 62}, {51, 39}, {46, 39}, {46, 1}, {0, 0}, {0, 0} } },
+    { 4, { {47, 1}, {47, 38}, {55, 38}, {55, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
+    { 8, { {56, 1}, {56, 39}, {53, 39}, {53, 62}, {64, 62}, {64, 39}, {60, 39}, {60, 1} } },
+    { 4, { {61, 1}, {61, 38}, {69, 38}, {69, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
+    { 8, { {70, 1}, {70, 39}, {66, 39}, {66, 62}, {77, 62}, {77, 39}, {74, 39}, {74, 1} } },
+    { 4, { {75, 1}, {75, 38}, {83, 38}, {83, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },
+    { 6, { {84, 1}, {84, 39}, {79, 39}, {79, 62}, {90, 62}, {90, 1}, {0, 0}, {0, 0} } },
 };
 
 int keysquare_x[ 37 ] = 
@@ -372,7 +591,7 @@ int keysquare_x[ 37 ] =
 
 KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]= 
 {
-    { 5, { {1, 1}, {1, 67}, {12, 67}, {12, 44}, {12, 1}, {0, 0}, {0, 0}, {0, 0} } }
+    { 5, { {1, 1}, {1, 62}, {12, 62}, {12, 44}, {12, 1}, {0, 0}, {0, 0}, {0, 0} } }
 };
 
 #define OCT_OFFSET_X 91
@@ -545,7 +764,7 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     }
 
     //-----------------------------------------------------
-    // Procedure:   draw
+    // Procedure:   setkey
     //-----------------------------------------------------
     void setkey( int key ) 
     {
@@ -554,7 +773,7 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     }
 
     //-----------------------------------------------------
-    // Procedure:   draw
+    // Procedure:   step
     //-----------------------------------------------------
     void step() 
     {
@@ -591,7 +810,9 @@ struct MyScrew : SVGScrew
 {
 	MyScrew() 
     {
-		sw->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_screw.svg"));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_screw.svg" );
+        sw->svg = SVG::load(assetGlobal( resource ));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -605,7 +826,9 @@ struct MySquareButtonSmall : SVGSwitch, MomentarySwitch
 {
 	MySquareButtonSmall() 
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_square_button.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_square_button.svg" );
+		addFrame(SVG::load(assetGlobal(resource)));
 		sw->wrap();
 		box.size = Vec(9, 9);
 	}
@@ -619,7 +842,9 @@ struct MySquareButton : SVGSwitch, MomentarySwitch
 {
 	MySquareButton() 
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_square_button.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_square_button.svg" );
+		addFrame(SVG::load(assetGlobal(resource)));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -633,7 +858,9 @@ struct MySquareButton2 : SVGSwitch, MomentarySwitch
 {
 	MySquareButton2() 
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_Square_Button2.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Square_Button2.svg" );
+		addFrame(SVG::load(assetGlobal(resource)));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -647,8 +874,9 @@ struct PianoWhiteKey : SVGSwitch, ToggleSwitch
 {
 	PianoWhiteKey()
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_WhiteKeyOff.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_WhiteKeyOn.svg")));
+        std::string resource( RESOURCE_LOCATION );
+		addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOff.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOn.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -662,8 +890,9 @@ struct PianoBlackKey : SVGSwitch, ToggleSwitch
 {
 	PianoBlackKey()
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_BlackKeyOff.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_BlackKeyOn.svg")));
+        std::string resource( RESOURCE_LOCATION );
+		addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOff.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOn.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -677,9 +906,10 @@ struct MyToggle1 : SVGSwitch, ToggleSwitch
 {
 	MyToggle1()
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_3p_vert_simple_01.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_3p_vert_simple_02.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_3p_vert_simple_03.svg")));
+        std::string resource( RESOURCE_LOCATION );
+		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_01.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_02.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_03.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -693,11 +923,12 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 {
 	FilterSelectToggle()
     {
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_01.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_02.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_03.svg")));
-		addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_04.svg")));
-        //addFrame(SVG::load(assetGlobal("plugins/mschack/res/mschack_5p_filtersel_05.svg")));
+        std::string resource( RESOURCE_LOCATION );
+		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_01.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_02.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_03.svg")));
+		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_04.svg")));
+        //addFrame(SVG::load(assetGlobal("res/mschack_5p_filtersel_05.svg")));
 
 		sw->wrap();
 		box.size = sw->box.size;
@@ -712,14 +943,15 @@ struct MySlider_01 : SVGSlider
 {
 	MySlider_01() 
     {
+        std::string resource( RESOURCE_LOCATION );
 		Vec margin = Vec(0, 0);
-		maxHandlePos = Vec(0, 0).plus(margin);
+		maxHandlePos = Vec(0, -4).plus(margin);
 		minHandlePos = Vec(0, 33).plus(margin);
-		background->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_sliderBG_01.svg"));
+		background->svg = SVG::load(assetGlobal(resource + "mschack_sliderBG_01.svg"));
 		background->wrap();
 		background->box.pos = margin;
 		box.size = background->box.size.plus(margin.mult(2));
-		handle->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_sliderKNOB_01.svg"));
+		handle->svg = SVG::load(assetGlobal(resource + "mschack_sliderKNOB_01.svg"));
 		handle->wrap();
 	}
 };
@@ -732,7 +964,9 @@ struct MyPortInSmall : SVGPort
 {
 	MyPortInSmall() 
     {
-		background->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_PortIn_small.svg"));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_PortIn_small.svg" );
+		background->svg = SVG::load(assetGlobal(resource));
 		background->wrap();
 		box.size = background->box.size;
 	}
@@ -746,7 +980,9 @@ struct MyPortOutSmall : SVGPort
 {
 	MyPortOutSmall() 
     {
-		background->svg = SVG::load(assetGlobal("plugins/mschack/res/mschack_PortOut_small.svg"));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_PortOut_small.svg" );
+		background->svg = SVG::load(assetGlobal(resource));
 		background->wrap();
 		box.size = background->box.size;
 	}
@@ -760,7 +996,9 @@ struct Red1_Med : RoundKnob
 {
 	Red1_Med() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobRed1.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_KnobRed1.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(20, 20);
 	}
 };
@@ -773,7 +1011,9 @@ struct Blue3_Med : RoundKnob
 {
 	Blue3_Med() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobBlue3.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_KnobBlue3.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(20, 20);
 	}
 };
@@ -786,7 +1026,9 @@ struct Yellow3_Med : RoundKnob
 {
 	Yellow3_Med() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobYellow3.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_KnobYellow3.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(20, 20);
 	}
 };
@@ -799,7 +1041,9 @@ struct Purp1_Med : RoundKnob
 {
 	Purp1_Med() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_KnobPurp1.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_KnobPurp1.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(20, 20);
 	}
 };
@@ -812,7 +1056,9 @@ struct Green1_Tiny : RoundKnob
 {
 	Green1_Tiny() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Green1_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Green1_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(15, 15);
 	}
 };
@@ -825,7 +1071,9 @@ struct Green1_Big : RoundKnob
 {
 	Green1_Big() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Green1_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Green1_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(40, 40);
 	}
 };
@@ -838,7 +1086,9 @@ struct Blue1_Small : RoundKnob
 {
 	Blue1_Small() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue1_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Blue1_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(26, 26);
 	}
 };
@@ -851,7 +1101,9 @@ struct Blue2_Small : RoundKnob
 {
 	Blue2_Small() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Blue2_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(26, 26);
 	}
 };
@@ -864,7 +1116,9 @@ struct Blue2_Tiny : RoundKnob
 {
 	Blue2_Tiny() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Blue2_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(15, 15);
 	}
 };
@@ -877,7 +1131,9 @@ struct Blue2_Med : RoundKnob
 {
 	Blue2_Med() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_big.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Blue2_big.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(40, 40);
 	}
 };
@@ -890,7 +1146,9 @@ struct Blue2_Big : RoundKnob
 {
 	Blue2_Big() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Blue2_big.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Blue2_big.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(56, 56);
 	}
 };
@@ -903,7 +1161,9 @@ struct Yellow1_Small : RoundKnob
 {
 	Yellow1_Small() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow1_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Yellow1_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(26, 26);
 	}
 };
@@ -916,7 +1176,9 @@ struct Yellow1_Tiny : RoundKnob
 {
 	Yellow1_Tiny() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow1_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Yellow1_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(15, 15);
 	}
 };
@@ -930,7 +1192,9 @@ struct Yellow2_Small : RoundKnob
 {
 	Yellow2_Small() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Yellow2_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(26, 26);
 	}
 };
@@ -943,7 +1207,9 @@ struct Yellow2_Big : RoundKnob
 {
 	Yellow2_Big() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Yellow2_small.svg" );
+		setSVG(SVG::load(assetGlobal(resource)));
 		box.size = Vec(40, 40);
 	}
 };
@@ -956,7 +1222,9 @@ struct Yellow2_Huge : RoundKnob
 {
 	Yellow2_Huge() 
     {
-		setSVG(SVG::load(assetGlobal("plugins/mschack/res/mschack_Yellow2_small.svg")));
+        std::string resource( RESOURCE_LOCATION );
+        resource.append( "mschack_Yellow2_small.svg" );
+		setSVG(SVG::load(assetGlobal( resource )));
 		box.size = Vec(56, 56);
 	}
 };
