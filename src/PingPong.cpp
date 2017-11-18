@@ -84,6 +84,10 @@ struct PingPong : Module
     int             m_SyncCount = 0;
     int             m_SyncTime = 0;
 
+    // LAST
+    int             m_LastDelayKnob[ 2 ] = {};
+    bool            m_bWasSynced = false;
+
     // Contructor
 	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
 
@@ -353,12 +357,15 @@ float PingPong::Filter( int ch, float in )
 // Procedure:   step
 //
 //-----------------------------------------------------
-float syncQuant[ 10 ] = { 0.125, 0.25, 0.333, 0.4, 0.5, 0.625, 0.666, 0.750, 0.800, 1.0 };
+float syncQuant[ 10 ] = { 0.125, 0.25, 0.333, 0.375, 0.5, 0.625, 0.666, 0.750, 0.875, 1.0 };
 void PingPong::step() 
 {
-    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0, delay;
+    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0;
     bool bMono = false;
-    int i;
+    int i, dR, dL;
+
+    dL = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
+    dR = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
 
     // check right channel first for possible mono
     if( inputs[ INPUT_SYNC ].active )
@@ -368,47 +375,53 @@ void PingPong::step()
         // sync'd delay
         if( m_SchmittSync.process( inputs[ INPUT_SYNC ].value ) )
         {
-            m_SyncTime = m_SyncCount;
-
-            for( i = 0; i < 10; i++ )
+            if( !m_bWasSynced || ( (m_SyncTime / 10) != (m_SyncCount / 10) ) || ( m_LastDelayKnob[ L ] != dL ) || ( m_LastDelayKnob[ R ] != dR ) )
             {
-                if( params[ PARAM_DELAYL ].value <= syncQuant[ i ] )
+                m_SyncTime = m_SyncCount;
+
+                for( i = 0; i < 10; i++ )
                 {
-                    syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
-                    break;
+                    if( params[ PARAM_DELAYL ].value <= syncQuant[ i ] )
+                    {
+                        syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
+                        break;
+                    }
                 }
-            }
 
-            delay = syncq * m_SyncTime;
-            m_DelayOut[ 0 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+                m_DelayOut[ L ] = ( m_DelayIn - (int)(syncq * m_SyncTime) ) & 0x7FFFF;
 
-
-            for( i = 0; i < 10; i++ )
-            {
-                if( params[ PARAM_DELAYR ].value <= syncQuant[ i ] )
+                for( i = 0; i < 10; i++ )
                 {
-                    syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
-                    break;
+                    if( params[ PARAM_DELAYR ].value <= syncQuant[ i ] )
+                    {
+                        syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
+                        break;
+                    }
                 }
-            }
 
-            delay = syncq * m_SyncTime;
-            m_DelayOut[ 1 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
-            
+                m_DelayOut[ R ] = ( m_DelayIn - (int)(syncq * m_SyncTime) ) & 0x7FFFF;
+            }
+     
             m_SyncCount = 0;
         }
+
+        m_bWasSynced = true;
     }
     else
     {
         // non sync'd delay
-        delay = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
-        m_DelayOut[ 0 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+        if( m_bWasSynced || ( m_LastDelayKnob[ L ] != dL ) )
+            m_DelayOut[ L ] = ( m_DelayIn - (int)dL ) & 0x7FFFF;
 
-        delay = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
-        m_DelayOut[ 1 ] = ( m_DelayIn - (int)delay ) & 0x7FFFF;
+        if( m_bWasSynced || ( m_LastDelayKnob[ R ] != dR ) )
+            m_DelayOut[ R ] = ( m_DelayIn - (int)dR ) & 0x7FFFF;
 
+        m_bWasSynced = false;
         m_SyncCount = 0;
     }
+
+    m_LastDelayKnob[ L ] = dL;
+    m_LastDelayKnob[ R ] = dR;
 
     // check right channel first for possible mono
     if( inputs[ INPUT_R ].active )
