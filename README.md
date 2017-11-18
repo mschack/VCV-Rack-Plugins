@@ -4,13 +4,13 @@
 
 # Includes
 
-- (!!!NEW!!!) Triad Sequencer (Type 2), with Independantly clocked channels
-- (!!!UPDATE!!!) Ping Pong Delay - Added Sync clock input.
 - 3 Channel 16 Step Programmable Sequencer.
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
 - Triad Sequencer ( v0.4.10 and above will not load notes properly from pre v0.4.10 builds )
+- Triad Sequencer (Type 2), with Independantly clocked channels
 - Synth Drums
 - 3 Channel Oscillator with Filter and Amp Envelope (latest has multi oscillator capability)
+- Ping Pong Delay
 - Compressor (a work in progress...)
 - X Fade, 3 stereo channel cross fader
 
@@ -25,4 +25,9 @@
 - Compressor https://www.youtube.com/watch?v=0F9KCk0IgFU
 - X Fade https://www.youtube.com/watch?v=1NN4ly77nXo
 
-
+# Updates
+- 18 Nov 17:	
+	- Added LED Meters to 1x4 and 2x4 mixers	
+- 17 Nov 17:	
+	- Added Triad Sequencer 2 with independantly clocked channels
+	- Added Sync Clock input to Ping Pong Delay			
