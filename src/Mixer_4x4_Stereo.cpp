@@ -1087,7 +1087,7 @@ void Mix_4x4_Stereo::ProcessEQ( int ch, float *pL, float *pR )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo::step() 
+void Mix_4x4_Stereo::step()
 {
     int ch, group, aux;
     float inL = 0.0, inR = 0.0, inLClean, inRClean, outL, outR, mainL = 0.0, mainR = 0.0;
