@@ -2,6 +2,13 @@
 
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
+# Updates
+- 18 Nov 17:	
+	- Added LED Meters to 1x4 and 2x4 mixers	
+- 17 Nov 17:	
+	- Added Triad Sequencer 2 with independantly clocked channels
+	- Added Sync Clock input to Ping Pong Delay
+
 # Includes
 
 - 3 Channel 16 Step Programmable Sequencer.
@@ -24,10 +31,3 @@
 - 3 Channel OSC https://www.youtube.com/watch?v=BV9nWX9Izq0
 - Compressor https://www.youtube.com/watch?v=0F9KCk0IgFU
 - X Fade https://www.youtube.com/watch?v=1NN4ly77nXo
-
-# Updates
-- 18 Nov 17:	
-	- Added LED Meters to 1x4 and 2x4 mixers	
-- 17 Nov 17:	
-	- Added Triad Sequencer 2 with independantly clocked channels
-	- Added Sync Clock input to Ping Pong Delay			
