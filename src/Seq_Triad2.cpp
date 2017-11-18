@@ -51,7 +51,9 @@ struct Seq_Triad2 : Module
         IN_PATTERN_TRIG,
         IN_VOCT_OFF             = IN_PATTERN_TRIG + ( nKEYBOARDS ),
         IN_PROG_CHANGE          = IN_VOCT_OFF + ( nKEYBOARDS ),
-        nINPUTS                 = IN_PROG_CHANGE + ( nKEYBOARDS ),
+        IN_CLOCK_RESET          = IN_PROG_CHANGE + ( nKEYBOARDS ),
+        IN_GLOBAL_PAT_CLK,
+        nINPUTS
 	};
 
 	enum OutputIds 
@@ -94,6 +96,10 @@ struct Seq_Triad2 : Module
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
     float           m_fLightTrig[ nKEYBOARDS ];
+
+    // global triggers
+    SchmittTrigger  m_SchTrigGlobalClkReset;
+    SchmittTrigger  m_SchTrigGlobalPatChange;
 
     // glide
     float           m_fglideInc[ nKEYBOARDS ] = {};
@@ -349,6 +355,11 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 
         y += 111;
     }
+
+    // reset inputs
+    y2 = 357; 
+    addInput(createInput<MyPortInSmall>( Vec( x + 89, y2 ), module, Seq_Triad2::IN_CLOCK_RESET ) );
+    addInput(createInput<MyPortInSmall>( Vec( x + 166, y2 ), module, Seq_Triad2::IN_GLOBAL_PAT_CLK ) );
 
 	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
@@ -846,15 +857,34 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 void Seq_Triad2::step() 
 {
     int kb;
+    bool bGlobalPatChange = false, bClkReset = false;
 
     if( !m_bInitialized )
         return;
+
+    // global phrase change trigger
+    if( inputs[ IN_GLOBAL_PAT_CLK ].active )
+    {
+	    if( m_SchTrigGlobalPatChange.process( inputs[ IN_GLOBAL_PAT_CLK ].value ) )
+            bGlobalPatChange = true;
+    }
+
+    // global clock reset
+    if( inputs[ IN_CLOCK_RESET ].active )
+    {
+	    if( m_SchTrigGlobalClkReset.process( inputs[ IN_CLOCK_RESET ].value ) )
+            bClkReset = true;
+    }
 
     // process triggered phrase changes
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
         // phrase change trigger
-        if( inputs[ IN_PROG_CHANGE + kb ].active && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + kb ].active )
+        if( bGlobalPatChange && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + kb ].active )
+        {
+            SetPendingPhrase( kb, -1 );
+        }
+        else if( inputs[ IN_PROG_CHANGE + kb ].active && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + kb ].active )
         {
 	        if( m_SchTrigPhraseSelect[ kb ].process( inputs[ IN_PROG_CHANGE + kb ].value ) )
                 SetPendingPhrase( kb, -1 );
@@ -863,10 +893,16 @@ void Seq_Triad2::step()
 	    // pat change trigger - ignore if already pending
         if( inputs[ IN_PATTERN_TRIG + kb ].active && !m_bPause[ kb ] )
         {
-	        if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) ) 
+            if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) ) 
             {
-                if( m_CurrentPattern[ kb ] >= ( m_nSteps[ kb ] ) )
+                if( bClkReset )
+                {
+                    m_CurrentPattern[ kb ] = -1;
+                }
+                else if( m_CurrentPattern[ kb ] >= ( m_nSteps[ kb ] ) )
+                {
                     m_CurrentPattern[ kb ] = (nPATTERNS - 1);
+                }
 
                 ChangePattern( kb, m_CurrentPattern[ kb ] + 1, true );
 
