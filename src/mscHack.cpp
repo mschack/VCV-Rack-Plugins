@@ -11,6 +11,7 @@ void init(rack::Plugin *p)
 	plugin->homepageUrl = "https://github.com/mschack/VCV-Rack-Plugins";
 
     createModel<Seq_3x16x16_Widget>     (plugin, "Seq_3ch_16step", "SEQ 3 x 16 Programmable");
+    createModel<SEQ_6x32x16_Widget>     (plugin, "Seq_6ch_32step", "SEQ 6 x 32 Programmable");
     createModel<Seq_Triad_Widget>       (plugin, "TriadSeq", "SEQ Triad Programmable");
     createModel<Seq_Triad2_Widget>      (plugin, "TriadSeq2", "SEQ Triad Programmable (Independantly clocked)");
     createModel<SynthDrums_Widget>      (plugin, "SynthDrums", "SYNTH Drums");

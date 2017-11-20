@@ -79,9 +79,296 @@ typedef struct
 }POINT_STRUCT;
 
 //-----------------------------------------------------
+// SinglePatternClocked32
+//-----------------------------------------------------
+#define MAX_CLK_PAT 32
+struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget 
+{
+    typedef void SINGLEPAT16CALLBACK ( void *pClass, int id, int pat, int level, int maxpat );
+
+    bool            m_bInitialized = false;
+    int             m_Id;
+    int             m_nLEDs;
+    int             m_MaxPat = 0;
+    int             m_PatClk = 0;
+    int             m_PatSelLevel[ MAX_CLK_PAT ] = {0};
+    int             m_StepCount;
+
+    SINGLEPAT16CALLBACK *m_pCallback;
+    void              *m_pClass;
+
+    RECT_STRUCT     m_RectsPatSel[ MAX_CLK_PAT ];
+    RGB_STRUCT      m_PatCol[ 2 ];
+    RECT_STRUCT     m_RectsMaxPat[ MAX_CLK_PAT ];
+    RGB_STRUCT      m_MaxCol[ 2 ];
+
+    //-----------------------------------------------------
+    // Procedure:   Constructor
+    //-----------------------------------------------------
+    SinglePatternClocked32( int x, int y, int w, int h, int mh, int space, int beatspace, int colourPaton, int colourPatoff, int colourMaxon, int colourMaxoff, int nleds, int id, void *pClass, SINGLEPAT16CALLBACK *pCallback )
+    {
+        int i;
+
+        if ( nleds < 2 || nleds > MAX_CLK_PAT )
+            return;
+
+        m_Id = id;
+        m_pCallback = pCallback;
+        m_pClass = pClass;
+        m_nLEDs = nleds;
+
+        m_PatCol[ 0 ].dwCol = colourPatoff;
+        m_PatCol[ 1 ].dwCol = colourPaton;
+
+        m_MaxCol[ 0 ].dwCol = colourMaxoff;
+        m_MaxCol[ 1 ].dwCol = colourMaxon;
+
+		box.pos = Vec(x, y);
+
+        x = 0;
+
+        for( i = 0; i < m_nLEDs; i++ )
+        {
+            m_RectsMaxPat[ i ].x = x;
+            m_RectsMaxPat[ i ].y = 0;
+            m_RectsMaxPat[ i ].x2 = x + w;
+            m_RectsMaxPat[ i ].y2 = mh;
+
+            m_RectsPatSel[ i ].x = x;
+            m_RectsPatSel[ i ].y = mh + 2;
+            m_RectsPatSel[ i ].x2 = x + w;
+            m_RectsPatSel[ i ].y2 = ( h + mh ) + 2;
+
+            if( ( i & 0x3 ) == 3 )
+                x += ( w + beatspace );
+            else
+                x += ( w + space );
+        }
+
+        box.size = Vec( x, ( h + mh ) + 2 );
+
+        m_bInitialized = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetPatAll
+    //-----------------------------------------------------
+    void SetPatAll( int *pPat )
+    {
+        if ( !pPat )
+            return;
+
+        for( int i = 0; i < m_nLEDs; i++ )
+            m_PatSelLevel[ i ] = pPat[ i ] & 0x3;
+
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   GetPatAll
+    //-----------------------------------------------------
+    void GetPatAll( int *pPat )
+    {
+        if ( !pPat )
+            return;
+
+        for( int i = 0; i < m_nLEDs; i++ )
+            pPat[ i ] = m_PatSelLevel[ i ];
+
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetPat
+    //-----------------------------------------------------
+    void SetPat( int pat )
+    {
+        if ( pat < 0 || pat >= m_nLEDs )
+            return;
+
+        m_PatSelLevel[ pat ] = ( m_PatSelLevel[ pat ] + 1 ) & 0x3;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetPat
+    //-----------------------------------------------------
+    void ClrPat( int pat )
+    {
+        if ( pat < 0 || pat >= m_nLEDs )
+            return;
+
+        m_PatSelLevel[ pat ] = 0;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   ClockInc
+    //-----------------------------------------------------
+    bool ClockInc( void )
+    {
+        m_PatClk ++;
+
+        if ( m_PatClk < 0 || m_PatClk > m_MaxPat || m_PatClk >= m_nLEDs )
+            m_PatClk = 0;
+
+        dirty = true;
+
+        if( m_PatClk == 0 )
+            return true;
+
+        return false;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   ClockReset
+    //-----------------------------------------------------
+    void ClockReset( void )
+    {
+        m_PatClk = 0;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetMax
+    //-----------------------------------------------------
+    void SetMax( int max )
+    {
+        m_MaxPat = max;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw(NVGcontext *vg) override
+    {
+        RGB_STRUCT rgb = {0};
+        int i;
+
+        if( !m_bInitialized )
+            return;
+
+		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(vg);
+		nvgMoveTo(vg, -1, -1 );
+		nvgLineTo(vg, box.size.x + 1, -1 );
+		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(vg, -1, box.size.y + 1 );
+		nvgClosePath(vg);
+		nvgFill(vg);
+
+        for( i = 0; i < m_nLEDs; i++ )
+        {
+            // max pattern display
+            if( i <= m_MaxPat )
+                nvgFillColor( vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
+
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y2 );
+			nvgLineTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );
+			nvgClosePath(vg);
+		    nvgFill(vg);
+
+            // pattern select
+            rgb.Col[ 0 ] = ( ( m_PatCol[ 1 ].Col[ 0 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 0 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
+            rgb.Col[ 1 ] = ( ( m_PatCol[ 1 ].Col[ 1 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 1 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
+            rgb.Col[ 2 ] = ( ( m_PatCol[ 1 ].Col[ 2 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 2 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
+
+            nvgFillColor( vg, nvgRGB( rgb.Col[ 2 ], rgb.Col[ 1 ], rgb.Col[ 0 ] ) );
+
+			nvgBeginPath(vg);
+			nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			nvgClosePath(vg);
+		    nvgFill(vg);
+
+            if( i == m_PatClk )
+            {
+                nvgFillColor( vg, nvgRGBA( 0xFF, 0xFF, 0xFF, 0xc0 ) );
+			    nvgBeginPath(vg);
+			    nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 - 4 );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 - 4 );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			    nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			    nvgClosePath(vg);
+		        nvgFill(vg);
+            }
+        }
+	}
+
+    //-----------------------------------------------------
+    // Procedure:   isPoint
+    //-----------------------------------------------------
+    bool isPoint( RECT_STRUCT *prect, int x, int y )
+    {
+        if( x < prect->x || x > prect->x2 || y < prect->y || y > prect->y2 )
+            return false;
+
+        return true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onMouseDown
+    //-----------------------------------------------------
+    Widget *onMouseDown( Vec pos, int button ) override
+    {
+        int i;
+
+        if( !m_bInitialized )
+            return NULL;
+
+        for( i = 0; i < m_nLEDs; i++)
+        {
+            if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
+            {
+                if( button == 0 )
+                    SetPat( i );
+                else
+                    ClrPat( i );
+
+                if( m_pCallback )
+                    m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
+
+                dirty = true;
+                return this;
+            }
+
+            else if( isPoint( &m_RectsMaxPat[ i ], (int)pos.x, (int)pos.y ) )
+            {
+                m_MaxPat = i;
+
+                if( m_pCallback )
+                    m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
+
+                dirty = true;
+                return NULL;
+            }
+
+        }
+
+        return NULL;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void step() 
+    {
+	    FramebufferWidget::step();
+    }
+};
+
+//-----------------------------------------------------
 // PatternSelectStrip
 //-----------------------------------------------------
-#define MAX_PAT 16
+#define MAX_PAT 32
 struct PatternSelectStrip : OpaqueWidget, FramebufferWidget 
 {
     typedef void PATCHANGECALLBACK ( void *pClass, int id, int pat, int maxpat );
@@ -270,7 +557,7 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
                 return NULL;
             }
 
-            if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
+            else if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
             {
                 m_PatSel = i;
 

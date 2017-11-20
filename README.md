@@ -3,6 +3,8 @@
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
+- 20 Nov 17:	
+	- Added 6 x 32 step sequencer with 3 levels, independant clocks and swing.
 - 18 Nov 17:	
 	- Added LED Meters to 1x4 and 2x4 mixers	
 - 17 Nov 17:	
@@ -31,3 +33,4 @@
 - 3 Channel OSC https://www.youtube.com/watch?v=BV9nWX9Izq0
 - Compressor https://www.youtube.com/watch?v=0F9KCk0IgFU
 - X Fade https://www.youtube.com/watch?v=1NN4ly77nXo
+- 6 x 32 trigger sequencer https://www.youtube.com/watch?v=S1PB-WaqXt4
