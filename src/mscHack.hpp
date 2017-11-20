@@ -17,6 +17,10 @@ struct Seq_3x16x16_Widget : ModuleWidget {
 	Seq_3x16x16_Widget();
 };
 
+struct SEQ_6x32x16_Widget : ModuleWidget {
+	SEQ_6x32x16_Widget();
+};
+
 struct SynthDrums_Widget : ModuleWidget {
 	SynthDrums_Widget();
 };
