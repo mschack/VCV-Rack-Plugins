@@ -71,6 +71,7 @@ struct Mix_2x4_Stereo : Module
         nOUTPUTS              = OUT_AUXR + nAUX
 	};
 
+    bool            m_bInitialized = false;
     CLog            lg;
 
     // mute buttons
@@ -563,6 +564,7 @@ Mix_2x4_Stereo_Widget::Mix_2x4_Stereo_Widget()
 	    + (fx5 * 0.0083333333333333333333333333333333) 
 	    - (fx7 * 0.0001984126984126984126984126984127));
 
+    module->m_bInitialized = true;
     module->initialize();
 }
 
@@ -1091,6 +1093,9 @@ void Mix_2x4_Stereo::step()
     float inLvl, inPan;
     float auxL[ nAUX ] = {}, auxR[ nAUX ] = {};
     bool bGroupActive[ GROUPS ] = {0};
+
+    if( !m_bInitialized )
+        return;
 
     memset( m_fSubMix, 0, sizeof(m_fSubMix) );
 

@@ -52,6 +52,7 @@ struct Compressor : Module
         COMP_ON
     };
 
+    bool            m_bInitialized = false;
     CLog            lg;
 
     LEDMeterWidget  *m_pLEDMeterIn[ 2 ] = {0};
@@ -170,6 +171,8 @@ Compressor_Widget::Compressor_Widget()
 
     //for( int i = 0; i < 15; i++ )
         //module->lg.f("level %d = %.3f\n", i, module->m_pLEDMeterThreshold->flevels[ i ] );
+
+    module->m_bInitialized = true;
 }
 
 //-----------------------------------------------------
@@ -358,6 +361,9 @@ void Compressor::step()
 {
     float outL, outR, diffL, diffR, orgL, orgR;
 
+    if( !m_bInitialized )
+        return;
+
     outL = clampf( inputs[ IN_AUDIOL ].normalize( 0.0 ) / AUDIO_MAX, -1.0, 1.0 );
     outR = clampf( inputs[ IN_AUDIOR ].normalize( 0.0 ) / AUDIO_MAX, -1.0, 1.0 );
 
@@ -412,5 +418,4 @@ void Compressor::step()
 
     outputs[ OUT_AUDIOL ].value = clampf( outL * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
     outputs[ OUT_AUDIOR ].value = clampf( outR * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
-    
 }
