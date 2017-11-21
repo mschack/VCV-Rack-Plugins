@@ -348,7 +348,7 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
 
                 dirty = true;
-                return NULL;
+                return this;
             }
 
         }
@@ -554,7 +554,7 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
                 dirty = true;
-                return NULL;
+                return this;
             }
 
             else if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
@@ -565,7 +565,7 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
                 dirty = true;
-                return NULL;
+                return this;
             }
         }
 
@@ -1026,7 +1026,7 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
                     pNoteChangeCallback( m_pClass, m_nKb, i );
                 m_KeyOn = i;
                 dirty = true;
-                goto done;
+                return this;
             }
         }
 
@@ -1042,11 +1042,10 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
                     pNoteChangeCallback( m_pClass, m_nKb, i );
                 m_KeyOn = i;
                 dirty = true;
-                break;
+                return this;
             }
         }
 
-    done:;
         return NULL;
     }
 

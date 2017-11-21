@@ -3,6 +3,10 @@
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
+- 21 Nov 17:
+	-Fix a few minor issues.
+	-Now that Rack 0.5.0 is out I will concentrate on updating my current plugins for that.
+	-Updates for 0.4.0 plugins will now cease.
 - 20 Nov 17:	
 	- Added 6 x 32 step sequencer with 3 levels, independant clocks and swing.
 - 18 Nov 17:	
