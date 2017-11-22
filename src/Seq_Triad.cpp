@@ -494,7 +494,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
         for( pat = 0; pat < nPHRASE_SAVES; pat++ )
         {
             addParam(createParam<Seq_Triad::MySquareButton_Phrase>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_SAVES + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<YellowLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE + ( kb * nPATTERNS ) + pat ) );
+            addChild(createLight<SmallLight<YellowLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE + ( kb * nPHRASE_SAVES ) + pat ) );
             x += 12;
         }
 
@@ -503,7 +503,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
         for( pat = 0; pat < nPHRASE_SAVES; pat++ )
         {
             addParam(createParam<Seq_Triad::MySquareButton_Used>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_USED + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE_USED + ( kb * nPATTERNS ) + pat ) );
+            addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE_USED + ( kb * nPHRASE_SAVES ) + pat ) );
             x += 12;
         }
 
@@ -792,7 +792,7 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
     for( i = 0; i < nPATTERNS; i++ )
         lights[ LIGHT_PAT + i ].value = 0.0f;
 
-    lights[ LIGHT_PAT + i ].value = 1.0;
+    lights[ LIGHT_PAT + index ].value = 1.0;
 
     // change key select
     for( kb = 0; kb < nKEYBOARDS; kb ++ )
