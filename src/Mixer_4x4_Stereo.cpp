@@ -396,12 +396,12 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
 
         // mute buttons
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_4x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<RedLight>>( Vec( x - 4, y + 5 ), module, Mix_4x4_Stereo::LIGHT_MUTE + ch ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x - 3, y + 5 ), module, Mix_4x4_Stereo::LIGHT_MUTE + ch ) );
         //y += 26;
 
         // solo buttons
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_4x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 12, y + 5 ), module, Mix_4x4_Stereo::LIGHT_SOLO + ch ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 13, y + 5 ), module, Mix_4x4_Stereo::LIGHT_SOLO + ch ) );
 
         y += 22;
         y2 = y;
@@ -445,12 +445,12 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase;
 
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<RedLight>>( Vec( x2 + 3, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_MUTE + i ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x2 + 4, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_MUTE + i ) );
 
         x2 += 28;
 
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_GroupSolo>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<GreenLight>>( Vec( x2 + 3, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_SOLO + i ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x2 + 4, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_SOLO + i ) );
 
         // group level and pan inputs
         x2 = x + 79;
@@ -484,11 +484,11 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase + 20;
         
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 0 ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 0 ) );
 
         y2 += AUX_H;
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 2 ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 2 ) );
 
         x2 = x + 20;
         y2 = ybase + 16;
@@ -508,11 +508,11 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase + 32;
         
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 1 ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 1 ) );
 
         y2 += AUX_H;
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 3 ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 3 ) );
 
         // account for slight error in pixel conversion to svg area
         x += 155;

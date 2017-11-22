@@ -1,8 +1,8 @@
 #include "rack.hpp"
 #include "CLog.h"
 
-//#define RESOURCE_LOCATION "res/"
-#define RESOURCE_LOCATION "plugins/mschack/res/"
+#define RESOURCE_LOCATION "res/"
+//#define RESOURCE_LOCATION "plugins/mschack/res/"
 
 struct CyanValueLight : ModuleLightWidget 
 {

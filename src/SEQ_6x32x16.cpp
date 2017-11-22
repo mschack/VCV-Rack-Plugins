@@ -89,7 +89,6 @@ struct SEQ_6x32x16 : Module
     // swing
     int                     m_SwingLen[ nCHANNELS ] = {0};
     int                     m_SwingCount[ nCHANNELS ] = {0};
-    int                     m_bBeatOne[ nCHANNELS ] = {0};
     int                     m_ClockTick[ nCHANNELS ] = {0};
 
     // Contructor
@@ -300,17 +299,17 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
 
         // add buttons
 		addParam(createParam<SEQ_6x32x16::MySquareButton_Pause>( Vec( x + 26, y + 10 ), module, SEQ_6x32x16::PARAM_PAUSE + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<TinyLight<RedLight>>( Vec( x + 26 + 2, y + 10 + 2 ), module, SEQ_6x32x16::LIGHT_PAUSE + ch ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x + 26 + 2, y + 10 + 3 ), module, SEQ_6x32x16::LIGHT_PAUSE + ch ) );
 
         y2 = y + 34;
 		addParam(createParam<SEQ_6x32x16::MySquareButton_CpyNxt>( Vec( x + 290, y2 ), module, SEQ_6x32x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<TinyLight<GreenLight>>( Vec( x + 290 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_COPY + ch ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 290 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_COPY + ch ) );
 
 		addParam(createParam<SEQ_6x32x16::MySquareButton_Rand>( Vec( x + 315, y2 ), module, SEQ_6x32x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<TinyLight<GreenLight>>( Vec( x + 315 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_RAND + ch ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 315 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_RAND + ch ) );
 
 		addParam(createParam<SEQ_6x32x16::MySquareButton_BiLevel>( Vec( x + 425, y2 ), module, SEQ_6x32x16::PARAM_BILEVEL + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<TinyLight<CyanValueLight>>( Vec( x + 425 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_BILEVEL + ch ) );
+        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 425 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_BILEVEL + ch ) );
 
         // add outputs
         addOutput(createOutput<MyPortOutSmall>( Vec( x + 580, y + 7 ), module, SEQ_6x32x16::OUT_TRIG + ch ) );
@@ -721,7 +720,6 @@ void SEQ_6x32x16::step()
         if( inputs[ IN_CLK + ch ].active )
         {
             bClockAtZero = false;
-
             m_ClockTick[ ch ]++;
 
             // time the clock tick
@@ -734,30 +732,30 @@ void SEQ_6x32x16::step()
 
             if( bGlobalClk )
             {
-                m_bBeatOne[ ch ] = true;
                 m_SwingCount[ ch ] = m_SwingLen[ ch ];
                 m_pPatternDisplay[ ch ]->ClockReset();
                 bClockAtZero = true;
                 bClk = true;
             }
-            // beat 1, wait for count to shorten every other note
-            else if( m_bBeatOne[ ch ] )
+
+            if( params[ PARAM_SWING_KNOB + ch ].value < 0.05 )
             {
-                if( --m_SwingCount[ ch ] <= 0 )
-                {
-                    m_bBeatOne[ ch ] = false;
-                    bClk = true;
-                }              
+                bClk = bClkTrig;
             }
-            // beat 0, wait for actual clock
-            else if( bClkTrig )
+            else
             {
-                if ( params[ PARAM_SWING_KNOB + ch ].value > 0.05 )
+                // beat 1, wait for count to shorten every other note
+                if( !( m_pPatternDisplay[ ch ]->m_PatClk & 1 ) )
                 {
-                    m_bBeatOne[ ch ] = true;
-                    m_SwingCount[ ch ] = m_SwingLen[ ch ];
+                    if( --m_SwingCount[ ch ] <= 0 )
+                        bClk = true;
                 }
-                bClk = true;
+                // beat 0, wait for actual clock
+                else if( bClkTrig )
+                {
+                    m_SwingCount[ ch ] = m_SwingLen[ ch ];
+                    bClk = true;
+                }
             }
 
             if( !m_bPauseState[ ch ] )
@@ -774,10 +772,6 @@ void SEQ_6x32x16::step()
                     bTrigOut = ( m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ] );
                 }
             }
-        }
-        else
-        {
-            m_bBeatOne[ ch ] = false;
         }
 
         iclk = m_pPatternDisplay[ ch ]->m_PatClk;
