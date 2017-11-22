@@ -677,9 +677,9 @@ void Seq_Triad::SetSteps( int nSteps )
     {
         // level button
 		if( i < nSteps )
-            lights[ LIGHT_STEP_NUM +  i ].value = 1.0f;
+            lights[ LIGHT_STEP_NUM + i ].value = 1.0f;
         else
-            lights[ LIGHT_STEP_NUM +  i ].value = 0.0f;
+            lights[ LIGHT_STEP_NUM + i ].value = 0.0f;
     }
 }
 
@@ -790,9 +790,9 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
 
     // change pattern light
     for( i = 0; i < nPATTERNS; i++ )
-        lights[ LIGHT_PAT + + i ].value = 0.0f;
+        lights[ LIGHT_PAT + i ].value = 0.0f;
 
-    lights[ LIGHT_PAT + + i ].value = 1.0;
+    lights[ LIGHT_PAT + i ].value = 1.0;
 
     // change key select
     for( kb = 0; kb < nKEYBOARDS; kb ++ )

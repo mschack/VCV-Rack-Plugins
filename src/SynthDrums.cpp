@@ -110,7 +110,7 @@ struct SynthDrums : Module
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
 
     // Contructor
-	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, nINPUTS ){}
+	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
 
     //-----------------------------------------------------
     // MyParamKnob
