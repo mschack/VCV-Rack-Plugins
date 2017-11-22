@@ -4,12 +4,12 @@
 
 # Updates
 - 22 Nov 17:
-	-fixed crashes from 0.5.0 update
-	-6x32 sequencer graphics update
-	-triad sequencers fixed bug with connectors not connecting 
+	- fixed crashes from 0.5.0 update
+	- 6x32 sequencer graphics update
+	- triad sequencers fixed bug with connectors not connecting 
 - 21 Nov 17:
-	-Now built for 0.5.0
-	-Updates for 0.4.0 plugins will now cease.
+	- Now built for 0.5.0
+	- Updates for 0.4.0 plugins will now cease.
 - 20 Nov 17:	
 	- Added 6 x 32 step sequencer with 3 levels, independant clocks and swing.
 - 18 Nov 17:	
