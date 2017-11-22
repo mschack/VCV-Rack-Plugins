@@ -374,7 +374,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     {
         // step button
 		addParam(createParam<MySquareButton_StepNum>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_STEP_NUM + stp ) );
+        addChild(createLight<SmallLight<DarkRedValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP_NUM + stp ) );
 
         if( ( stp & 0x3 ) == 0x3 )
             x += 20;
@@ -405,7 +405,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
 
             // step button
 		    addParam(createParam<MySquareButton_Step>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEPS + ( ch * STEPS ) + stp, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<DarkGreenValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ) );
+            addChild(createLight<SmallLight<DarkGreenValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ) );
 
             if( ( stp & 0x3 ) == 0x3 )
                 x += 20;
@@ -420,7 +420,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
         {
             // pattern button
 		    addParam(createParam<MySquareButton_Pattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_PATTERNS + ( ch * PATTERNS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_PAT + ( ch * PATTERNS ) + i ) );
+            addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_PAT + ( ch * PATTERNS ) + i ) );
 
             x += 13;
         }
@@ -430,13 +430,13 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
 
         // copy next button
 		addParam(createParam<MySquareButton_CopyNext>( Vec( x, y ), module, Seq_3x16x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_COPY + ch ) );
+        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_COPY + ch ) );
 
         x = 290;
 
         // random button
 		addParam(createParam<MySquareButton_Rand>( Vec( x, y ), module, Seq_3x16x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_RAND + ch ) );
+        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_RAND + ch ) );
 
         // pattern change input trigger
         addInput(createInput<MyPortInSmall>( Vec( 17, 127 + (ch * CHANNEL_OFF_H) ), module, Seq_3x16x16::INPUT_PAT_CHANGE + ch ) );
@@ -458,7 +458,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     {
         // pattern button
 		addParam(createParam<MySquareButton_GlobalPattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_GLOBAL_PAT + stp, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_GLOBAL_PAT + stp ) );
+        addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_GLOBAL_PAT + stp ) );
 
         x += 13;
     }
@@ -714,9 +714,9 @@ void Seq_3x16x16::ChangePattern( int ch, int index, bool bForceChange )
     for( i = 0; i < PATTERNS; i++ )
     {
         if( m_PatternSelect[ ch ] == i )
-            lights[ LIGHT_PAT + i ].value = 1.0f; 
+            lights[ LIGHT_PAT + ( ch * PATTERNS ) + i ].value = 1.0f; 
         else
-            lights[ LIGHT_PAT + i ].value = 0.0f;
+            lights[ LIGHT_PAT + ( ch * PATTERNS ) + i ].value = 0.0f;
     }
 
     // step
