@@ -27,7 +27,6 @@ struct SynthDrums_Widget : ModuleWidget {
 
 struct Seq_Triad_Widget : ModuleWidget {
 	Seq_Triad_Widget();
-    Menu *createContextMenu() override;
 };
 
 struct Seq_Triad2_Widget : ModuleWidget {

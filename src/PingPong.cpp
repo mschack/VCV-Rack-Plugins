@@ -56,6 +56,11 @@ struct PingPong : Module
         nOUTPUTS
 	};
 
+	enum LightIds 
+    {
+		LIGHT_REVERSE
+	};
+
     enum FILTER_TYPES
     {
         FILTER_OFF,
@@ -95,9 +100,8 @@ struct PingPong : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
-    //void    reset() override;
+    void    reset() override;
 
     void    ChangeFilterCutoff( float cutfreq );
     float   Filter( int ch, float in );
@@ -110,7 +114,7 @@ struct MyCutoffKnob : Green1_Big
 {
     PingPong *mymodule;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (PingPong*)module;
 
@@ -119,7 +123,7 @@ struct MyCutoffKnob : Green1_Big
             mymodule->ChangeFilterCutoff( value ); 
         }
 
-		RoundKnob::onChange();
+		RoundKnob::onChange( e );
 	}
 };
 
@@ -132,7 +136,7 @@ struct MySquareButton_Reverse : MySquareButton2
 
     PingPong *mymodule;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (PingPong*)module;
 
@@ -144,15 +148,15 @@ struct MySquareButton_Reverse : MySquareButton2
             // recalc delay offsets when going back to forward mode
             if( !mymodule->m_bReverseState )
             {
-                delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
+                delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
                 mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
 
-                delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
+                delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
                 mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
             }
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -216,14 +220,14 @@ PingPong_Widget::PingPong_Widget()
 
     // reverse button
     addParam(createParam<MySquareButton_Reverse>( Vec( 17, 343 ), module, PingPong::PARAM_REVERSE, 0.0, 1.0, 0.0 ) );
-    addChild(createValueLight<SmallLight<RedValueLight>>( Vec( 20, 347 ), &module->m_fLightReverse ) );
+    addChild(createLight<SmallLight<RedLight>>( Vec( 20, 347 ), module, PingPong::LIGHT_REVERSE ) );
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void PingPong::initialize()
+void PingPong::reset()
 {
     m_fLightReverse = 0.0;
     m_bReverseState = false;
@@ -275,7 +279,7 @@ void PingPong::ChangeFilterCutoff( float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / gSampleRate); 
+    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -364,8 +368,8 @@ void PingPong::step()
     bool bMono = false;
     int i, dR, dL;
 
-    dL = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * gSampleRate;
-    dR = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * gSampleRate;
+    dL = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+    dR = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
 
     // check right channel first for possible mono
     if( inputs[ INPUT_SYNC ].active )

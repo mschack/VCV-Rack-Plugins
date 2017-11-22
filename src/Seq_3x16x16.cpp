@@ -45,6 +45,19 @@ struct Seq_3x16x16 : Module
         nOUTPUTS    = OUT_CV + CHANNELS
 	};
 
+	enum LightIds 
+    {
+		LIGHT_RUN,
+        LIGHT_RESET,
+        LIGHT_STEP_NUM,
+        LIGHT_STEP          = LIGHT_STEP_NUM + ( STEPS ),
+        LIGHT_PAT           = LIGHT_STEP + ( CHANNELS * STEPS ),
+        LIGHT_COPY          = LIGHT_PAT + ( CHANNELS * PATTERNS ),
+        LIGHT_RAND          = LIGHT_COPY + CHANNELS,
+        LIGHT_GLOBAL_PAT    = LIGHT_RAND + CHANNELS,
+        nLIGHTS             = LIGHT_GLOBAL_PAT + PATTERNS
+	};
+
 	enum GateMode 
     {
 		TRIGGER,
@@ -64,21 +77,16 @@ struct Seq_3x16x16 : Module
 	SchmittTrigger  m_SchTrigRun;
 	SchmittTrigger  m_SchTrigReset;
     SchmittTrigger  m_SchTrigPatChange[ CHANNELS ];
-	float           m_fLightRun = 0.0;
-	float           m_fLightReset = 0.0;
 
     // random pattern button
     SchmittTrigger  m_SchTrigRandPat;
-    float           m_fLightRandPat[ CHANNELS ] = {};
 
     // copy next buttons
     SchmittTrigger  m_SchTrigCopyNext;
-    float           m_fLightCopyNext[ CHANNELS ] = {};
 
     // number of steps
     int             m_nSteps = STEPS;    
     SchmittTrigger  m_SchTrigStepNumbers[ STEPS ];
-    float           m_fLightStepNumbers[ STEPS ] = {};
     
     // Level settings
     ParamWidget     *m_pLevelToggleParam2[ CHANNELS ][ STEPS ] = {};
@@ -87,7 +95,6 @@ struct Seq_3x16x16 : Module
 
     // Global Pattern Select
     SchmittTrigger  m_SchTrigGlobalPatternSelect;
-    float           m_fLightGlobalPatternSelects[ PATTERNS ] = {};
     int             m_GlobalSelect = 0;
     bool            m_bGlobalPatternChangePending = false;
     int             m_GlobalPendingLight = 0;
@@ -95,7 +102,6 @@ struct Seq_3x16x16 : Module
     // Pattern Select
     int             m_PatternSelect[ CHANNELS ] = {0};    
     SchmittTrigger  m_SchTrigPatternSelects[ CHANNELS ][ PATTERNS ];
-    float           m_fLightPatternSelects[ CHANNELS ][ PATTERNS ] = {};
     bool            m_bPatternPending = false;
     bool            m_bPatternChangePending[ CHANNELS ] = {0};
     int             m_PendingLight[ CHANNELS ] = {0};
@@ -103,23 +109,18 @@ struct Seq_3x16x16 : Module
     // Steps
     int             m_CurrentStep = 0;
     SchmittTrigger  m_SchTrigSteps[ CHANNELS ][ STEPS ];
-    float           m_fLightSteps[ CHANNELS ][ STEPS ] = {};
-    float           m_fLightStepLevels[ CHANNELS ][ STEPS ] = {};
     bool            m_bStepStates[ PATTERNS ][ CHANNELS ][ STEPS ] = {};    
+    float           m_fLightStepLevels[ CHANNELS ][ STEPS ] = {};
 
     // Contructor
-	Seq_3x16x16() : Module(nPARAMS, nINPUTS, nOUTPUTS) 
-    {
-        //m_fLightPatternSelects[ 0 ] = 1.0;
-    }
+	Seq_3x16x16() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){} 
 
     // Overrides 
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
     void    randomize() override;
-    void    initialize() override;
-    //void    reset() override;
+    void    reset() override;
 
     void Randomize_Channel( int ch );
     void CopyNext( int ch );
@@ -137,7 +138,7 @@ struct MySquareButton_CopyNext : MySquareButton
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -147,7 +148,7 @@ struct MySquareButton_CopyNext : MySquareButton
             mymodule->CopyNext( param );
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -160,7 +161,7 @@ struct MySquareButton_Rand : MySquareButton
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -170,7 +171,7 @@ struct MySquareButton_Rand : MySquareButton
             mymodule->Randomize_Channel( param );
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -183,7 +184,7 @@ struct MySquareButton_GlobalPattern : MySquareButton //SVGSwitch, MomentarySwitc
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -205,7 +206,7 @@ struct MySquareButton_GlobalPattern : MySquareButton //SVGSwitch, MomentarySwitc
             }
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -218,7 +219,7 @@ struct MySquareButton_Pattern : MySquareButton //SVGSwitch, MomentarySwitch
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -245,7 +246,7 @@ struct MySquareButton_Pattern : MySquareButton //SVGSwitch, MomentarySwitch
             }
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -258,7 +259,7 @@ struct MySquareButton_Step : MySquareButton //SVGSwitch, MomentarySwitch
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -270,10 +271,10 @@ struct MySquareButton_Step : MySquareButton //SVGSwitch, MomentarySwitch
 
             //lg.f( (char*)"step = %d, ch = %d, stp = %d\n", param, ch, stp );
             mymodule->m_bStepStates[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ] = !mymodule->m_bStepStates[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ];
-            mymodule->m_fLightSteps[ ch ][ stp ] = mymodule->m_bStepStates[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 : 0.0;
+            mymodule->lights[ Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ].value = mymodule->m_bStepStates[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0f : 0.0f;
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -286,7 +287,7 @@ struct MySquareButton_StepNum : MySquareButton
     Seq_3x16x16 *mymodule;
     int stp, i;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -296,7 +297,7 @@ struct MySquareButton_StepNum : MySquareButton
             mymodule->SetSteps( stp + 1 );
         }
 
-		MomentarySwitch::onChange();
+		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -309,7 +310,7 @@ struct MySlider_Levels : MySlider_01
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange() override 
+    void onChange( EventChange &e ) override 
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -324,7 +325,7 @@ struct MySlider_Levels : MySlider_01
             mymodule->m_fLevels[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ] = value;
         }
 
-        SVGSlider::onChange();
+        SVGSlider::onChange( e );
 	}
 };
 
@@ -355,12 +356,12 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
 
     // clk/run button
 	addParam(createParam<LEDButton>(Vec( 78, 17 ), module, Seq_3x16x16::PARAM_RUN, 0.0, 1.0, 0.0 ) );
-	addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( 78 + 5, 17 + 5 ), &module->m_fLightRun ) );
+    addChild(createLight<SmallLight<GreenLight>>( Vec( 78 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RUN ) );
     addInput(createInput<MyPortInSmall>( Vec( 47, 17 ), module, Seq_3x16x16::INPUT_EXT_CLOCK ) );
 
     // reset button
 	addParam(createParam<LEDButton>( Vec( 143, 17 ), module, Seq_3x16x16::PARAM_RESET, 0.0, 1.0, 0.0 ) );
-	addChild(createValueLight<SmallLight<GreenValueLight>>(Vec( 143 + 5, 17 + 5 ), &module->m_fLightReset ) );
+    addChild(createLight<SmallLight<GreenLight>>( Vec( 143 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RESET ) );
     addInput(createInput<MyPortInSmall>( Vec( 117, 17 ), module, Seq_3x16x16::INPUT_RESET ) );
 
     //----------------------------------------------------
@@ -373,14 +374,14 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     {
         // step button
 		addParam(createParam<MySquareButton_StepNum>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightStepNumbers[ stp ] ) );
+        addChild(createLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_STEP_NUM + stp ) );
 
         if( ( stp & 0x3 ) == 0x3 )
             x += 20;
         else
             x += 15;
 
-        module->m_fLightStepNumbers[ stp ] = 1.0;
+        module->lights[ Seq_3x16x16::LIGHT_STEP_NUM + stp ].value = 1.0;
     }
 
     //----------------------------------------------------
@@ -404,7 +405,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
 
             // step button
 		    addParam(createParam<MySquareButton_Step>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEPS + ( ch * STEPS ) + stp, 0.0, 1.0, 0.0 ) );
-		    addChild(createValueLight<SmallLight<DarkGreenValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightSteps[ ch ][ stp ] ) );
+            addChild(createLight<SmallLight<DarkGreenValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ) );
 
             if( ( stp & 0x3 ) == 0x3 )
                 x += 20;
@@ -419,7 +420,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
         {
             // pattern button
 		    addParam(createParam<MySquareButton_Pattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_PATTERNS + ( ch * PATTERNS ) + i, 0.0, 1.0, 0.0 ) );
-		    addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightPatternSelects[ ch ][ i ] ) );
+            addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_PAT + ( ch * PATTERNS ) + i ) );
 
             x += 13;
         }
@@ -429,13 +430,13 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
 
         // copy next button
 		addParam(createParam<MySquareButton_CopyNext>( Vec( x, y ), module, Seq_3x16x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightCopyNext[ ch ] ) );
+        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_COPY + ch ) );
 
         x = 290;
 
         // random button
 		addParam(createParam<MySquareButton_Rand>( Vec( x, y ), module, Seq_3x16x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightRandPat[ ch ] ) );
+        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_RAND + ch ) );
 
         // pattern change input trigger
         addInput(createInput<MyPortInSmall>( Vec( 17, 127 + (ch * CHANNEL_OFF_H) ), module, Seq_3x16x16::INPUT_PAT_CHANGE + ch ) );
@@ -453,11 +454,11 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     x = 45;
     y = 340;
 
-	for ( stp = 0; stp < STEPS; stp++ ) 
+	for ( stp = 0; stp < PATTERNS; stp++ ) 
     {
         // pattern button
 		addParam(createParam<MySquareButton_GlobalPattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_GLOBAL_PAT + stp, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightGlobalPatternSelects[ stp ] ) );
+        addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_3x16x16::LIGHT_GLOBAL_PAT + stp ) );
 
         x += 13;
     }
@@ -465,8 +466,7 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     // pattern change input trigger
     addInput(createInput<MyPortInSmall>( Vec( 17, 338 ), module, Seq_3x16x16::INPUT_GLOBAL_PAT_CHANGE ) );
 
-    //lg.f("sample rate = %.3f", gSampleRate );
-    module->m_fLightGlobalPatternSelects[ 0 ] = 1.0;
+    module->lights[ Seq_3x16x16::LIGHT_GLOBAL_PAT ].value = 1.0;
     module->m_GlobalSelect = 0;
 
     module->ChangePattern( 0, PATTERNS, false );
@@ -590,16 +590,23 @@ void Seq_3x16x16::fromJson(json_t *rootJ)
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void Seq_3x16x16::initialize()
+void Seq_3x16x16::reset()
 {
     //lg.f("init\n");
     memset( m_fLevels, 0, sizeof(m_fLevels) );
     memset( m_bStepStates, 0, sizeof(m_bStepStates) );
-    memset( m_fLightSteps, 0, sizeof(m_fLightSteps) );
-    memset( m_fLightStepLevels, 0, sizeof(m_fLightStepLevels) );
+
+    for( int ch = 0; ch < CHANNELS; ch ++ )
+    {
+        for( int i = 0; i < STEPS; i ++ )
+        {
+            lights[ LIGHT_STEP + ( ch * STEPS ) + i ].value = 0.0;
+            m_fLightStepLevels[ ch ][ i ] = 0.0;
+        }
+    }
 
     ChangePattern( 0, PATTERNS, false );
     ChangePattern( 1, PATTERNS, false );
@@ -607,17 +614,6 @@ void Seq_3x16x16::initialize()
 
     SetSteps( 16 );
 }
-
-//-----------------------------------------------------
-// Procedure:   reset
-//
-//-----------------------------------------------------
-/*void reset()
-{
-	for (int i = 0; i < 8; i++) {
-		gateState[i] = false;
-	}
-}*/
 
 //-----------------------------------------------------
 // Procedure:   randomize
@@ -713,16 +709,14 @@ void Seq_3x16x16::ChangePattern( int ch, int index, bool bForceChange )
 
     // update lights
     for( stp = 0; stp < STEPS; stp++ ) 
-    {
-        m_fLightSteps[ ch ][ stp ] = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 : 0.0;
-    }
+        lights[ LIGHT_STEP + ( ch * STEPS ) + stp ].value = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 : 0.0;
 
     for( i = 0; i < PATTERNS; i++ )
     {
         if( m_PatternSelect[ ch ] == i )
-            m_fLightPatternSelects[ ch ][ i ] = 1.0;
+            lights[ LIGHT_PAT + i ].value = 1.0f; 
         else
-            m_fLightPatternSelects[ ch ][ i ] = 0.0;
+            lights[ LIGHT_PAT + i ].value = 0.0f;
     }
 
     // step
@@ -750,9 +744,9 @@ void Seq_3x16x16::SetSteps( int nSteps )
     {
         // level button
 		if( i < nSteps )
-            m_fLightStepNumbers[ i ] = 1.0f;
+            lights[ LIGHT_STEP_NUM + i ].value = 1.0f; 
         else
-            m_fLightStepNumbers[ i ] = 0.0f;
+            lights[ LIGHT_STEP_NUM + i ].value = 0.0f;
     }
 }
 
@@ -762,8 +756,10 @@ void Seq_3x16x16::SetSteps( int nSteps )
 //-----------------------------------------------------
 void Seq_3x16x16::SetGlobalPattern( int step )
 {
-    memset( m_fLightGlobalPatternSelects, 0, sizeof(m_fLightGlobalPatternSelects) );
-    m_fLightGlobalPatternSelects[ step ] = 1.0;
+	for ( int i = 0; i < PATTERNS; i++ ) 
+        lights[ LIGHT_GLOBAL_PAT + i ].value = 0.0f;
+
+    lights[ LIGHT_GLOBAL_PAT + step ].value = 1.0;
 
     m_GlobalSelect = step;
 
@@ -788,7 +784,7 @@ void Seq_3x16x16::step()
     // pending light value
     if( bUp )
     {
-        fpendinglight += ( 1.0 / gSampleRate ) * 1.5 ;
+        fpendinglight += ( 1.0 / engineGetSampleRate() ) * 1.5 ;
 
         if( fpendinglight >= 0.5f )
         {
@@ -798,7 +794,7 @@ void Seq_3x16x16::step()
     }
     else
     {
-        fpendinglight -= ( 1.0 / gSampleRate ) * 2;
+        fpendinglight -= ( 1.0 / engineGetSampleRate() ) * 2;
 
         if( fpendinglight <= 0.0f )
         {
@@ -811,20 +807,20 @@ void Seq_3x16x16::step()
 	if( m_SchTrigRun.process( params[ PARAM_RUN ].value ) )
 		m_bRunning = !m_bRunning;
 
-	m_fLightRun = m_bRunning ? 1.0 : 0.0;
+	lights[ LIGHT_RUN ].value = m_bRunning ? 1.0f : 0.0f;
 
 	// Random and copy buttons
 	for( ch = 0; ch < CHANNELS; ch++ ) 
     {
 	    if( m_SchTrigRandPat.process( params[ PARAM_RAND + ch ].value ) ) 
-		    m_fLightRandPat[ ch ] = 1.0;
+            lights[ LIGHT_RAND + ch ].value = 1.0f;
 
-	    if( m_SchTrigCopyNext.process( params[ PARAM_CPY_NEXT + ch ].value ) ) 
-		    m_fLightCopyNext[ ch ] = 1.0;
+	    if( m_SchTrigCopyNext.process( params[ PARAM_CPY_NEXT + ch ].value ) )
+            lights[ LIGHT_COPY + ch ].value = 1.0f;
 
-        m_fLightRandPat[ ch ] -= m_fLightRandPat[ ch ] / LIGHT_LAMBDA / gSampleRate;
+        lights[ LIGHT_RAND + ch ].value -= lights[ LIGHT_RAND + ch ].value / LIGHT_LAMBDA / engineGetSampleRate();
 
-        m_fLightCopyNext[ ch ] -= m_fLightCopyNext[ ch ] / LIGHT_LAMBDA / gSampleRate;
+        lights[ LIGHT_COPY + ch ].value -= lights[ LIGHT_COPY + ch ].value / LIGHT_LAMBDA / engineGetSampleRate();
     }
 
 	if( m_bRunning ) 
@@ -834,7 +830,7 @@ void Seq_3x16x16::step()
 			// External clock
 			if( m_SchTrigClock.process( inputs[ INPUT_EXT_CLOCK ].value ) ) 
             {
-				m_fPhase = 0.0;
+				m_fPhase = 0.0f;
 				bNextStep = true;
     		}
 		}
@@ -864,10 +860,10 @@ void Seq_3x16x16::step()
 	// Reset
 	if( m_SchTrigReset.process( params[ PARAM_RESET ].value + inputs[ INPUT_RESET ].value ) ) 
     {
-		m_fPhase = 0.0;
+		m_fPhase = 0.0f;
 		m_CurrentStep = m_nSteps;
 		bNextStep = true;
-		m_fLightReset = 1.0;
+        lights[ LIGHT_RESET ].value = 1.0f;
 	}
 
 	if( bNextStep ) 
@@ -878,7 +874,7 @@ void Seq_3x16x16::step()
 			m_CurrentStep = 0;
 
         for( ch = 0; ch < CHANNELS; ch++ )
-		    m_fLightStepLevels[ ch ][ m_CurrentStep ] = 1.0;
+		    m_fLightStepLevels[ ch ][ m_CurrentStep ] = 1.0f;
 
 		m_PulseStep.trigger( 1e-3 );
 
@@ -913,7 +909,7 @@ void Seq_3x16x16::step()
     // global pattern pending change light blinky
     if( m_bGlobalPatternChangePending )
     {
-        m_fLightGlobalPatternSelects[ m_GlobalPendingLight ] = fpendinglight;
+        lights[ LIGHT_GLOBAL_PAT + m_GlobalPendingLight ].value = fpendinglight;
     }
 
     // channel pattern pending change light blinky
@@ -927,14 +923,14 @@ void Seq_3x16x16::step()
 	        if( m_bPatternChangePending[ ch ] )
             {
                 m_bPatternPending = true;
-                m_fLightPatternSelects[ ch ][ m_PendingLight[ ch ] ] = fpendinglight;
+                lights[ LIGHT_PAT + (ch * PATTERNS) + m_PendingLight[ ch ] ].value = fpendinglight;
             }
         }
     }
 
-   	m_fLightReset -= m_fLightReset / LIGHT_LAMBDA / gSampleRate;
+   	lights[ LIGHT_RESET ].value -= lights[ LIGHT_RESET ].value / LIGHT_LAMBDA / engineGetSampleRate();
 
-	bPulse = m_PulseStep.process( 1.0 / gSampleRate );
+	bPulse = m_PulseStep.process( 1.0 / engineGetSampleRate() );
 
 	// Step buttons
 	for( ch = 0; ch < CHANNELS; ch++ ) 
@@ -953,8 +949,9 @@ void Seq_3x16x16::step()
             if( bGatesOn )
                 bChTrig = true;
 		    
-		    m_fLightStepLevels[ ch ][ stp ] -= m_fLightStepLevels[ ch ][ stp ] / LIGHT_LAMBDA / gSampleRate;
-		    m_fLightSteps[ ch ][ stp ] = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 - m_fLightStepLevels[ ch ][ stp ] : m_fLightStepLevels[ ch ][ stp ];
+		    m_fLightStepLevels[ ch ][ stp ] -= m_fLightStepLevels[ ch ][ stp ] / LIGHT_LAMBDA / engineGetSampleRate();
+
+            lights[ LIGHT_STEP + (ch * STEPS) + stp ].value = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 - m_fLightStepLevels[ ch ][ stp ] : m_fLightStepLevels[ ch ][ stp ];
 	    }
 
         // trigger

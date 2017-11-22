@@ -4,51 +4,51 @@
 //#define RESOURCE_LOCATION "res/"
 #define RESOURCE_LOCATION "plugins/mschack/res/"
 
-struct CyanValueLight : ColorValueLight 
+struct CyanValueLight : ModuleLightWidget 
 {
 	CyanValueLight() 
     {
-		baseColor = COLOR_CYAN;
+		addBaseColor( COLOR_CYAN );
     }
 };
 
-struct OrangeValueLight : ColorValueLight 
+struct OrangeValueLight : ModuleLightWidget 
 {
 	OrangeValueLight() 
     {
-		baseColor = nvgRGB(242, 79, 0);
+		addBaseColor( nvgRGB( 242, 79, 0 ) );
 	}
 };
 
-struct DarkRedValueLight : ColorValueLight 
+struct DarkRedValueLight : ModuleLightWidget 
 {
 	DarkRedValueLight() 
     {
-		baseColor = nvgRGB(0x70, 0, 0x30);
+		addBaseColor( nvgRGB(0x70, 0, 0x30) );;
 	}
 };
 
-struct DarkGreenValueLight : ColorValueLight 
+struct DarkGreenValueLight : ModuleLightWidget 
 {
 	DarkGreenValueLight() 
     {
-		baseColor = nvgRGB(0, 0x90, 0x40);
+		addBaseColor( nvgRGB(0, 0x90, 0x40) );;
 	}
 };
 
-struct DarkGreen2ValueLight : ColorValueLight 
+struct DarkGreen2ValueLight : ModuleLightWidget 
 {
 	DarkGreen2ValueLight() 
     {
-		baseColor = nvgRGB(0, 0x40, 0);
+		addBaseColor( nvgRGB(0, 0x40, 0) );;
 	}
 };
 
-struct DarkYellow2ValueLight : ColorValueLight 
+struct DarkYellow2ValueLight : ModuleLightWidget 
 {
 	DarkYellow2ValueLight() 
     {
-		baseColor = nvgRGB(0x40, 0x40, 0);
+		addBaseColor( nvgRGB(0x40, 0x40, 0) );;
 	}
 };
 
@@ -317,18 +317,20 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    Widget *onMouseDown( Vec pos, int button ) override
+    void onMouseDown( EventMouseDown &e ) override
     {
         int i;
 
+        e.consumed = false;
+
         if( !m_bInitialized )
-            return NULL;
+            return;
 
         for( i = 0; i < m_nLEDs; i++)
         {
-            if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
+            if( isPoint( &m_RectsPatSel[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                if( button == 0 )
+                if( e.button == 0 )
                     SetPat( i );
                 else
                     ClrPat( i );
@@ -337,10 +339,11 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
 
                 dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
 
-            else if( isPoint( &m_RectsMaxPat[ i ], (int)pos.x, (int)pos.y ) )
+            else if( isPoint( &m_RectsMaxPat[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
                 m_MaxPat = i;
 
@@ -348,18 +351,18 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
 
                 dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
-
         }
 
-        return NULL;
+        return;
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void step() 
+    void step() override
     {
 	    FramebufferWidget::step();
     }
@@ -534,19 +537,21 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    Widget *onMouseDown( Vec pos, int button ) override
+    void onMouseDown( EventMouseDown &e ) override
     {
         int i;
 
-        if( !m_bInitialized )
-            return NULL;
+        e.consumed = false;
 
-        if( button != 0 )
-            return NULL;
+        if( !m_bInitialized )
+            return;
+
+        if( e.button != 0 )
+            return;
 
         for( i = 0; i < m_nLEDs; i++)
         {
-            if( isPoint( &m_RectsMaxPat[ i ], (int)pos.x, (int)pos.y ) )
+            if( isPoint( &m_RectsMaxPat[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
                 m_MaxPat = i;
 
@@ -554,28 +559,29 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
                 dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
 
-            else if( isPoint( &m_RectsPatSel[ i ], (int)pos.x, (int)pos.y ) )
+            else if( isPoint( &m_RectsPatSel[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
                 m_PatSel = i;
 
                 if( m_pCallback )
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
-                dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
         }
 
-        return NULL;
+        return;
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void step() 
+    void step() override
     {
 	    FramebufferWidget::step();
     }
@@ -665,11 +671,11 @@ struct CompressorLEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     void Process( float level )
     {
-        int steptime = (int)( gSampleRate * 0.05 );
+        int steptime = (int)( engineGetSampleRate() * 0.05 );
         int i;
 
-        if( abs( level ) > m_fLargest )
-            m_fLargest = abs( level );
+        if( fabs( level ) > m_fLargest )
+            m_fLargest = fabs( level );
 
         // only process every 1/10th of a second
         if( ++m_StepCount >= steptime )
@@ -809,11 +815,11 @@ struct LEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     void Process( float level )
     {
-        int steptime = (int)( gSampleRate * 0.05 );
+        int steptime = (int)( engineGetSampleRate() * 0.05 );
         int i;
 
-        if( abs( level ) > m_fLargest )
-            m_fLargest = abs( level );
+        if( fabs( level ) > m_fLargest )
+            m_fLargest = fabs( level );
 
         // only process every 1/10th of a second
         if( ++m_StepCount >= steptime )
@@ -882,7 +888,7 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
 };
 
 #define OCT_OFFSET_X 91
-    
+    bool    m_bInitialized = false;
     bool    m_bForceChange = true;
     RGB_STRUCT rgb_white, rgb_black, rgb_on;
     CLog *lg;
@@ -952,7 +958,9 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
 
         rgb_white.dwCol = DWRGB( 215, 207, 198 );
         rgb_black.dwCol = 0;
-        rgb_on.dwCol = DWRGB( 217, 97, 38 ); 
+        rgb_on.dwCol = DWRGB( 217, 97, 38 );
+
+        m_bInitialized = true;
     }
 
     //-----------------------------------------------------
@@ -961,6 +969,9 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     void drawkey( NVGcontext *vg, int key, bool bOn )
     {
         int i;
+
+        if( !m_bInitialized )
+            return;
 
         if( key < 0 || key >= 37 )
             return;
@@ -1006,13 +1017,14 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    Widget *onMouseDown( Vec pos, int button ) override
+    void onMouseDown( EventMouseDown &e ) override
     {
         int i;
-        //bool dirty = false;
 
-        if( button != 0 )
-            return NULL;
+        e.consumed = false;
+
+        if( !m_bInitialized )
+            return;
 
         //lg->f("Down x = %.3f, y = %.3f\n", pos.x, pos.y );
 
@@ -1020,13 +1032,14 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
         for( i = 0; i < 37; i++)
         {
             //lg->f("rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x, keyrects[ i ].y, keyrects[ i ].x2, keyrects[ i ].y2 );
-            if( OctaveKeyDrawVects[ i ].nUsed == 4 && isPoint( &keyrects[ i ], (int)pos.x, (int)pos.y ) )
+            if( OctaveKeyDrawVects[ i ].nUsed == 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
                 if( pNoteChangeCallback )
                     pNoteChangeCallback( m_pClass, m_nKb, i );
                 m_KeyOn = i;
                 dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
         }
 
@@ -1034,19 +1047,21 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
         for( i = 0; i < 37; i++)
         {
             //lg->f("rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x - m_x, keyrects[ i ].y, keyrects[ i ].x2 - m_x, keyrects[ i ].y2 );
-            if( OctaveKeyDrawVects[ i ].nUsed != 4 && isPoint( &keyrects[ i ], (int)pos.x, (int)pos.y ) )
+            if( OctaveKeyDrawVects[ i ].nUsed != 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
                 //lg->f("found rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x - m_x, keyrects[ i ].y, keyrects[ i ].x2, keyrects[ i ].y2 );
                 //lg->f("white found!\n");
                 if( pNoteChangeCallback )
                     pNoteChangeCallback( m_pClass, m_nKb, i );
+
                 m_KeyOn = i;
                 dirty = true;
-                return this;
+                e.consumed = true;
+                return;
             }
         }
 
-        return NULL;
+        return;
     }
 
     //-----------------------------------------------------
@@ -1061,7 +1076,7 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     //-----------------------------------------------------
     // Procedure:   step
     //-----------------------------------------------------
-    void step() 
+    void step() override
     {
 	    FramebufferWidget::step();
     }

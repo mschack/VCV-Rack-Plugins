@@ -85,6 +85,12 @@ struct SynthDrums : Module
         nOUTPUTS        = OUTPUT_AUDIO + nCHANNELS
 	};
 
+	enum LightIds 
+    {
+        LIGHT_WAVE_SEL,
+        nLIGHTS         = LIGHT_WAVE_SEL + (nWAVEFORMS * nCHANNELS)
+	};
+
     enum ADSRSTATES
     {
         ADSR_OFF,
@@ -102,10 +108,9 @@ struct SynthDrums : Module
 
     // waveforms
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
-    float           m_fLightWaveSelect[ nCHANNELS ][ nWAVEFORMS ] = {};
 
     // Contructor
-	SynthDrums() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, nINPUTS ){}
 
     //-----------------------------------------------------
     // MyParamKnob
@@ -115,7 +120,7 @@ struct SynthDrums : Module
         SynthDrums *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SynthDrums*)module;
 
@@ -129,7 +134,7 @@ struct SynthDrums : Module
                     mymodule->ChangeFilterCutoff( param, 0.6 );
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -142,7 +147,7 @@ struct SynthDrums : Module
         SynthDrums *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SynthDrums*)module;
 
@@ -156,7 +161,7 @@ struct SynthDrums : Module
                 mymodule->SetWaveLights();
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -164,9 +169,8 @@ struct SynthDrums : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
-    //void    reset() override;
+    void    reset() override;
 
     void    SetWaveLights( void );
     void    BuildWaves( void );
@@ -271,7 +275,7 @@ SynthDrums_Widget::SynthDrums_Widget()
         for( i = 0; i < SynthDrums::nWAVEFORMS; i++ )
         {
             addParam(createParam<SynthDrums::MyWaveButton>( Vec( x, y ), module, SynthDrums::PARAM_WAVES + ( ch * SynthDrums::nWAVEFORMS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightWaveSelect[ ch ][ i ] ) );
+            addChild(createLight<SmallLight<YellowLight>>( Vec( x + 1, y + 2  ), module, SynthDrums::LIGHT_WAVE_SEL + ( ch * SynthDrums::nWAVEFORMS ) + i ) );
             x += 16;
         }
 
@@ -308,10 +312,10 @@ SynthDrums_Widget::SynthDrums_Widget()
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void SynthDrums::initialize()
+void SynthDrums::reset()
 {
 }
 
@@ -337,13 +341,14 @@ void SynthDrums::randomize()
 //-----------------------------------------------------
 void SynthDrums::SetWaveLights( void )
 {
-    int ch;
-
-    memset( m_fLightWaveSelect, 0, sizeof(m_fLightWaveSelect) );
+    int i, ch;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_fLightWaveSelect[ ch ][ m_Wave[ ch ].wavetype ] = 1.0;
+        for( i = 0; i < nWAVEFORMS; i++ )
+            lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + i ].value = 0.0;
+
+        lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + m_Wave[ ch ].wavetype ].value = 1.0;
     }
 }
 
@@ -411,7 +416,7 @@ void SynthDrums::BuildWaves( void )
 float SynthDrums::GetWave( int type, float phase )
 {
     float fval = 0.0;
-    float ratio = (float)(WAVE_BUFFER_LEN-1) / gSampleRate;
+    float ratio = (float)(WAVE_BUFFER_LEN-1) / engineGetSampleRate();
 
     switch( type )
     {
@@ -454,18 +459,18 @@ float SynthDrums::ProcessADS( int ch, bool bWave )
         pasr->acount = 0;
         pasr->fainc  = 0;
 
-        pasr->scount = (int)(.1 * gSampleRate);
+        pasr->scount = (int)(.1 * engineGetSampleRate());
         pasr->fsinc  = 1.0 / pasr->scount;
         
         if( bWave )
         {
             // for the wave asr the release is the waveform release
-            pasr->rcount = (int)( params[ PARAM_REL + ch ].value * ADS_MAX_TIME_SECONDS * gSampleRate );
+            pasr->rcount = (int)( params[ PARAM_REL + ch ].value * ADS_MAX_TIME_SECONDS * engineGetSampleRate() );
         }
         else
         {
             // for the wave asr the release is the hit
-            pasr->rcount = (int)( params[ PARAM_ATT + ch ].value * ADS_MAX_TIME_SECONDS * gSampleRate );
+            pasr->rcount = (int)( params[ PARAM_ATT + ch ].value * ADS_MAX_TIME_SECONDS * engineGetSampleRate() );
         }
 
         if( pasr->rcount )
@@ -514,7 +519,7 @@ void SynthDrums::ChangeFilterCutoff( int ch, float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / gSampleRate); 
+    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -602,8 +607,8 @@ float SynthDrums::GetAudio( int ch )
         {
             m_Wave[ ch ].phase += 35 + ( params[ PARAM_FREQ + ch ].value * freqMAX ) + ( fenv * 400 );
 
-            if( m_Wave[ ch ].phase >= gSampleRate )
-                m_Wave[ ch ].phase = m_Wave[ ch ].phase - gSampleRate;
+            if( m_Wave[ ch ].phase >= engineGetSampleRate() )
+                m_Wave[ ch ].phase = m_Wave[ ch ].phase - engineGetSampleRate();
         }
 
         fout = ProcessADS( ch, true ) * GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase );

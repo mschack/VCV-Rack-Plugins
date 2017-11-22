@@ -1,11 +1,10 @@
-# mscHack Plugins for VCV Rack 0.4.0
+# mscHack Plugins for VCV Rack 0.5.0
 
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
 - 21 Nov 17:
-	-Fix a few minor issues.
-	-Now that Rack 0.5.0 is out I will concentrate on updating my current plugins for that.
+	-Now built for 0.5.0
 	-Updates for 0.4.0 plugins will now cease.
 - 20 Nov 17:	
 	- Added 6 x 32 step sequencer with 3 levels, independant clocks and swing.
@@ -20,7 +19,7 @@
 - 3 Channel 16 Step Programmable Sequencer.
 - 6 Channel 32 Step Sequencer
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
-- Triad Sequencer ( v0.4.10 and above will not load notes properly from pre v0.4.10 builds )
+- Triad Sequencer
 - Triad Sequencer (Type 2), with Independantly clocked channels
 - Synth Drums
 - 3 Channel Oscillator with Filter and Amp Envelope (latest has multi oscillator capability)
