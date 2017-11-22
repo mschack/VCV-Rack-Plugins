@@ -160,7 +160,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
 		nvgFill( vg );
 
         if( !m_bOn )
-            nvgFillColor( vg, nvgRGB(0, 0, 0) );
+            nvgFillColor( vg, nvgRGB(0x40, 0x40, 0x40) );
         else
             nvgFillColor( vg, nvgRGB( m_LEDColour.Col[ 2 ], m_LEDColour.Col[ 1 ], m_LEDColour.Col[ 0 ] ) );
 

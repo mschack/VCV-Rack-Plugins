@@ -47,7 +47,8 @@ struct SEQ_6x32x16 : Module
     {
         OUT_TRIG,
         OUT_LEVEL    = OUT_TRIG + nCHANNELS,
-        nOUTPUTS     = OUT_LEVEL + nCHANNELS
+        OUT_BEAT1    = OUT_LEVEL + nCHANNELS,
+        nOUTPUTS     = OUT_BEAT1 + nCHANNELS
 	};
 
 	enum LightIds 
@@ -87,6 +88,7 @@ struct SEQ_6x32x16 : Module
 
     bool                    m_bTrig[ nCHANNELS ] = {};
     PulseGenerator          m_gatePulse[ nCHANNELS ];
+    PulseGenerator          m_gateBeatPulse[ nCHANNELS ];
 
     // swing
     int                     m_SwingLen[ nCHANNELS ] = {0};
@@ -276,6 +278,7 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
         // add outputs
         addOutput(createOutput<MyPortOutSmall>( Vec( x + 580, y + 7 ), module, SEQ_6x32x16::OUT_TRIG + ch ) );
         addOutput(createOutput<MyPortOutSmall>( Vec( x + 544, y + 33 ), module, SEQ_6x32x16::OUT_LEVEL + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 37, y + 31 ), module, SEQ_6x32x16::OUT_BEAT1 + ch ) );
 
         y += 56;
     }
@@ -731,6 +734,11 @@ void SEQ_6x32x16::step()
             ChangeProg( ch, m_ProgPending[ ch ].prog, false );
             bTrigOut = ( m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ] );
         }
+
+        if( bClockAtZero )
+            m_gateBeatPulse[ ch ].trigger(1e-3);
+
+        outputs[ OUT_BEAT1 + ch ].value = m_gateBeatPulse[ ch ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
 
         // trigger out
         if( bTrigOut )

@@ -4,6 +4,7 @@
 
 # Updates
 - 22 Nov 17:
+	- Added "Beat 0" output trig to each channel of the 6x32 sequencer
 	- fixed crashes from 0.5.0 update
 	- 6x32 sequencer graphics update
 	- triad sequencers fixed bug with connectors not connecting 
