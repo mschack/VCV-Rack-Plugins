@@ -58,7 +58,8 @@ struct PingPong : Module
 
 	enum LightIds 
     {
-		LIGHT_REVERSE
+		LIGHT_REVERSE,
+        nLIGHTS
 	};
 
     enum FILTER_TYPES
@@ -94,7 +95,7 @@ struct PingPong : Module
     bool            m_bWasSynced = false;
 
     // Contructor
-	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
 
     // Overrides 
 	void    step() override;
