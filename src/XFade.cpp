@@ -44,9 +44,8 @@ struct XFade : Module
 	void    step() override;
     //json_t* toJson() override;
     //void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
-    //void    reset() override;
+    void    reset() override;
 };
 
 //-----------------------------------------------------
@@ -104,10 +103,10 @@ XFade_Widget::XFade_Widget()
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void XFade::initialize()
+void XFade::reset()
 {
 }
 

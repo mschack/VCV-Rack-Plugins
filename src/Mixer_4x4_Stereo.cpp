@@ -71,29 +71,35 @@ struct Mix_4x4_Stereo : Module
         nOUTPUTS              = OUT_AUXR + nAUX
 	};
 
+	enum LightIds 
+    {
+		LIGHT_MUTE,
+        LIGHT_SOLO          = LIGHT_MUTE + CHANNELS,
+        LIGHT_GROUP_MUTE    = LIGHT_SOLO + CHANNELS,
+        LIGHT_GROUP_SOLO    = LIGHT_GROUP_MUTE + GROUPS,
+        LIGHT_AUX_PRE       = LIGHT_GROUP_SOLO + GROUPS,
+        nLIGHTS             = LIGHT_AUX_PRE + (GROUPS * nAUX)
+	};
+
     bool            m_bInitialized = false;
     CLog            lg;
 
     // mute buttons
-    float           m_fLightMutes[ CHANNELS ] = {};
     bool            m_bMuteStates[ CHANNELS ] = {};
     float           m_fMuteFade[ CHANNELS ] = {};
     
     int             m_FadeState[ CHANNELS ] = {MUTE_FADE_STATE_IDLE};
 
     // solo buttons
-    float           m_fLightSolos[ CHANNELS ] = {};
     bool            m_bSoloStates[ CHANNELS ] = {};
 
     // group mute buttons
-    float           m_fLightGroupMutes[ GROUPS ] = {};
     bool            m_bGroupMuteStates[ GROUPS ] = {};
     float           m_fGroupMuteFade[ GROUPS ] = {};
 
     int             m_GroupFadeState[ GROUPS ] = {MUTE_FADE_STATE_IDLE};
 
     // group solo buttons
-    float           m_fLightGroupSolos[ GROUPS ] = {};
     bool            m_bGroupSoloStates[ GROUPS ] = {};
 
     // processing
@@ -102,7 +108,6 @@ struct Mix_4x4_Stereo : Module
 
     // aux
     bool            m_bGroupPreFadeAuxStates[ GROUPS ][ nAUX ] = {};
-    float           m_fLightGroupPreFadeAux[ GROUPS ][ nAUX ] = {};
 
     // LED Meters
     LEDMeterWidget  *m_pLEDMeterChannel[ CHANNELS ][ 2 ] ={};
@@ -121,7 +126,7 @@ struct Mix_4x4_Stereo : Module
 #define R 1
 
     // Contructor
-	Mix_4x4_Stereo() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	Mix_4x4_Stereo() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
 
     //-----------------------------------------------------
     // MySquareButton_Trig
@@ -132,7 +137,7 @@ struct Mix_4x4_Stereo : Module
 
         Mix_4x4_Stereo *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -142,10 +147,10 @@ struct Mix_4x4_Stereo : Module
                 group = param / GROUPS;
                 knob  = param - (group * GROUPS);
                 mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] = !mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ];
-                mymodule->m_fLightGroupPreFadeAux[ group ][ knob ] = mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] ? 1.0 : 0.0;
+                mymodule->lights[ LIGHT_AUX_PRE + ( group * nAUX ) + knob ].value = mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] ? 1.0 : 0.0;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -158,7 +163,7 @@ struct Mix_4x4_Stereo : Module
 
         Mix_4x4_Stereo *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -168,7 +173,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->ProcessMuteSolo( ch, true, false );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -181,7 +186,7 @@ struct Mix_4x4_Stereo : Module
 
         Mix_4x4_Stereo *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -192,7 +197,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->ProcessMuteSolo( ch, false, false );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -205,7 +210,7 @@ struct Mix_4x4_Stereo : Module
 
         Mix_4x4_Stereo *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -216,7 +221,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->ProcessMuteSolo( group, true, true );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -229,7 +234,7 @@ struct Mix_4x4_Stereo : Module
 
         Mix_4x4_Stereo *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -240,7 +245,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->ProcessMuteSolo( group, false, true );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -252,7 +257,7 @@ struct Mix_4x4_Stereo : Module
         Mix_4x4_Stereo *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -263,7 +268,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->m_hpIn[ param ] = value; 
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -275,7 +280,7 @@ struct Mix_4x4_Stereo : Module
         Mix_4x4_Stereo *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -285,7 +290,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->m_mpIn[ param ] = value; 
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -297,7 +302,7 @@ struct Mix_4x4_Stereo : Module
         Mix_4x4_Stereo *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Mix_4x4_Stereo*)module;
 
@@ -307,7 +312,7 @@ struct Mix_4x4_Stereo : Module
                 mymodule->m_lpIn[ param ] = value; 
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -315,9 +320,8 @@ struct Mix_4x4_Stereo : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override{}
-    //void    reset() override;
+    void    reset() override;
 
     void ProcessMuteSolo( int channel, bool bMute, bool bGroup );
     void ProcessEQ( int ch, float *pL, float *pR );
@@ -392,13 +396,12 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
 
         // mute buttons
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_4x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x - 4, y + 5 ), &module->m_fLightMutes[ ch ] ) );
-
+        addChild(createLight<SmallLight<RedLight>>( Vec( x - 4, y + 5 ), module, Mix_4x4_Stereo::LIGHT_MUTE + ch ) );
         //y += 26;
 
         // solo buttons
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_4x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x + 12, y + 5 ), &module->m_fLightSolos[ ch ] ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 12, y + 5 ), module, Mix_4x4_Stereo::LIGHT_SOLO + ch ) );
 
         y += 22;
         y2 = y;
@@ -442,12 +445,12 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase;
 
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupMutes[ i ] ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x2 + 3, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_MUTE + i ) );
 
         x2 += 28;
 
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_GroupSolo>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_GROUP_SOLO + i, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<GreenValueLight>>( Vec( x2 + 3, y2 + 4 ), &module->m_fLightGroupSolos[ i ] ) );
+        addChild(createLight<SmallLight<GreenLight>>( Vec( x2 + 3, y2 + 4 ), module, Mix_4x4_Stereo::LIGHT_GROUP_SOLO + i ) );
 
         // group level and pan inputs
         x2 = x + 79;
@@ -481,11 +484,11 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase + 20;
         
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 0 ] ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 0 ) );
 
         y2 += AUX_H;
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 2 ] ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 2 ) );
 
         x2 = x + 20;
         y2 = ybase + 16;
@@ -505,11 +508,11 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
         y2 = ybase + 32;
         
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 1 ] ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 1 ) );
 
         y2 += AUX_H;
         addParam(createParam<Mix_4x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_4x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightGroupPreFadeAux[ i ][ 3 ] ) );
+        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2 ), module, Mix_4x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 3 ) );
 
         // account for slight error in pixel conversion to svg area
         x += 155;
@@ -568,22 +571,24 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget()
 	    - (fx7 * 0.0001984126984126984126984126984127));
 
     module->m_bInitialized = true;
-    module->initialize();
+    module->reset();
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void Mix_4x4_Stereo::initialize()
+void Mix_4x4_Stereo::reset()
 {
     int ch, i, aux;
 
     for( ch = 0; ch < CHANNELS; ch++ )
     {
         m_FadeState[ ch ] = MUTE_FADE_STATE_IDLE;
-        m_fLightMutes[ ch ] = 0.0;
-        m_fLightSolos[ ch ] = 0.0;
+
+        lights[ LIGHT_MUTE + ch ].value = 0.0;
+        lights[ LIGHT_SOLO + ch ].value = 0.0;
+
         m_bMuteStates[ ch ] = false;
         m_bSoloStates[ ch ] = false;
         m_fMuteFade[ ch ] = 1.0;
@@ -594,14 +599,15 @@ void Mix_4x4_Stereo::initialize()
         for( aux = 0; aux < nAUX; aux++ )
         {
             m_bGroupPreFadeAuxStates[ i ][ aux ] = false;
-            m_fLightGroupPreFadeAux[ i ][ aux ] = 0.0;
+            lights[ LIGHT_AUX_PRE + ( i * nAUX ) + aux ].value = 0.0;
         }
 
         m_GroupFadeState[ i ] = MUTE_FADE_STATE_IDLE;
-        m_fLightGroupMutes[ i ] = 0.0;
-        m_fLightGroupSolos[ i ] = 0.0;
+
+        lights[ LIGHT_GROUP_MUTE + i ].value = 0.0;
+        lights[ LIGHT_GROUP_SOLO + i ].value = 0.0;
+
         m_bGroupMuteStates[ i ] = false;
-        m_bGroupSoloStates[ i ] = false;
         m_fGroupMuteFade[ i ] = 1.0;
     }
 }
@@ -800,8 +806,8 @@ void Mix_4x4_Stereo::fromJson(json_t *rootJ)
             m_fMuteFade[ ch ] = m_bMuteStates[ ch ] ? 0.0: 1.0;
         }
 
-        m_fLightMutes[ ch ] = m_bMuteStates[ ch ] ? 1.0: 0.0;
-        m_fLightSolos[ ch ] = m_bSoloStates[ ch ] ? 1.0: 0.0;
+        lights[ LIGHT_MUTE + ch ].value = m_bMuteStates[ ch ] ? 1.0: 0.0;
+        lights[ LIGHT_SOLO + ch ].value = m_bSoloStates[ ch ] ? 1.0: 0.0;
     }
 
     // anybody group soloing?
@@ -818,7 +824,7 @@ void Mix_4x4_Stereo::fromJson(json_t *rootJ)
     {
         for( aux = 0; aux < nAUX; aux++ )
         {
-            m_fLightGroupPreFadeAux[ i ][ aux ] = m_bGroupPreFadeAuxStates[ i ][ aux ] ? 1.0: 0.0;
+            lights[ LIGHT_AUX_PRE + ( i * nAUX ) + aux ].value = m_bGroupPreFadeAuxStates[ i ][ aux ] ? 1.0: 0.0;
         }
 
         if( bGroupSolo )
@@ -835,8 +841,8 @@ void Mix_4x4_Stereo::fromJson(json_t *rootJ)
             m_fGroupMuteFade[ i ] = m_bGroupMuteStates[ i ] ? 0.0: 1.0;
         }
 
-        m_fLightGroupMutes[ i ] = m_bGroupMuteStates[ i ] ? 1.0: 0.0;
-        m_fLightGroupSolos[ i ] = m_bGroupSoloStates[ i ] ? 1.0: 0.0;
+        lights[ LIGHT_GROUP_MUTE + i ].value = m_bGroupMuteStates[ i ] ? 1.0: 0.0;
+        lights[ LIGHT_GROUP_SOLO + i ].value = m_bGroupSoloStates[ i ] ? 1.0: 0.0;
     }
 }
 
@@ -860,18 +866,18 @@ void Mix_4x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             {
                 bSoloOff = true;
                 m_bGroupSoloStates[ index ] = false;
-                m_fLightGroupSolos[ index ] = 0.0;
+                lights[ LIGHT_GROUP_SOLO + index ].value = 0.0;
             }
 
             // if mute is off then set volume
             if( m_bGroupMuteStates[ index ] )
             {
-                m_fLightGroupMutes[ index ] = 1.0;
+                lights[ LIGHT_GROUP_MUTE + index ].value = 1.0;
                 m_GroupFadeState[ index ] = MUTE_FADE_STATE_DEC;
             }
             else
             {
-                m_fLightGroupMutes[ index ] = 0.0;
+                lights[ LIGHT_GROUP_MUTE + index ].value = 0.0;
                 m_GroupFadeState[ index ] = MUTE_FADE_STATE_INC;
             }
         }
@@ -883,18 +889,18 @@ void Mix_4x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             if( m_bGroupMuteStates[ index ] )
             {
                 m_bGroupMuteStates[ index ] = false;
-                m_fLightGroupMutes[ index ] = 0.0;
+                lights[ LIGHT_GROUP_MUTE + index ].value = 0.0;
             }
 
             // shut down volume of all groups not in solo
             if( !m_bGroupSoloStates[ index ] )
             {
                 bSoloOff = true;
-                m_fLightGroupSolos[ index ] = 0.0;
+                lights[ LIGHT_GROUP_SOLO + index ].value = 0.0;
             }
             else
             {
-                m_fLightGroupSolos[ index ] = 1.0;
+                lights[ LIGHT_GROUP_SOLO + index ].value = 1.0;
             }
         }
 
@@ -955,18 +961,18 @@ void Mix_4x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             {
                 bSoloOff = true;
                 m_bSoloStates[ index ] = false;
-                m_fLightSolos[ index ] = 0.0;
+                lights[ LIGHT_SOLO + index ].value = 0.0;
             }
 
             // if mute is off then set volume
             if( m_bMuteStates[ index ] )
             {
-                m_fLightMutes[ index ] = 1.0;
+                lights[ LIGHT_MUTE + index ].value = 1.0;
                 m_FadeState[ index ] = MUTE_FADE_STATE_DEC;
             }
             else
             {
-                m_fLightMutes[ index ] = 0.0;
+                lights[ LIGHT_MUTE + index ].value = 0.0;
                 m_FadeState[ index ] = MUTE_FADE_STATE_INC;
             }
         }
@@ -978,18 +984,18 @@ void Mix_4x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             if( m_bMuteStates[ index ] )
             {
                 m_bMuteStates[ index ] = false;
-                m_fLightMutes[ index ] = 0.0;
+                lights[ LIGHT_MUTE + index ].value = 0.0;
             }
 
             // toggle solo
             if( !m_bSoloStates[ index ] )
             {
                 bSoloOff = true;
-                m_fLightSolos[ index ] = 0.0;
+                lights[ LIGHT_SOLO + index ].value = 0.0;
             }
             else
             {
-                m_fLightSolos[ index ] = 1.0;
+                lights[ LIGHT_SOLO + index ].value = 1.0;
             }
         }
 

@@ -43,6 +43,11 @@ struct Compressor : Module
         nOUTPUTS
 	};
 
+	enum LightIds 
+    {
+		LIGHT_BYPASS
+	};
+
     enum CompState
     {
         COMP_IDLE,
@@ -73,7 +78,7 @@ struct Compressor : Module
     {
         Compressor *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Compressor*)module;
 
@@ -83,7 +88,7 @@ struct Compressor : Module
                 mymodule->m_fLightBypass = mymodule->m_bBypass ? 1.0 : 0.0;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -95,9 +100,9 @@ struct Compressor : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
+    void    reset() override;
     void    randomize() override;
-    //void    reset() override;
+
     bool    ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold );
     void    Compress( float *inL, float *inR, float *outDiffL, float *outDiffR );
 };
@@ -131,7 +136,7 @@ Compressor_Widget::Compressor_Widget()
 
     // bypass switch
     addParam(createParam<Compressor::MySquareButton_Bypass>( Vec( x, y ), module, Compressor::PARAM_BYPASS, 0.0, 1.0, 0.0 ) );
-    addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 1, y + 2 ), &module->m_fLightBypass ) );
+    addChild(createLight<SmallLight<RedLight>>( Vec( x + 1, y + 2 ), module, Compressor::LIGHT_BYPASS ) );
 
     // audio inputs
     addInput(createInput<MyPortInSmall>( Vec( x, y + 32 ), module, Compressor::IN_AUDIOL ) );
@@ -205,10 +210,10 @@ void Compressor::fromJson(json_t *rootJ)
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void Compressor::initialize()
+void Compressor::reset()
 {
 }
 
@@ -232,7 +237,7 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
     switch( pComp->state )
     {
     case COMP_IDLE:
-        pComp->count = (int)( MAX_ATTREL_TIME * gSampleRate * params[ PARAM_ATTACK ].value );
+        pComp->count = (int)( MAX_ATTREL_TIME * engineGetSampleRate() * params[ PARAM_ATTACK ].value );
 
         if( pComp->count )
         {
@@ -258,7 +263,7 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
         }
         else
         {
-            pComp->count = (int)( MAX_ATTREL_TIME * gSampleRate * params[ PARAM_RELEASE ].value );
+            pComp->count = (int)( MAX_ATTREL_TIME * engineGetSampleRate() * params[ PARAM_RELEASE ].value );
 
             if( pComp->count )
             {
@@ -316,10 +321,10 @@ void Compressor::Compress( float *inL, float *inR, float *outDiffL, float *outDi
     th = ( 1.0 - params[ PARAM_THRESHOLD ].value );
     rat= params[ PARAM_RATIO ].value;
 
-    *outDiffL = abs(*inL);
-    *outDiffR = abs(*inR);
+    *outDiffL = fabs(*inL);
+    *outDiffR = fabs(*inR);
 
-    if( abs( *inL ) > th )
+    if( fabs( *inL ) > th )
     {
         if( *inL < 0.0 )
             diffL = *inL + th;
@@ -334,7 +339,7 @@ void Compressor::Compress( float *inL, float *inR, float *outDiffL, float *outDi
         m_CompL.state = COMP_IDLE;
     }
 
-    if( abs( *inR ) > th )
+    if( fabs( *inR ) > th )
     {
         if( *inR < 0.0 )
             diffR = *inR + th;
@@ -349,8 +354,8 @@ void Compressor::Compress( float *inL, float *inR, float *outDiffL, float *outDi
         m_CompR.state = COMP_IDLE;
     }
 
-    *outDiffL -= abs(*inL);
-    *outDiffR -= abs(*inR);
+    *outDiffL -= fabs(*inL);
+    *outDiffR -= fabs(*inR);
 }
 
 //-----------------------------------------------------

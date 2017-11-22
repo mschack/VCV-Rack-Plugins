@@ -63,6 +63,14 @@ struct Seq_Triad2 : Module
         nOUTPUTS                = OUT_VOCTS + nKEYBOARDS
 	};
 
+	enum LightIds 
+    {
+        LIGHT_TRIG,
+        LIGHT_OCT           = LIGHT_TRIG + nKEYBOARDS,
+        LIGHT_PAUSE         = LIGHT_OCT + ( nKEYBOARDS * nOCTAVESEL ),
+        nLIGHTS             = LIGHT_PAUSE + nKEYBOARDS
+	};
+
     CLog            lg;
     bool            m_bInitialized = false;
 
@@ -70,7 +78,6 @@ struct Seq_Triad2 : Module
     int             m_Octave[ nKEYBOARDS ] = {};
     float           m_fCvStartOut[ nKEYBOARDS ] = {};
     float           m_fCvEndOut[ nKEYBOARDS ] = {};
-    float           m_fLightOctaves[ nKEYBOARDS ][ nOCTAVESEL ] = {};
 
     // patterns
     int             m_CurrentPattern[ nKEYBOARDS ] = {};
@@ -89,13 +96,11 @@ struct Seq_Triad2 : Module
     int             m_nSteps[ nKEYBOARDS ] = {};    
 
     // pause button
-    float           m_fLightPause[ nKEYBOARDS ] = {};
     bool            m_bPause[ nKEYBOARDS ] = {};
 
     // triggers     
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
-    float           m_fLightTrig[ nKEYBOARDS ];
 
     // global triggers
     SchmittTrigger  m_SchTrigGlobalClkReset;
@@ -114,7 +119,7 @@ struct Seq_Triad2 : Module
     float           m_VoctOffsetIn[ nKEYBOARDS ] = {};
 
     // Contructor
-	Seq_Triad2() : Module(nPARAMS, nINPUTS, nOUTPUTS)
+	Seq_Triad2() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS )
     {
         int i;
 
@@ -127,9 +132,9 @@ struct Seq_Triad2 : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
-    //void    reset() override;
+    void    reset() override;
+
     void    SetPhraseSteps( int kb, int nSteps );
     void    SetSteps( int kb, int steps );
     void    SetKey( int kb );
@@ -148,7 +153,7 @@ struct Seq_Triad2 : Module
 
         Seq_Triad2 *mymodule;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Seq_Triad2*)module;
 
@@ -157,10 +162,10 @@ struct Seq_Triad2 : Module
                 kb = paramId - Seq_Triad2::PARAM_TRIGOFF;
 
                 mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff = !mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff;
-                mymodule->m_fLightTrig[ kb ] = mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff ? 1.0 : 0.0;
+                mymodule->lights[ LIGHT_TRIG + kb ].value = mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff ? 1.0f : 0.0f;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -172,7 +177,7 @@ struct Seq_Triad2 : Module
         Seq_Triad2 *mymodule;
         int kb;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Seq_Triad2*)module;
 
@@ -182,10 +187,10 @@ struct Seq_Triad2 : Module
             {
                 mymodule->m_bPause[ kb ] = !mymodule->m_bPause[ kb ];
 
-                mymodule->m_fLightPause[ kb ] = mymodule->m_bPause[ kb ] ? 1.0 : 0.0;
+                mymodule->lights[ LIGHT_PAUSE + kb ].value = mymodule->m_bPause[ kb ] ? 1.0 : 0.0;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -198,7 +203,7 @@ struct Seq_Triad2 : Module
         Seq_Triad2 *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Seq_Triad2*)module;
 
@@ -208,17 +213,17 @@ struct Seq_Triad2 : Module
                 kb = param / nOCTAVESEL;
                 oct = param - (kb * nOCTAVESEL);
 
-                mymodule->m_fLightOctaves[ kb ][ 0 ] = 0.0;
-                mymodule->m_fLightOctaves[ kb ][ 1 ] = 0.0;
-                mymodule->m_fLightOctaves[ kb ][ 2 ] = 0.0;
-                mymodule->m_fLightOctaves[ kb ][ 3 ] = 0.0;
-                mymodule->m_fLightOctaves[ kb ][ oct ] = 1.0;
+                mymodule->lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + 0 ].value = 0.0;
+                mymodule->lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + 1 ].value = 0.0;
+                mymodule->lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + 2 ].value = 0.0;
+                mymodule->lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + 3 ].value = 0.0;
+                mymodule->lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + oct ].value = 1.0;
 
                 mymodule->m_Octave[ kb ] = oct;
                 mymodule->SetOut( kb );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 };
@@ -307,11 +312,11 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
     {
         // pause button
 	    addParam(createParam<Seq_Triad2::MySquareButton_Pause>(Vec( x + 60, y + 4 ), module, Seq_Triad2::PARAM_PAUSE + kb, 0.0, 1.0, 0.0 ) );
-	    addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 60 + 1, y + 4 + 2 ), &module->m_fLightPause[ kb ] ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x + 60 + 1, y + 4 + 2  ), module, Seq_Triad2::LIGHT_PAUSE + kb ) );
 
         // trig button
         addParam(createParam<Seq_Triad2::MySquareButton_Trig>( Vec( x + 314, y + 5 ), module, Seq_Triad2::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
-        addChild(createValueLight<SmallLight<RedValueLight>>( Vec( x + 314 + 1, y + 5 + 2 ), &module->m_fLightTrig[ kb ] ) );
+        addChild(createLight<SmallLight<RedLight>>( Vec( x + 314 + 1, y + 5 + 2 ), module, Seq_Triad2::LIGHT_TRIG + kb ) );
 
         // glide knob
         addParam( createParam<Yellow1_Tiny>( Vec( x + 220, y + 86 ), module, Seq_Triad2::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
@@ -321,7 +326,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
         for( oct = 0; oct < nOCTAVESEL; oct++ )
         {
             addParam(createParam<Seq_Triad2::MyOCTButton>( Vec( x2, y + 86 ), module, Seq_Triad2::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
-            addChild(createValueLight<SmallLight<CyanValueLight>>( Vec( x2 + 1, y + 86 + 2 ), &module->m_fLightOctaves[ kb ][ oct ] ) );
+            addChild(createLight<SmallLight<CyanValueLight>>( Vec( x2 + 1, y + 86 + 2 ), module, Seq_Triad2::LIGHT_OCT + (kb * nOCTAVESEL ) + oct ) );
             x2 += 14;
         }
 
@@ -377,12 +382,19 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void Seq_Triad2::initialize()
+void Seq_Triad2::reset()
 {
-    memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    for( int kb = 0; kb < nKEYBOARDS; kb++ )
+    {
+        for( int oct = 0; oct < nOCTAVESEL; oct++ )
+        {
+            lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + oct ].value = 0.0f;
+        }
+    }
+
     memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
@@ -404,9 +416,16 @@ const int keyscalenotes[ 7 ] = { 0, 2, 4, 5, 7, 9, 11};
 const int keyscalenotes_minor[ 7 ] = { 0, 2, 3, 5, 7, 9, 11};
 void Seq_Triad2::randomize()
 {
-    int kb, pat, phrase, basekey, note;
+    int kb, pat, phrase, basekey, note, oct;
 
-    memset( m_fLightOctaves, 0, sizeof(m_fLightOctaves) );
+    for( kb = 0; kb < nKEYBOARDS; kb++ )
+    {
+        for( oct = 0; oct < nOCTAVESEL; oct++ )
+        {
+            lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + oct ].value = 0.0f;
+        }
+    }
+
     memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
@@ -495,7 +514,7 @@ void Seq_Triad2::SetOut( int kb )
     m_fLastNotePlayed[ kb ] = m_fCvEndOut[ kb ] + m_VoctOffsetIn[ kb ];
 
     // glide time ( max glide = 0.5 seconds )
-    m_glideCount[ kb ] = 1 + (int)( ( params[ PARAM_GLIDE + kb ].value * 0.5 ) * gSampleRate);
+    m_glideCount[ kb ] = 1 + (int)( ( params[ PARAM_GLIDE + kb ].value * 0.5 ) * engineGetSampleRate());
 
     m_fglideInc[ kb ] = 1.0 / (float)m_glideCount[ kb ];
 
@@ -560,11 +579,13 @@ void Seq_Triad2::ChangePhrase( int kb, int index, bool bForce )
     // set keyboard key
     SetKey( kb );
 
-    m_fLightTrig[ kb ] = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff ? 1.0 : 0.0;
+    lights[ LIGHT_TRIG + kb ].value = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff ? 1.0 : 0.0;
 
     // change octave light
-    memset( &m_fLightOctaves[ kb ], 0, sizeof(float) * nOCTAVESEL );
-    m_fLightOctaves[ kb ][ m_Octave[ kb ] ] = 1.0;
+    for( int i = 0; i < nOCTAVESEL; i++ )
+        lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + i ].value = 0.0f;
+
+    lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + m_Octave[ kb ] ].value = 1.0f;
 
     // set output note
     SetOut( kb );
@@ -594,16 +615,18 @@ void Seq_Triad2::ChangePattern( int kb, int index, bool bForce )
 
     m_pPatternSelect[ kb ]->SetPat( index, false );
 
+    for( int i = 0; i < nOCTAVESEL; i++ )
+        lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + i ].value = 0.0f;
+
     // set keyboard key
     SetKey( kb );
 
-    m_fLightTrig[ kb ] = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff ? 1.0 : 0.0;
+    lights[ LIGHT_TRIG + kb ].value = m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff ? 1.0 : 0.0;
 
     // change octave light
-    memset( &m_fLightOctaves[ kb ], 0, sizeof(float) * nOCTAVESEL );
-    m_fLightOctaves[ kb ][ m_Octave[ kb ] ] = 1.0;
+    lights[ LIGHT_OCT + ( kb * nOCTAVESEL ) + m_Octave[ kb ] ].value = 1.0f;
 
-    // set output note
+    // set outputted note
     SetOut( kb );
 }
 
@@ -840,7 +863,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
         m_pPatternSelect[ i ]->SetMax( m_nSteps[ i ] );
         m_pPatternSelect[ i ]->SetPat( m_CurrentPattern[ i ], false );
 
-        m_fLightPause[ i ] = m_bPause[ i ] ? 1.0 : 0.0;
+        lights[ LIGHT_PAUSE + i ].value = m_bPause ? 1.0 : 0.0;
 
         SetSteps( i, m_nSteps[ i ] );
         SetPhraseSteps( i, m_PhrasesUsed[ i ] );
@@ -932,7 +955,7 @@ void Seq_Triad2::step()
             m_gatePulse[ kb ].trigger(1e-3);
         }
 
-        outputs[ OUT_TRIG + kb ].value = m_gatePulse[ kb ].process( 1.0 / gSampleRate ) ? CV_MAX : 0.0;
+        outputs[ OUT_TRIG + kb ].value = m_gatePulse[ kb ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
 
         if( --m_glideCount[ kb ] > 0 )
             m_fglide[ kb ] -= m_fglideInc[ kb ];

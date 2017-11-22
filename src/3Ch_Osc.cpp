@@ -94,6 +94,12 @@ struct Osc_3Ch : Module
         nOUTPUTS        = OUTPUT_AUDIO + (nCHANNELS * 2)
 	};
 
+	enum LightIds 
+    {
+        LIGHT_WAVE_SEL,
+        nLIGHTS         = LIGHT_WAVE_SEL + (nWAVEFORMS * nCHANNELS)
+	};
+
     enum ADRSTATES
     {
         ADR_OFF,
@@ -120,7 +126,6 @@ struct Osc_3Ch : Module
 
     // waveforms
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
-    float           m_fLightWaveSelect[ nCHANNELS ][ nWAVEFORMS ] = {};
 
     float           m_DetuneIn[ nCHANNELS ] = {};
     float           m_Detune[ nCHANNELS ][ MAX_nWAVES ][ MAX_nWAVES ];
@@ -131,7 +136,7 @@ struct Osc_3Ch : Module
     int             m_nWaves[ nCHANNELS ] = {};
 
     // Contructor
-	Osc_3Ch() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	Osc_3Ch() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
 
     //-----------------------------------------------------
     // MyWaveButton
@@ -142,7 +147,7 @@ struct Osc_3Ch : Module
         Osc_3Ch *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Osc_3Ch*)module;
 
@@ -156,7 +161,7 @@ struct Osc_3Ch : Module
                 mymodule->SetWaveLights();
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -168,7 +173,7 @@ struct Osc_3Ch : Module
         Osc_3Ch *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Osc_3Ch*)module;
 
@@ -178,7 +183,7 @@ struct Osc_3Ch : Module
                 mymodule->m_nWaves[ param ] = (int)( value * (float)(MAX_nWAVES - 1) ); 
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -190,7 +195,7 @@ struct Osc_3Ch : Module
         Osc_3Ch *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Osc_3Ch*)module;
 
@@ -202,7 +207,7 @@ struct Osc_3Ch : Module
                 mymodule->CalcDetune( param );
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -214,7 +219,7 @@ struct Osc_3Ch : Module
         Osc_3Ch *mymodule;
         int param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (Osc_3Ch*)module;
 
@@ -226,7 +231,7 @@ struct Osc_3Ch : Module
                 mymodule->CalcSpread( param );
             }
 
-		    RoundKnob::onChange();
+		    RoundKnob::onChange( e );
 	    }
     };
 
@@ -234,9 +239,8 @@ struct Osc_3Ch : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
-    //void    reset() override;
+    void    reset() override;
 
     void    CalcSpread( int ch );
     void    CalcDetune( int ch );
@@ -352,7 +356,7 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         for( i = 0; i < Osc_3Ch::nWAVEFORMS; i++ )
         {
             addParam(createParam<Osc_3Ch::MyWaveButton>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_WAVES + ( ch * Osc_3Ch::nWAVEFORMS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createValueLight<SmallLight<YellowValueLight>>( Vec( x2 + 1, y2 + 2 ), &module->m_fLightWaveSelect[ ch ][ i ] ) );
+            addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2  ), module, Osc_3Ch::LIGHT_WAVE_SEL + ( ch * Osc_3Ch::nWAVEFORMS ) + i ) );
             x2 += 16;
         }
 
@@ -411,10 +415,10 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void Osc_3Ch::initialize()
+void Osc_3Ch::reset()
 {
 }
 
@@ -440,13 +444,14 @@ void Osc_3Ch::randomize()
 //-----------------------------------------------------
 void Osc_3Ch::SetWaveLights( void )
 {
-    int ch;
-
-    memset( m_fLightWaveSelect, 0, sizeof(m_fLightWaveSelect) );
+    int i, ch;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_fLightWaveSelect[ ch ][ m_Wave[ ch ].wavetype ] = 1.0;
+        for( i = 0; i < nWAVEFORMS; i++ )
+            lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + i ].value = 0.0;
+
+        lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + m_Wave[ ch ].wavetype ].value = 1.0;
     }
 }
 
@@ -514,7 +519,7 @@ void Osc_3Ch::BuildWaves( void )
 float Osc_3Ch::GetWave( int type, float phase )
 {
     float fval = 0.0;
-    float ratio = (float)(WAVE_BUFFER_LEN-1) / gSampleRate;
+    float ratio = (float)(WAVE_BUFFER_LEN-1) / engineGetSampleRate();
 
     switch( type )
     {
@@ -551,12 +556,12 @@ float Osc_3Ch::ProcessADR( int ch )
     {
         padr->state = ADR_ATTACK;
 
-        padr->acount = 20 + (int)( params[ PARAM_ATT + ch ].value * 2.0 * gSampleRate );;
+        padr->acount = 20 + (int)( params[ PARAM_ATT + ch ].value * 2.0 * engineGetSampleRate() );;
         padr->fainc  = 1.0 / (float)padr->acount;
 
-        padr->dcount = 20 + (int)( params[ PARAM_DELAY + ch ].value * 4.0 * gSampleRate );
+        padr->dcount = 20 + (int)( params[ PARAM_DELAY + ch ].value * 4.0 * engineGetSampleRate() );
 
-        padr->rcount = 20 + (int)( params[ PARAM_REL + ch ].value * 10.0 * gSampleRate );
+        padr->rcount = 20 + (int)( params[ PARAM_REL + ch ].value * 10.0 * engineGetSampleRate() );
         padr->frinc = 1.0 / (float)padr->rcount;
 
         //m_Wave[ ch ].phase = 0.0;
@@ -605,7 +610,7 @@ void Osc_3Ch::ChangeFilterCutoff( int ch, float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / gSampleRate); 
+    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -761,8 +766,8 @@ void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
         // 38.8909 65.4064
         m_Wave[ ch ].phase[ i ] += 38.8909 * powf( 2.0, inputs[ IN_VOCT + ch ].value ) + m_Detune[ ch ][ m_nWaves[ ch ] ][ i ];
 
-        if( m_Wave[ ch ].phase[ i ] >= gSampleRate )
-            m_Wave[ ch ].phase[ i ] = m_Wave[ ch ].phase[ i ] - gSampleRate;
+        if( m_Wave[ ch ].phase[ i ] >= engineGetSampleRate() )
+            m_Wave[ ch ].phase[ i ] = m_Wave[ ch ].phase[ i ] - engineGetSampleRate();
 
         *pOutL += foutL;
         *pOutR += foutR;

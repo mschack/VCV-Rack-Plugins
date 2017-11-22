@@ -50,19 +50,24 @@ struct SEQ_6x32x16 : Module
         nOUTPUTS     = OUT_LEVEL + nCHANNELS
 	};
 
+	enum LightIds 
+    {
+        LIGHT_COPY,
+        LIGHT_RAND      = LIGHT_COPY + nCHANNELS,
+        LIGHT_BILEVEL   = LIGHT_RAND + nCHANNELS,
+        LIGHT_PAUSE     = LIGHT_BILEVEL + nCHANNELS,
+        nLIGHTS         = LIGHT_PAUSE + nCHANNELS
+	};
+
     bool            m_bInitialized = false;
     CLog            lg;
 
     bool            m_bPauseState[ nCHANNELS ] = {};
-    float           m_fLightPause[ nCHANNELS ] = {};
 
     bool            m_bBiLevelState[ nCHANNELS ] = {};
-    float           m_fLightBiLevel[ nCHANNELS ] = {};
 
     int             m_RandCount[ nCHANNELS ] = {};
-    float           m_fLightRand[ nCHANNELS ] = {};
     int             m_CpyNextCount[ nCHANNELS ] = {};
-    float           m_fLightCpyNext[ nCHANNELS ] = {};
 
     SinglePatternClocked32  *m_pPatternDisplay[ nCHANNELS ] = {};
     int                     m_Pattern[ nCHANNELS ][ nPROG ][ nSTEPS ];
@@ -88,7 +93,7 @@ struct SEQ_6x32x16 : Module
     int                     m_ClockTick[ nCHANNELS ] = {0};
 
     // Contructor
-	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS){}
+	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
 
     //-----------------------------------------------------
     // MySquareButton_Pause
@@ -98,7 +103,7 @@ struct SEQ_6x32x16 : Module
         SEQ_6x32x16 *mymodule;
         int i, kb, param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SEQ_6x32x16*)module;
 
@@ -107,10 +112,10 @@ struct SEQ_6x32x16 : Module
                 param = paramId - SEQ_6x32x16::PARAM_PAUSE;
 
                 mymodule->m_bPauseState[ param ] = !mymodule->m_bPauseState[ param ];
-                mymodule->m_fLightPause[ param ] = mymodule->m_bPauseState[ param ] ? 1.0 : 0.0;
+                mymodule->lights[ LIGHT_PAUSE + param ].value = mymodule->m_bPauseState[ param ] ? 1.0 : 0.0;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -122,7 +127,7 @@ struct SEQ_6x32x16 : Module
         SEQ_6x32x16 *mymodule;
         int i, kb, param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SEQ_6x32x16*)module;
 
@@ -131,10 +136,10 @@ struct SEQ_6x32x16 : Module
                 param = paramId - SEQ_6x32x16::PARAM_BILEVEL;
 
                 mymodule->m_bBiLevelState[ param ] = !mymodule->m_bBiLevelState[ param ];
-                mymodule->m_fLightBiLevel[ param ] = mymodule->m_bBiLevelState[ param ] ? 1.0 : 0.0;
+                mymodule->lights[ LIGHT_BILEVEL + param ].value = mymodule->m_bBiLevelState[ param ] ? 1.0 : 0.0;
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -146,7 +151,7 @@ struct SEQ_6x32x16 : Module
         SEQ_6x32x16 *mymodule;
         int i, kb, param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SEQ_6x32x16*)module;
 
@@ -154,12 +159,12 @@ struct SEQ_6x32x16 : Module
             {
                 param = paramId - SEQ_6x32x16::PARAM_CPY_NEXT;
 
-                mymodule->m_CpyNextCount[ param ] = (int)( gSampleRate * 0.05 );
-                mymodule->m_fLightCpyNext[ param ] = 1.0;
+                mymodule->m_CpyNextCount[ param ] = (int)( engineGetSampleRate() * 0.05 );
+                mymodule->lights[ LIGHT_COPY + param ].value = 1.0;
                 mymodule->CpyNext( param );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -171,7 +176,7 @@ struct SEQ_6x32x16 : Module
         SEQ_6x32x16 *mymodule;
         int i, kb, param;
 
-        void onChange() override 
+        void onChange( EventChange &e ) override 
         {
             mymodule = (SEQ_6x32x16*)module;
 
@@ -179,12 +184,12 @@ struct SEQ_6x32x16 : Module
             {
                 param = paramId - SEQ_6x32x16::PARAM_RAND;
 
-                mymodule->m_RandCount[ param ] = (int)( gSampleRate * 0.05 );
-                mymodule->m_fLightRand[ param ] = 1.0;
+                mymodule->m_RandCount[ param ] = (int)( engineGetSampleRate() * 0.05 );
+                mymodule->lights[ LIGHT_RAND + param ].value = 1.0;
                 mymodule->Rand( param );
             }
 
-		    MomentarySwitch::onChange();
+		    MomentarySwitch::onChange( e );
 	    }
     };
 
@@ -192,8 +197,8 @@ struct SEQ_6x32x16 : Module
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
-    void    initialize() override;
     void    randomize() override;
+    void    reset() override;
 
     void    CpyNext( int ch );
     void    Rand( int ch );
@@ -295,17 +300,17 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
 
         // add buttons
 		addParam(createParam<SEQ_6x32x16::MySquareButton_Pause>( Vec( x + 26, y + 10 ), module, SEQ_6x32x16::PARAM_PAUSE + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<TinyLight<RedValueLight>>( Vec( x + 26 + 2, y + 10 + 2 ), &module->m_fLightPause[ ch ] ) );
+        addChild(createLight<TinyLight<RedLight>>( Vec( x + 26 + 2, y + 10 + 2 ), module, SEQ_6x32x16::LIGHT_PAUSE + ch ) );
 
         y2 = y + 34;
 		addParam(createParam<SEQ_6x32x16::MySquareButton_CpyNxt>( Vec( x + 290, y2 ), module, SEQ_6x32x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<TinyLight<GreenValueLight>>( Vec( x + 290 + 2, y2 + 2 ), &module->m_fLightCpyNext[ ch ] ) );
+        addChild(createLight<TinyLight<GreenLight>>( Vec( x + 290 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_COPY + ch ) );
 
 		addParam(createParam<SEQ_6x32x16::MySquareButton_Rand>( Vec( x + 315, y2 ), module, SEQ_6x32x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<TinyLight<GreenValueLight>>( Vec( x + 315 + 2, y2 + 2 ), &module->m_fLightRand[ ch ] ) );
+        addChild(createLight<TinyLight<GreenLight>>( Vec( x + 315 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_RAND + ch ) );
 
 		addParam(createParam<SEQ_6x32x16::MySquareButton_BiLevel>( Vec( x + 425, y2 ), module, SEQ_6x32x16::PARAM_BILEVEL + ch, 0.0, 1.0, 0.0 ) );
-		addChild(createValueLight<TinyLight<CyanValueLight>>( Vec( x + 425 + 2, y2 + 2 ), &module->m_fLightBiLevel[ ch ] ) );
+        addChild(createLight<TinyLight<CyanValueLight>>( Vec( x + 425 + 2, y2 + 2 ), module, SEQ_6x32x16::LIGHT_BILEVEL + ch ) );
 
         // add outputs
         addOutput(createOutput<MyPortOutSmall>( Vec( x + 580, y + 7 ), module, SEQ_6x32x16::OUT_TRIG + ch ) );
@@ -321,7 +326,7 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
 
     module->m_bInitialized = true;
 
-    initialize();
+    reset();
 }
 
 //-----------------------------------------------------
@@ -522,8 +527,8 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_fLightBiLevel[ ch ] = m_bBiLevelState[ ch ] ? 1.0 : 0.0;
-        m_fLightPause[ ch ] = m_bPauseState[ ch ] ? 1.0 : 0.0;
+        lights[ LIGHT_BILEVEL + ch ].value = m_bBiLevelState[ ch ] ? 1.0 : 0.0;
+        lights[ LIGHT_PAUSE + ch ].value = m_bPauseState[ ch ] ? 1.0 : 0.0;
 
         m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ m_CurrentProg[ ch ] ] );
         m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ] );
@@ -534,18 +539,22 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 }
 
 //-----------------------------------------------------
-// Procedure:   initialize
+// Procedure:   reset
 //
 //-----------------------------------------------------
-void SEQ_6x32x16::initialize()
+void SEQ_6x32x16::reset()
 {
     if( !m_bInitialized )
         return;
 
+    for( int ch = 0; ch < nCHANNELS; ch++ )
+    {
+        lights[ LIGHT_BILEVEL + ch ].value = 0.0;
+        lights[ LIGHT_PAUSE + ch ].value = 0.0;
+    }
+
     memset( m_bPauseState, 0, sizeof(m_bPauseState) );
-    memset( m_fLightPause, 0, sizeof(m_fLightPause) );
     memset( m_bBiLevelState, 0, sizeof(m_bBiLevelState) );
-    memset( m_fLightBiLevel, 0, sizeof(m_fLightBiLevel) );
     memset( m_Pattern, 0, sizeof(m_Pattern) );
     memset( m_CurrentProg, 0, sizeof(m_CurrentProg) );
 
@@ -696,7 +705,7 @@ void SEQ_6x32x16::step()
             if( --m_CpyNextCount[ ch ] <= 0 )
             {
                 m_CpyNextCount[ ch ] = 0;
-                m_fLightCpyNext[ ch ] = 0;
+                lights[ LIGHT_COPY + ch ].value = 0.0f;
             }
         }
 
@@ -705,7 +714,7 @@ void SEQ_6x32x16::step()
             if( --m_RandCount[ ch ] <= 0 )
             {
                 m_RandCount[ ch ] = 0;
-                m_fLightRand[ ch ] = 0;
+                lights[ LIGHT_RAND + ch ].value = 0.0f;
             }
         }
 
@@ -785,7 +794,7 @@ void SEQ_6x32x16::step()
         if( bTrigOut )
             m_gatePulse[ ch ].trigger(1e-3);
 
-        outputs[ OUT_TRIG + ch ].value = m_gatePulse[ ch ].process( 1.0 / gSampleRate ) ? CV_MAX : 0.0;
+        outputs[ OUT_TRIG + ch ].value = m_gatePulse[ ch ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
 
         int level = m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ iclk ];
 
