@@ -1127,9 +1127,10 @@ struct MySquareButtonSmall : SVGSwitch, MomentarySwitch
 {
 	MySquareButtonSmall() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_square_button.svg" );
-		addFrame(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_square_button.svg" );
+		//addFrame(SVG::load(assetGlobal(resource)));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_square_button.svg")));
 		sw->wrap();
 		box.size = Vec(9, 9);
 	}
@@ -1143,9 +1144,10 @@ struct MySquareButton : SVGSwitch, MomentarySwitch
 {
 	MySquareButton() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_square_button.svg" );
-		addFrame(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_square_button.svg" );
+		//addFrame(SVG::load(assetGlobal(resource)));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_square_button.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -1159,9 +1161,10 @@ struct MySquareButton2 : SVGSwitch, MomentarySwitch
 {
 	MySquareButton2() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Square_Button2.svg" );
-		addFrame(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Square_Button2.svg" );
+		//addFrame(SVG::load(assetGlobal(resource)));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_Square_Button2.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -1175,9 +1178,11 @@ struct PianoWhiteKey : SVGSwitch, ToggleSwitch
 {
 	PianoWhiteKey()
     {
-        std::string resource( RESOURCE_LOCATION );
-		addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOff.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOn.svg")));
+        //std::string resource( RESOURCE_LOCATION );
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOff.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_WhiteKeyOn.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_WhiteKeyOff.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_WhiteKeyOn.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -1191,9 +1196,11 @@ struct PianoBlackKey : SVGSwitch, ToggleSwitch
 {
 	PianoBlackKey()
     {
-        std::string resource( RESOURCE_LOCATION );
-		addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOff.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOn.svg")));
+        //std::string resource( RESOURCE_LOCATION );
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOff.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_BlackKeyOn.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_BlackKeyOff.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_BlackKeyOn.svg")));
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -1207,10 +1214,14 @@ struct MyToggle1 : SVGSwitch, ToggleSwitch
 {
 	MyToggle1()
     {
-        std::string resource( RESOURCE_LOCATION );
-		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_01.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_02.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_03.svg")));
+        //std::string resource( RESOURCE_LOCATION );
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_01.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_02.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_3p_vert_simple_03.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_01.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_02.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_03.svg")));
+
 		sw->wrap();
 		box.size = sw->box.size;
 	}
@@ -1224,12 +1235,17 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 {
 	FilterSelectToggle()
     {
-        std::string resource( RESOURCE_LOCATION );
-		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_01.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_02.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_03.svg")));
-		addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_04.svg")));
+        //std::string resource( RESOURCE_LOCATION );
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_01.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_02.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_03.svg")));
+		//addFrame(SVG::load(assetGlobal(resource + "mschack_5p_filtersel_04.svg")));
         //addFrame(SVG::load(assetGlobal("res/mschack_5p_filtersel_05.svg")));
+
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_01.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_02.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_03.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_04.svg")));
 
 		sw->wrap();
 		box.size = sw->box.size;
@@ -1244,15 +1260,17 @@ struct MySlider_01 : SVGSlider
 {
 	MySlider_01() 
     {
-        std::string resource( RESOURCE_LOCATION );
+        //std::string resource( RESOURCE_LOCATION );
 		Vec margin = Vec(0, 0);
 		maxHandlePos = Vec(0, -4).plus(margin);
 		minHandlePos = Vec(0, 33).plus(margin);
-		background->svg = SVG::load(assetGlobal(resource + "mschack_sliderBG_01.svg"));
+		//background->svg = SVG::load(assetGlobal(resource + "mschack_sliderBG_01.svg"));
+        background->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderBG_01.svg"));
 		background->wrap();
 		background->box.pos = margin;
 		box.size = background->box.size.plus(margin.mult(2));
-		handle->svg = SVG::load(assetGlobal(resource + "mschack_sliderKNOB_01.svg"));
+		//handle->svg = SVG::load(assetGlobal(resource + "mschack_sliderKNOB_01.svg"));
+        handle->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderKNOB_01.svg"));
 		handle->wrap();
 	}
 };
@@ -1265,9 +1283,10 @@ struct MyPortInSmall : SVGPort
 {
 	MyPortInSmall() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_PortIn_small.svg" );
-		background->svg = SVG::load(assetGlobal(resource));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_PortIn_small.svg" );
+		//background->svg = SVG::load(assetGlobal(resource));
+        background->svg = SVG::load(assetPlugin(plugin, "res/mschack_PortIn_small.svg" ) );
 		background->wrap();
 		box.size = background->box.size;
 	}
@@ -1281,9 +1300,10 @@ struct MyPortOutSmall : SVGPort
 {
 	MyPortOutSmall() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_PortOut_small.svg" );
-		background->svg = SVG::load(assetGlobal(resource));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_PortOut_small.svg" );
+		//background->svg = SVG::load(assetGlobal(resource));
+        background->svg = SVG::load(assetPlugin(plugin, "res/mschack_PortOut_small.svg" ) );
 		background->wrap();
 		box.size = background->box.size;
 	}
@@ -1297,9 +1317,10 @@ struct Red1_Med : RoundKnob
 {
 	Red1_Med() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_KnobRed1.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_KnobRed1.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobRed1.svg" )));
 		box.size = Vec(20, 20);
 	}
 };
@@ -1312,9 +1333,10 @@ struct Blue3_Med : RoundKnob
 {
 	Blue3_Med() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_KnobBlue3.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_KnobBlue3.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobBlue3.svg" )));
 		box.size = Vec(20, 20);
 	}
 };
@@ -1327,9 +1349,10 @@ struct Yellow3_Med : RoundKnob
 {
 	Yellow3_Med() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_KnobYellow3.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_KnobYellow3.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobYellow3.svg" )));
 		box.size = Vec(20, 20);
 	}
 };
@@ -1342,9 +1365,10 @@ struct Purp1_Med : RoundKnob
 {
 	Purp1_Med() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_KnobPurp1.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_KnobPurp1.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobPurp1.svg" )));
 		box.size = Vec(20, 20);
 	}
 };
@@ -1357,9 +1381,10 @@ struct Green1_Tiny : RoundKnob
 {
 	Green1_Tiny() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Green1_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Green1_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Green1_small.svg" )));
 		box.size = Vec(15, 15);
 	}
 };
@@ -1372,9 +1397,10 @@ struct Green1_Big : RoundKnob
 {
 	Green1_Big() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Green1_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Green1_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Green1_small.svg" )));
 		box.size = Vec(40, 40);
 	}
 };
@@ -1387,9 +1413,10 @@ struct Blue1_Small : RoundKnob
 {
 	Blue1_Small() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Blue1_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Blue1_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue1_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -1402,9 +1429,10 @@ struct Blue2_Small : RoundKnob
 {
 	Blue2_Small() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Blue2_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Blue2_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -1417,9 +1445,10 @@ struct Blue2_Tiny : RoundKnob
 {
 	Blue2_Tiny() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Blue2_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Blue2_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_small.svg" )));
 		box.size = Vec(15, 15);
 	}
 };
@@ -1432,9 +1461,10 @@ struct Blue2_Med : RoundKnob
 {
 	Blue2_Med() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Blue2_big.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Blue2_big.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_big.svg" )));
 		box.size = Vec(40, 40);
 	}
 };
@@ -1447,9 +1477,10 @@ struct Blue2_Big : RoundKnob
 {
 	Blue2_Big() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Blue2_big.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Blue2_big.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_big.svg" )));
 		box.size = Vec(56, 56);
 	}
 };
@@ -1462,9 +1493,10 @@ struct Yellow1_Small : RoundKnob
 {
 	Yellow1_Small() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Yellow1_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Yellow1_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow1_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -1477,9 +1509,10 @@ struct Yellow1_Tiny : RoundKnob
 {
 	Yellow1_Tiny() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Yellow1_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Yellow1_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow1_small.svg" )));
 		box.size = Vec(15, 15);
 	}
 };
@@ -1493,9 +1526,10 @@ struct Yellow2_Small : RoundKnob
 {
 	Yellow2_Small() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Yellow2_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Yellow2_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -1508,9 +1542,10 @@ struct Yellow2_Big : RoundKnob
 {
 	Yellow2_Big() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Yellow2_small.svg" );
-		setSVG(SVG::load(assetGlobal(resource)));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Yellow2_small.svg" );
+		//setSVG(SVG::load(assetGlobal(resource)));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
 		box.size = Vec(40, 40);
 	}
 };
@@ -1523,9 +1558,10 @@ struct Yellow2_Huge : RoundKnob
 {
 	Yellow2_Huge() 
     {
-        std::string resource( RESOURCE_LOCATION );
-        resource.append( "mschack_Yellow2_small.svg" );
-		setSVG(SVG::load(assetGlobal( resource )));
+        //std::string resource( RESOURCE_LOCATION );
+        //resource.append( "mschack_Yellow2_small.svg" );
+		//setSVG(SVG::load(assetGlobal( resource )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
 		box.size = Vec(56, 56);
 	}
 };
