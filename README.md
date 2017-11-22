@@ -3,6 +3,10 @@
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
+- 22 Nov 17:
+	-fixed crashes from 0.5.0 update
+	-6x32 sequencer graphics update
+	-triad sequencers fixed bug with connectors not connecting 
 - 21 Nov 17:
 	-Now built for 0.5.0
 	-Updates for 0.4.0 plugins will now cease.
