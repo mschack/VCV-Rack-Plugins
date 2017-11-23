@@ -4,6 +4,8 @@
 
 # Updates
 - 22 Nov 17:
+	- Fixed random crash of OSC 3 when loading.
+	- Added "Beat 0" auto increment pattern button.
 	- Added "Beat 0" output trig to each channel of the 6x32 sequencer
 	- fixed crashes from 0.5.0 update
 	- 6x32 sequencer graphics update

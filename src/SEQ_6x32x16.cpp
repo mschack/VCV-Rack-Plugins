@@ -100,6 +100,9 @@ struct SEQ_6x32x16 : Module
     MyLEDButton             *m_pButtonCopy[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonBiLevel[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonRand[ nCHANNELS ] = {};
+    MyLEDButton             *m_pButtonAutoPat[ nCHANNELS ] = {};
+
+    bool                    m_bAutoPatChange[ nCHANNELS ] = {};
 
     // Contructor
 	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
@@ -118,6 +121,16 @@ struct SEQ_6x32x16 : Module
 
     //void    reset() override;
 };
+
+//-----------------------------------------------------
+// MyLEDButton_AutoPat
+//-----------------------------------------------------
+void MyLEDButton_AutoPat( void *pClass, int id, bool bOn ) 
+{
+    SEQ_6x32x16 *mymodule;
+    mymodule = (SEQ_6x32x16*)pClass;
+    mymodule->m_bAutoPatChange[ id ] = bOn;
+}
 
 //-----------------------------------------------------
 // MyLEDButton_Pause
@@ -250,6 +263,10 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
         addParam(createParam<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_HI_KNOB + ch, 0.0, 1.0, 0.0 ) );
 
         // add buttons
+        
+        module->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
+	    addChild( module->m_pButtonAutoPat[ ch ] );
+
 		//addParam(createParam<SEQ_6x32x16::MySquareButton_Pause>( Vec( x + 26, y + 10 ), module, SEQ_6x32x16::PARAM_PAUSE + ch, 0.0, 1.0, 0.0 ) );
         //addChild(createLight<SmallLight<RedLight>>( Vec( x + 26 + 2, y + 10 + 3 ), module, SEQ_6x32x16::LIGHT_PAUSE + ch ) );
 
@@ -381,6 +398,19 @@ json_t *SEQ_6x32x16::toJson()
 
 	json_object_set_new( rootJ, "m_MaxProg", gatesJ );
 
+	// m_bAutoPatChange
+    pbool = &m_bAutoPatChange[ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < nCHANNELS; i++)
+    {
+		json_t *gateJ = json_boolean( pbool[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "m_bAutoPatChange", gatesJ );
+
 	return rootJ;
 }
 
@@ -489,8 +519,25 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 		}
 	}
 
+	// m_bAutoPatChange
+    pbool = &m_bAutoPatChange[ 0 ];
+
+	StepsJ = json_object_get(rootJ, "m_bAutoPatChange");
+
+	if (StepsJ) 
+    {
+		for (int i = 0; i < nCHANNELS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pbool[ i ] = json_boolean_value( gateJ );
+		}
+	}
+
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
+        m_pButtonAutoPat[ ch ]->Set( m_bAutoPatChange[ ch ] );
         m_pButtonPause[ ch ]->Set( m_bPauseState[ ch ] );
         m_pButtonBiLevel[ ch ]->Set( m_bBiLevelState[ ch ] );
 
@@ -727,14 +774,23 @@ void SEQ_6x32x16::step()
 
         iclk = m_pPatternDisplay[ ch ]->m_PatClk;
 
+        // auto inc pattern
+        if( m_bAutoPatChange[ ch ] && bClockAtZero )
+        {
+            SetPendingProg( ch, -1 );
+            m_ProgPending[ ch ].bPending = false;
+            ChangeProg( ch, m_ProgPending[ ch ].prog, true );
+            bTrigOut = ( m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ] );
+        }
         // resolve any left over phrase triggers
-        if( m_ProgPending[ ch ].bPending && bClockAtZero )
+        else if( m_ProgPending[ ch ].bPending && bClockAtZero )
         {
             m_ProgPending[ ch ].bPending = false;
             ChangeProg( ch, m_ProgPending[ ch ].prog, false );
             bTrigOut = ( m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ] );
         }
 
+        // trigger the beat 0 output
         if( bClockAtZero )
             m_gateBeatPulse[ ch ].trigger(1e-3);
 
