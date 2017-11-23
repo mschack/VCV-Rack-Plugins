@@ -118,6 +118,7 @@ struct Osc_3Ch : Module
         FILTER_BP,
      };
 
+    bool            m_bInitialized = false;
     CLog            lg;
 
     SchmittTrigger   m_SchTrig[ nCHANNELS ];
@@ -409,6 +410,8 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         y += CHANNEL_H;
         module->m_nWaves[ ch ] = 0;
     }
+
+    module->m_bInitialized = true;
 
     module->BuildWaves();
     module->SetWaveLights();
@@ -793,6 +796,9 @@ void Osc_3Ch::step()
 {
     int ch;
     float outL, outR;
+
+    if( !m_bInitialized )
+        return;
 
     // check for triggers
     for( ch = 0; ch < nCHANNELS; ch++ )
