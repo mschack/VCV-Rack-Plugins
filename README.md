@@ -3,6 +3,8 @@
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
+- 24 Nov 17:
+	- (NEW) 4 Channel Master Clock (BPM, mult and div, chainable, humanize setting, sync buttons)
 - 22 Nov 17:
 	- Fixed random crash of OSC 3 when loading.
 	- Added "Beat 0" auto increment pattern button.
@@ -13,16 +15,9 @@
 - 21 Nov 17:
 	- Now built for 0.5.0
 	- Updates for 0.4.0 plugins will now cease.
-- 20 Nov 17:	
-	- Added 6 x 32 step sequencer with 3 levels, independant clocks and swing.
-- 18 Nov 17:	
-	- Added LED Meters to 1x4 and 2x4 mixers	
-- 17 Nov 17:	
-	- Added Triad Sequencer 2 with independantly clocked channels
-	- Added Sync Clock input to Ping Pong Delay
 
 # Includes
-
+- 4 Channel Master Clock
 - 3 Channel 16 Step Programmable Sequencer.
 - 6 Channel 32 Step Sequencer
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
@@ -35,6 +30,7 @@
 - X Fade, 3 stereo channel cross fader
 
 # Demo Vids
+- 4 Channel Master Clock https://www.youtube.com/watch?v=hiQciS8ch5U
 - Sequencer: https://www.youtube.com/watch?v=2PN0-UZhocA
 - Mixer: https://www.youtube.com/watch?v=QOjSEM3mPqs
 - Triad Sequencer https://www.youtube.com/watch?v=InOgQA91cs8

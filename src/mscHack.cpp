@@ -9,6 +9,7 @@ void init(rack::Plugin *p)
 	plugin->slug = "mscHack";
 	plugin->website = "https://github.com/mschack/VCV-Rack-Plugins";
 
+    p->addModel( createModel<MasterClockx4_Widget>   ( "mscHack", "MasterClockx4", "Master CLOCK x 4", CLOCK_TAG, QUAD_TAG ) );
     p->addModel( createModel<Seq_3x16x16_Widget>     ( "mscHack", "Seq_3ch_16step", "SEQ 3 x 16", SEQUENCER_TAG, MULTIPLE_TAG ) );
     p->addModel( createModel<SEQ_6x32x16_Widget>     ( "mscHack", "Seq_6ch_32step", "SEQ 6 x 32", SEQUENCER_TAG, MULTIPLE_TAG ) );
     p->addModel( createModel<Seq_Triad_Widget>       ( "mscHack", "TriadSeq", "SEQ Triad", SEQUENCER_TAG, MULTIPLE_TAG ) );
