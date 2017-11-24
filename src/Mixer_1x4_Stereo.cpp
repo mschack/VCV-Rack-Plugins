@@ -492,8 +492,7 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
     module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 161 + 65, 242, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 1 ] );
 
-    // outputs
-    
+    // outputs  
     addOutput(createOutput<MyPortOutSmall>( Vec( 172, 305 ), module, Mix_1x4_Stereo::OUT_MAINL ) );
     addOutput(createOutput<MyPortOutSmall>( Vec( 204, 335 ), module, Mix_1x4_Stereo::OUT_MAINR ) );
 

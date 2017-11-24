@@ -75,11 +75,437 @@ typedef struct
 
 typedef struct
 {
-    int x, y;
+    float fx, fy;
 }POINT_STRUCT;
 
+typedef struct
+{
+    int nUsed;
+    POINT_STRUCT p[ 8 ];
+}DRAW_VECT_STRUCT;
+
 //-----------------------------------------------------
-// SinglePatternClocked32
+// MyLED7DigitDisplay
+//-----------------------------------------------------
+struct MyLED7DigitDisplay : TransparentWidget, FramebufferWidget 
+{
+    bool            m_bInitialized = false;
+    int             m_Type;
+    RGB_STRUCT      m_Colour;
+    RGB_STRUCT      m_LEDColour;
+    int             m_iVal;
+    float           m_fVal;
+    float           m_fScale;
+    float           m_fSpace;
+    float           m_MaxDigits;
+
+	enum MyLEDDisplay_Types 
+    {
+        TYPE_INT,
+        TYPE_FLOAT
+	};
+
+DRAW_VECT_STRUCT DigitDrawVects[ 8 ] = 
+{
+    { 8, { {58, 0}, {143, 0}, {148, 5}, {148, 9}, {130, 27}, {68, 27}, {51, 10}, {51, 7} } },                   // top 0 
+    { 8, { {39, 17}, {32, 24}, {18, 124}, {24, 130}, {30, 130},  {48, 117},  {59, 33}, {43, 17} } },            // top left 1
+    { 8, { {153, 18}, {135, 36}, {124, 118}, {137, 129}, {142, 129}, {151, 122}, {164, 23}, {159, 18} } },      // top right 2
+    { 8, { {56, 123}, {35, 137}, {35, 140}, {50, 152}, {111, 152}, {128, 140}, {128, 136}, {114, 123} } },      // middle 3 
+    { 8, { {24, 145}, {14, 152}, {1, 251}, {7, 257}, {11, 257}, {31, 239}, {41, 156}, {27, 145} } },            // bottom left 4 
+    { 8, { {137, 145}, {117, 158}, {104, 243}, {119, 258}, {122, 258}, {131, 251}, {147, 152}, {140, 145} } },  // bottom right 5
+    { 8, { {38, 247}, {16, 265}, {16, 269}, {22, 275}, {104, 275}, {112, 267}, {112, 264}, {98, 247} } },       // bottom 6
+    { 4, { {4 + 154, 240}, {0 + 154, 275}, {32 + 154, 275}, {36 + 154, 240}, {0, 0}, {0, 0}, {0, 0}, {0, 0} } },    // dot
+};
+
+#define LED_DIGITAL_SCALE_W 160.0f
+#define LED_DIGITAL_SCALE_H 275.0f
+#define LED_SPACE 210.0f
+#define LED_DISPLAY_DIGITS 5
+
+int DigitToDisplay[ 10 ][ 8 ] =
+{
+    { 6, 0, 1, 2, 4, 5, 6, 0 }, // 0
+    { 2, 2, 5, 0, 0, 0, 0, 0 }, // 1
+    { 5, 0, 2, 3, 4, 6, 0, 0 }, // 2
+    { 6, 0, 2, 3, 5, 6, 0, 0 }, // 3
+    { 4, 1, 2, 3, 5, 0, 0, 0 }, // 4
+    { 5, 0, 1, 3, 5, 6, 0, 0 }, // 5
+    { 6, 0, 1, 3, 4, 5, 6, 0 }, // 6
+    { 3, 0, 2, 5, 0, 0, 0, 0 }, // 7
+    { 7, 0, 1, 2, 3, 4, 5, 6 }, // 8
+    { 6, 0, 1, 2, 3, 5, 6, 0 }, // 9
+};
+
+    //-----------------------------------------------------
+    // Procedure:   Constructor
+    //-----------------------------------------------------
+    MyLED7DigitDisplay( int x, int y, float fscale, int colour, int LEDcolour, int type, int maxdigits )
+    {
+        int i, j;
+
+        m_Type = type;
+        m_Colour.dwCol = colour;
+        m_LEDColour.dwCol = LEDcolour;
+        m_fScale = fscale;
+        m_fSpace = fscale * LED_SPACE;
+        m_MaxDigits = maxdigits;
+
+		box.pos = Vec( x, y );
+
+        box.size = Vec( ( ( 5.0f * LED_DIGITAL_SCALE_W ) + ( 4.0f * LED_SPACE ) ) * fscale, LED_DIGITAL_SCALE_H * fscale );
+
+        // rescale the LED vectors
+        for( i = 0; i < 8; i++ )
+        {
+            for( j = 0; j < 8; j++ )
+            {
+                DigitDrawVects[ i ].p[ j ].fx *= fscale;
+                DigitDrawVects[ i ].p[ j ].fy *= fscale;
+            }
+        }
+
+        m_bInitialized = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetInt
+    //-----------------------------------------------------
+    void SetInt( int ival )
+    {
+        if( !m_bInitialized )
+            return;
+
+        if( ival == m_iVal )
+            return;
+
+        m_iVal = ival;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetFloat
+    //-----------------------------------------------------
+    void SetFloat( float fval )
+    {
+        if( !m_bInitialized )
+            return;
+
+        if( fval == m_fVal )
+            return;
+
+        m_fVal = fval;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   Set
+    //-----------------------------------------------------
+    void SetLEDCol( int colour )
+    {
+        m_LEDColour.dwCol = colour;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   Val2Digits
+    //-----------------------------------------------------
+    void Val2Digits( int *pdigits )
+    {
+        int temp;
+
+        if( m_Type == TYPE_FLOAT )
+            temp = (int)( m_fVal * 100.0 );
+        else
+            temp = m_iVal;
+
+        pdigits[ 0 ] = temp / 10000;
+        temp -= (pdigits[ 0 ] * 10000 );
+        pdigits[ 1 ] = temp / 1000;
+        temp -= (pdigits[ 1 ] * 1000 );
+        pdigits[ 2 ] = temp / 100;
+        temp -= (pdigits[ 2 ] * 100 );
+        pdigits[ 3 ] = temp / 10;
+        temp -= (pdigits[ 3 ] * 10 );
+        pdigits[ 4 ] = temp;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   drawvect
+    //-----------------------------------------------------
+    void drawvect( NVGcontext *vg, float fx, float fy, DRAW_VECT_STRUCT *pvect, RGB_STRUCT *pRGB, bool bLeadingZero ) 
+    {
+        int i;
+
+        if( !m_bInitialized )
+            return;
+
+        if( bLeadingZero )
+            nvgFillColor(vg, nvgRGBA( pRGB->Col[ 2 ], pRGB->Col[ 1 ], pRGB->Col[ 0 ], 0x40 ) );
+        else
+            nvgFillColor(vg, nvgRGB( pRGB->Col[ 2 ], pRGB->Col[ 1 ], pRGB->Col[ 0 ] ) );
+
+		nvgBeginPath(vg);
+
+        for( i = 0; i < pvect->nUsed; i++ )
+        {
+            if( i == 0 )
+                nvgMoveTo(vg, pvect->p[ i ].fx + fx, pvect->p[ i ].fy + fy );
+            else
+		        nvgLineTo(vg, pvect->p[ i ].fx + fx, pvect->p[ i ].fy + fy );
+        }
+        
+        nvgClosePath(vg);
+		nvgFill(vg);
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw( NVGcontext *vg ) override
+    {
+        int digits[ LED_DISPLAY_DIGITS ] = {};
+        float xi;
+        int i, j;
+        bool bLeadingZero = true, bLead;
+
+        if( !m_bInitialized )
+            return;
+
+        xi = 0;
+
+        // get digits from value
+        Val2Digits( digits );
+
+        // draw digits
+        for( i = (LED_DISPLAY_DIGITS - m_MaxDigits); i < LED_DISPLAY_DIGITS; i++ )
+        {
+            bLead = false;
+
+            if( ( m_Type == TYPE_FLOAT ) && ( i < 2 ) )
+                bLead = ( bLeadingZero && digits[ i ] == 0 );
+            else if( ( m_Type == TYPE_INT ) && ( i < 4 ) )
+                bLead = ( bLeadingZero && digits[ i ] == 0 );
+
+            for( j = 0; j < DigitToDisplay[ digits[ i ] ][ 0 ]; j++ )
+                drawvect( vg, xi, 0, &DigitDrawVects[ DigitToDisplay[ digits[ i ] ][ j + 1 ] ], &m_LEDColour, bLead );
+
+            if( digits[ i ] != 0 )
+                bLeadingZero = false;
+
+            // draw decimal
+            if( i == 2 && m_Type == TYPE_FLOAT )
+                drawvect( vg, xi, 0, &DigitDrawVects[ 7 ], &m_LEDColour, false );
+
+            xi += m_fSpace;
+        }
+	}
+};
+
+//-----------------------------------------------------
+// MyLEDButtonStrip
+//-----------------------------------------------------
+#define nMAX_STRIP_BUTTONS 32
+struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget 
+{
+    typedef void MyLEDButtonStripCALLBACK ( void *pClass, int id, int nbutton, bool bOn );
+
+    bool            m_bInitialized = false;
+    int             m_Id;
+    int             m_Type;
+    int             m_nButtons;
+    bool            m_bOn[ nMAX_STRIP_BUTTONS ] = {};
+    int             m_ExclusiveOn = 0;
+    RGB_STRUCT      m_Colour;
+    RGB_STRUCT      m_LEDColour[ nMAX_STRIP_BUTTONS ] = {};
+    float           m_fLEDsize;
+    float           m_fLEDsize_d2;
+
+    MyLEDButtonStripCALLBACK *m_pCallback;
+    void              *m_pClass;
+
+    RECT_STRUCT     m_Rect[ nMAX_STRIP_BUTTONS ];
+
+	enum MyLEDButton_Types 
+    {
+        TYPE_EXCLUSIVE,
+        TYPE_INDEPENDANT
+	};
+
+    //-----------------------------------------------------
+    // Procedure:   Constructor
+    //-----------------------------------------------------
+    MyLEDButtonStrip( int x, int y, int w, int h, int space, float LEDsize, int nbuttons, bool bVert, int colour, int LEDcolour, int type, int id, void *pClass, MyLEDButtonStripCALLBACK *pCallback )
+    {
+        int i;
+
+        if( nbuttons < 0 || nbuttons > nMAX_STRIP_BUTTONS )
+            return;
+
+        m_Id = id;
+        m_pCallback = pCallback;
+        m_pClass = pClass;
+        m_Type = type;
+        m_Colour.dwCol = colour;
+        m_nButtons = nbuttons;
+        m_fLEDsize = LEDsize;
+        m_fLEDsize_d2 = LEDsize / 2.0f;
+
+		box.pos = Vec( x, y );
+
+        if( bVert )
+            box.size = Vec( w * ( nbuttons + space ), h );
+        else
+            box.size = Vec( w, h * ( nbuttons + space ) );
+
+        for( i = 0; i < m_nButtons; i ++)
+        {
+            m_LEDColour[ i ].dwCol = LEDcolour;
+
+            m_Rect[ i ].x = 0;
+            m_Rect[ i ].y = 0;
+            m_Rect[ i ].x2 = w - 1;
+            m_Rect[ i ].y2 = h - 1;
+
+            if( bVert )
+                y += space + h;
+            else
+                x += space + w;
+        }
+
+        m_bInitialized = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   Set
+    //-----------------------------------------------------
+    void Set( int button, bool bOn )
+    {
+        if( !m_bInitialized || button < 0 || button >= m_nButtons )
+            return;
+
+        if( m_Type == TYPE_EXCLUSIVE )
+            m_ExclusiveOn = button;
+        else
+            m_bOn[ button ] = bOn;
+
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   SetLEDCol
+    //-----------------------------------------------------
+    void SetLEDCol( int button, int colour )
+    {
+        if( !m_bInitialized || button < 0 || button >= m_nButtons )
+            return;
+
+        m_LEDColour[ button ].dwCol = colour;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw(NVGcontext *vg) override
+    {
+        float xi, yi;
+        int i;
+
+        if( !m_bInitialized )
+            return;
+
+        for( i = 0; i < m_nButtons; i ++)
+        {
+            nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
+
+            // background
+		    nvgBeginPath( vg );
+            nvgMoveTo(vg, m_Rect[ i ].x, m_Rect[ i ].y );
+		    nvgLineTo(vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
+		    nvgLineTo(vg, m_Rect[ i ].x2, m_Rect[ i ].y2 );
+		    nvgLineTo(vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
+		    nvgClosePath( vg );
+		    nvgFill( vg );
+
+            nvgFillColor( vg, nvgRGB(0x40, 0x40, 0x40) );
+
+            if( m_Type == TYPE_EXCLUSIVE )
+            {
+                if( i == m_ExclusiveOn )
+                    nvgFillColor( vg, nvgRGB( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ] ) );
+            }
+            else
+            {
+                if( m_bOn[ i ] )
+                   nvgFillColor( vg, nvgRGB( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ] ) );
+            }
+
+            xi = ( ( (float)m_Rect[ i ].x2 + (float)m_Rect[ i ].x ) / 2.0f ) - m_fLEDsize_d2;
+            yi = ( ( (float)m_Rect[ i ].y2 + (float)m_Rect[ i ].y ) / 2.0f ) - m_fLEDsize_d2;
+
+		    nvgBeginPath( vg );
+            nvgMoveTo(vg, xi, yi );
+		    nvgLineTo(vg, xi + m_fLEDsize, yi );
+		    nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
+		    nvgLineTo(vg, xi, yi + m_fLEDsize );
+		    nvgClosePath( vg );
+		    nvgFill( vg );
+        }
+	}
+
+    //-----------------------------------------------------
+    // Procedure:   isPoint
+    //-----------------------------------------------------
+    bool isPoint( RECT_STRUCT *prect, int x, int y )
+    {
+        if( x < prect->x || x > prect->x2 || y < prect->y || y > prect->y2 )
+            return false;
+
+        return true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onMouseDown
+    //-----------------------------------------------------
+    void onMouseDown( EventMouseDown &e ) override
+    {
+        int i;
+        e.consumed = false;
+
+        if( !m_bInitialized || e.button != 0 )
+            return;
+
+        for( i = 0; i < m_nButtons; i ++)
+        {
+            if( isPoint( &m_Rect[ i ], (int)e.pos.x, (int)e.pos.y ) )
+            {
+                m_bOn[ i ] = !m_bOn[ i ];
+
+                Set( i, m_bOn[ i ] );
+
+                if( m_pCallback )
+                    m_pCallback( m_pClass, m_Id, i, m_bOn[ i ] );
+
+                dirty = true;
+                e.consumed = true;
+                return;
+            }
+        }
+
+        return;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void step() override
+    {
+	    FramebufferWidget::step();
+    }
+};
+
+//-----------------------------------------------------
+// MyLEDButton
 //-----------------------------------------------------
 struct MyLEDButton : OpaqueWidget, FramebufferWidget 
 {
@@ -92,6 +518,8 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
     bool            m_bOn = false;
     RGB_STRUCT      m_Colour;
     RGB_STRUCT      m_LEDColour;
+    float           m_fLEDsize;
+    float           m_fLEDsize_d2;
 
     MyLEDButtonCALLBACK *m_pCallback;
     void              *m_pClass;
@@ -107,7 +535,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   Constructor
     //-----------------------------------------------------
-    MyLEDButton( int x, int y, int w, int h, int colour, int LEDcolour, int type, int id, void *pClass, MyLEDButtonCALLBACK *pCallback )
+    MyLEDButton( int x, int y, int w, int h, float LEDsize, int colour, int LEDcolour, int type, int id, void *pClass, MyLEDButtonCALLBACK *pCallback )
     {
         m_Id = id;
         m_pCallback = pCallback;
@@ -115,6 +543,8 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
         m_Type = type;
         m_Colour.dwCol = colour;
         m_LEDColour.dwCol = LEDcolour;
+        m_fLEDsize = LEDsize;
+        m_fLEDsize_d2 = LEDsize / 2.0f;
 
 		box.pos = Vec( x, y );
         box.size = Vec( w, h );
@@ -136,7 +566,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
         dirty = true;
 
         if( m_Type == TYPE_MOMENTARY && bOn )
-            m_StepCount = (int)( engineGetSampleRate() * 0.05 );
+            m_StepCount = 8;//(int)( engineGetSampleRate() * 0.05 );
     }
 
     //-----------------------------------------------------
@@ -164,14 +594,14 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
         else
             nvgFillColor( vg, nvgRGB( m_LEDColour.Col[ 2 ], m_LEDColour.Col[ 1 ], m_LEDColour.Col[ 0 ] ) );
 
-        xi = ( ( (float)m_Rect.x2 + (float)m_Rect.x ) / 2.0f ) - 3.0f ;
-        yi = ( ( (float)m_Rect.y2 + (float)m_Rect.y ) / 2.0f ) - 3.0f ;
+        xi = ( ( (float)m_Rect.x2 + (float)m_Rect.x ) / 2.0f ) - m_fLEDsize_d2 ;
+        yi = ( ( (float)m_Rect.y2 + (float)m_Rect.y ) / 2.0f ) - m_fLEDsize_d2 ;
 
 		nvgBeginPath( vg );
         nvgMoveTo(vg, xi, yi );
-		nvgLineTo(vg, xi + 6.0f, yi );
-		nvgLineTo(vg, xi + 6.0f, yi + 6.0f );
-		nvgLineTo(vg, xi, yi + 6.0f );
+		nvgLineTo(vg, xi + m_fLEDsize, yi );
+		nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
+		nvgLineTo(vg, xi, yi + m_fLEDsize );
 		nvgClosePath( vg );
 		nvgFill( vg );
 	}
@@ -206,7 +636,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
                 if( m_pCallback )
                 {
                     m_bOn = true;
-                    m_StepCount = 10;//(int)( engineGetSampleRate() * 0.05 );
+                    m_StepCount = 8;//(int)( engineGetSampleRate() * 0.05 );
                     m_pCallback( m_pClass, m_Id, true );
                 }
             }
@@ -1023,13 +1453,6 @@ struct LEDMeterWidget : TransparentWidget
 //-----------------------------------------------------
 // Keyboard_3Oct_Widget
 //-----------------------------------------------------
-
-typedef struct
-{
-    int nUsed;
-    POINT_STRUCT p[ 8 ];
-}KEY_VECT_STRUCT;
-
 struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
 {
     typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int note );
@@ -1042,7 +1465,7 @@ struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
     void *m_pClass = NULL;
     int m_nKb;
 
-KEY_VECT_STRUCT OctaveKeyDrawVects[ 37 ] = 
+DRAW_VECT_STRUCT OctaveKeyDrawVects[ 37 ] = 
 {
     { 6, { {1, 1}, {1, 62}, {12, 62}, {12, 39}, {7, 39}, {7, 1}, {0, 0}, {0, 0} } },
     { 4, { {8, 1}, {8, 38}, {16, 38}, {16, 1},  {0, 0},  {0, 0}, {0, 0}, {0, 0} } },
@@ -1063,7 +1486,7 @@ int keysquare_x[ 37 ] =
     1, 8, 14, 23, 27, 40, 47, 53, 61, 66, 75, 79
 };
 
-KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]= 
+DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]= 
 {
     { 5, { {1, 1}, {1, 62}, {12, 62}, {12, 44}, {12, 1}, {0, 0}, {0, 0}, {0, 0} } }
 };
@@ -1102,20 +1525,20 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
                 if( i == 36 )
                 {
                     // populate the rest of the key vect table based on the first octave
-                    memcpy( &OctaveKeyDrawVects[ i ], &OctaveKeyHighC[ 0 ], sizeof(KEY_VECT_STRUCT) ); 
+                    memcpy( &OctaveKeyDrawVects[ i ], &OctaveKeyHighC[ 0 ], sizeof(DRAW_VECT_STRUCT) ); 
 
                     for( j = 0; j < 8; j++ )
-                        OctaveKeyDrawVects[ i ].p[ j ].x = OctaveKeyHighC[ 0 ].p[ j ].x + ( OCT_OFFSET_X * oct );
+                        OctaveKeyDrawVects[ i ].p[ j ].fx = OctaveKeyHighC[ 0 ].p[ j ].fx + ( OCT_OFFSET_X * oct );
                         
                     keysquare_x[ i ] = keysquare_x[ 0 ] + ( OCT_OFFSET_X * oct );
                 }
                 else
                 {
                     // populate the rest of the key vect table based on the first octave
-                    memcpy( &OctaveKeyDrawVects[ i ], &OctaveKeyDrawVects[ i - ( oct * 12 ) ], sizeof(KEY_VECT_STRUCT) ); 
+                    memcpy( &OctaveKeyDrawVects[ i ], &OctaveKeyDrawVects[ i - ( oct * 12 ) ], sizeof(DRAW_VECT_STRUCT) ); 
 
                     for( j = 0; j < 8; j++ )
-                        OctaveKeyDrawVects[ i ].p[ j ].x = OctaveKeyDrawVects[ i - ( oct * 12 ) ].p[ j ].x + ( OCT_OFFSET_X * oct );
+                        OctaveKeyDrawVects[ i ].p[ j ].fx = OctaveKeyDrawVects[ i - ( oct * 12 ) ].p[ j ].fx + ( OCT_OFFSET_X * oct );
 
                     keysquare_x[ i ] = keysquare_x[ i - ( oct * 12 ) ] + ( OCT_OFFSET_X * oct );
                 }
@@ -1179,9 +1602,9 @@ KEY_VECT_STRUCT OctaveKeyHighC [ 1 ]=
         for( i = 0; i < OctaveKeyDrawVects[ key ].nUsed; i++ )
         {
             if( i == 0 )
-                nvgMoveTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].x, (float)OctaveKeyDrawVects[ key ].p[ i ].y );
+                nvgMoveTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
             else
-		        nvgLineTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].x, (float)OctaveKeyDrawVects[ key ].p[ i ].y );
+		        nvgLineTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
         }
         
         nvgClosePath(vg);
@@ -1652,5 +2075,31 @@ struct Yellow2_Huge : RoundKnob
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
 		box.size = Vec(56, 56);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow2_Huge_Snap
+//
+//-----------------------------------------------------
+struct Yellow2_Huge_Snap : RoundSmallBlackSnapKnob 
+{
+	Yellow2_Huge_Snap() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+		box.size = Vec(56, 56);
+	}
+};
+
+//-----------------------------------------------------
+// Procedure:   Yellow2_Huge
+//
+//-----------------------------------------------------
+struct Yellow2_Snap : RoundSmallBlackSnapKnob 
+{
+	Yellow2_Snap() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+		box.size = Vec(26, 26);
 	}
 };

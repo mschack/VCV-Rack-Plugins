@@ -13,6 +13,10 @@ extern Plugin *plugin;
 // module widgets
 ////////////////////
 
+struct MasterClockx4_Widget : ModuleWidget {
+	MasterClockx4_Widget();
+};
+
 struct Seq_3x16x16_Widget : ModuleWidget {
 	Seq_3x16x16_Widget();
 };
