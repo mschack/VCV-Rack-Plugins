@@ -103,7 +103,7 @@ struct MasterClockx4 : Module
             mymodule = (MasterClockx4*)module;
 
             if( mymodule && !mymodule->inputs[ INPUT_CHAIN ].active  )
-                mymodule->BPMChange( value );
+                mymodule->BPMChange( value, false );
 
 		    RoundKnob::onChange( e );
 	    }
@@ -162,7 +162,7 @@ struct MasterClockx4 : Module
     void    reset() override;
 
     void    GetNewHumanizeVal( void );
-    void    BPMChange( float fbmp );
+    void    BPMChange( float fbmp, bool bforce );
     void    CalcChannelClockRate( int ch );
 };
 
@@ -379,7 +379,7 @@ void MasterClockx4::fromJson(json_t *rootJ)
     }
 
     m_fMainClockCount = 0;
-    BPMChange( params[ PARAM_BPM ].value );
+    BPMChange( params[ PARAM_BPM ].value, true );
 
     if( m_pDigitDisplayBPM )
         m_pDigitDisplayBPM->SetFloat( m_fBPM );
@@ -413,7 +413,7 @@ void MasterClockx4::reset()
             m_pDigitDisplayMult[ ch ]->SetInt( multdisplayval[ (int)params[ PARAM_MULT + ch ].value ] );
     }
 
-    BPMChange( m_fBPM );
+    BPMChange( m_fBPM, true );
 }
 
 //-----------------------------------------------------
@@ -432,10 +432,10 @@ void MasterClockx4::GetNewHumanizeVal( void )
 // Procedure:   BMPChange
 //
 //-----------------------------------------------------
-void MasterClockx4::BPMChange( float fbpm )
+void MasterClockx4::BPMChange( float fbpm, bool bforce )
 {
     // don't change if it is already the same
-    if( (int)(fbpm * 10000.0f ) == (int)(m_fBPM * 10000.0f ) )
+    if( !bforce && ( (int)(fbpm * 1000.0f ) == (int)(m_fBPM * 1000.0f ) ) )
         return;
 
     m_fBPM = fbpm;
@@ -493,7 +493,7 @@ void MasterClockx4::step()
         // values greater than zero are the bpm
         else
         {
-            BPMChange( inputs[ INPUT_CHAIN ].value );
+            BPMChange( inputs[ INPUT_CHAIN ].value, false );
         }
     }
     else
@@ -504,7 +504,7 @@ void MasterClockx4::step()
             m_pHumanKnob->visible = true;
             m_pBpmKnob->visible = true;
             m_bWasChained = false;
-            BPMChange( params[ PARAM_BPM ].value );
+            BPMChange( params[ PARAM_BPM ].value, false );
         }
 
         // keep track of main bpm

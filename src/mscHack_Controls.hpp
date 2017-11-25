@@ -353,18 +353,21 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
 		box.pos = Vec( x, y );
 
         if( bVert )
-            box.size = Vec( w * ( nbuttons + space ), h );
-        else
             box.size = Vec( w, h * ( nbuttons + space ) );
+        else
+            box.size = Vec( w * ( nbuttons + space ), h );
+
+        x = 0;
+        y = 0;
 
         for( i = 0; i < m_nButtons; i ++)
         {
             m_LEDColour[ i ].dwCol = LEDcolour;
 
-            m_Rect[ i ].x = 0;
-            m_Rect[ i ].y = 0;
-            m_Rect[ i ].x2 = w - 1;
-            m_Rect[ i ].y2 = h - 1;
+            m_Rect[ i ].x = x;
+            m_Rect[ i ].y = y;
+            m_Rect[ i ].x2 = x + w - 1;
+            m_Rect[ i ].y2 = y + h - 1;
 
             if( bVert )
                 y += space + h;
@@ -421,7 +424,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
             // background
 		    nvgBeginPath( vg );
             nvgMoveTo(vg, m_Rect[ i ].x, m_Rect[ i ].y );
-		    nvgLineTo(vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
+		    nvgLineTo(vg, m_Rect[ i ].x2, m_Rect[ i ].y );
 		    nvgLineTo(vg, m_Rect[ i ].x2, m_Rect[ i ].y2 );
 		    nvgLineTo(vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
 		    nvgClosePath( vg );
@@ -475,7 +478,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
         if( !m_bInitialized || e.button != 0 )
             return;
 
-        for( i = 0; i < m_nButtons; i ++)
+        for( i = 0; i < m_nButtons; i++ )
         {
             if( isPoint( &m_Rect[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
@@ -493,14 +496,6 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
         }
 
         return;
-    }
-
-    //-----------------------------------------------------
-    // Procedure:   draw
-    //-----------------------------------------------------
-    void step() override
-    {
-	    FramebufferWidget::step();
     }
 };
 

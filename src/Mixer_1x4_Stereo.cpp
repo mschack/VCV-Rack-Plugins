@@ -317,12 +317,12 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         y += 22;
 
         // mute buttons
-        module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x - 5, y, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChMute );
+        module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x - 5, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChMute );
 	    addChild( module->m_pButtonChannelMute[ ch ] );
         //y += 26;
 
         // solo buttons
-        module->m_pButtonChannelSolo[ ch ] = new MyLEDButton( x + 11, y, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChSolo );
+        module->m_pButtonChannelSolo[ ch ] = new MyLEDButton( x + 11, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChSolo );
 	    addChild( module->m_pButtonChannelSolo[ ch ] );
 
         y += 22;
@@ -366,18 +366,12 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 81;
         y2 = ybase;
 
-        module->m_pButtonGroupMute[ i ] = new MyLEDButton( x2, y2 + 4, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, i, module, MyLEDButton_GroupMute );
+        module->m_pButtonGroupMute[ i ] = new MyLEDButton( x2, y2 + 4, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, i, module, MyLEDButton_GroupMute );
 	    addChild( module->m_pButtonGroupMute[ i ] );
 
         // group level and pan inputs
         x2 = x + 79;
         y2 = ybase + 23;
-
-        //addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_1x4_Stereo::IN_GROUP_LEVEL + i ) );
-
-        //y2 += 32;
-
-        //addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Mix_1x4_Stereo::IN_GROUP_PAN + i ) );
 
         // group VU Meters
         module->m_pLEDMeterGroup[ i ][ 0 ] = new LEDMeterWidget( x2 + 2, y2 + 21, 5, 2, 1, true );
@@ -400,12 +394,12 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 6;
         y2 = ybase + 20;
         
-        module->m_pButtonAuxPreFader[ 0 ][ 0 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, MyLEDButton_Aux );
+        module->m_pButtonAuxPreFader[ 0 ][ 0 ] = new MyLEDButton( x2, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, MyLEDButton_Aux );
 	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 0 ] );
 
         y2 += AUX_H;
 
-        module->m_pButtonAuxPreFader[ 0 ][ 2 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 2, module, MyLEDButton_Aux );
+        module->m_pButtonAuxPreFader[ 0 ][ 2 ] = new MyLEDButton( x2, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 2, module, MyLEDButton_Aux );
 	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 2 ] );
 
         x2 = x + 20;
@@ -425,12 +419,12 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 62;
         y2 = ybase + 32;
         
-        module->m_pButtonAuxPreFader[ 0 ][ 1 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 1, module, MyLEDButton_Aux );
+        module->m_pButtonAuxPreFader[ 0 ][ 1 ] = new MyLEDButton( x2, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 1, module, MyLEDButton_Aux );
 	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 1 ] );
 
         y2 += AUX_H;
 
-        module->m_pButtonAuxPreFader[ 0 ][ 3 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 3, module, MyLEDButton_Aux );
+        module->m_pButtonAuxPreFader[ 0 ][ 3 ] = new MyLEDButton( x2, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 3, module, MyLEDButton_Aux );
 	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 3 ] );
 
         // account for slight error in pixel conversion to svg area
