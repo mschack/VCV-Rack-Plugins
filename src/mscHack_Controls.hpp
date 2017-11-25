@@ -1562,7 +1562,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]=
             }
         }
 
-        box.size = Vec( keyrects[ 36 ].x2 - m_x, 62 );
+        box.size = Vec( keyrects[ 36 ].x2, 62 );
 
         rgb_white.dwCol = DWRGB( 215, 207, 198 );
         rgb_black.dwCol = 0;

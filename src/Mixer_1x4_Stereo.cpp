@@ -70,16 +70,6 @@ struct Mix_1x4_Stereo : Module
         nOUTPUTS              = OUT_AUXR + nAUX
 	};
 
-	enum LightIds 
-    {
-		LIGHT_MUTE,
-        LIGHT_SOLO          = LIGHT_MUTE + CHANNELS,
-        LIGHT_GROUP_MUTE    = LIGHT_SOLO + CHANNELS,
-        //LIGHT_GROUP_SOLO    = LIGHT_GROUP_MUTE + GROUPS,
-        LIGHT_AUX_PRE       = LIGHT_GROUP_MUTE + GROUPS,
-        nLIGHTS             = LIGHT_AUX_PRE + (GROUPS * nAUX)
-	};
-
     bool            m_bInitialized = false;
     CLog            lg;
 
@@ -108,6 +98,13 @@ struct Mix_1x4_Stereo : Module
     LEDMeterWidget  *m_pLEDMeterGroup[ GROUPS ][ 2 ] ={};
     LEDMeterWidget  *m_pLEDMeterMain[ 2 ] ={};
 
+    // buttons
+    MyLEDButton             *m_pButtonChannelMute[ CHANNELS ] = {};
+    MyLEDButton             *m_pButtonChannelSolo[ CHANNELS ] = {};
+    MyLEDButton             *m_pButtonGroupMute[ GROUPS ] = {};
+    //MyLEDButton             *m_pButtonGroupSolo[ GROUPS ] = {};
+    MyLEDButton             *m_pButtonAuxPreFader[ GROUPS ][ nAUX ] = {};
+
     // EQ Rez
     float           lp1[ CHANNELS ][ 2 ] = {}, bp1[ CHANNELS ][ 2 ] = {}; 
     float           m_hpIn[ CHANNELS ];
@@ -120,105 +117,7 @@ struct Mix_1x4_Stereo : Module
 #define R 1
 
     // Contructor
-	Mix_1x4_Stereo() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
-
-    //-----------------------------------------------------
-    // MySquareButton_Trig
-    //-----------------------------------------------------
-    struct MySquareButton_Aux : MySquareButton
-    {
-        int group, knob, param;
-
-        Mix_1x4_Stereo *mymodule;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Mix_1x4_Stereo*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                param = paramId - Mix_1x4_Stereo::PARAM_AUX_PREFADE;
-                group = param / GROUPS;
-                knob  = param - (group * GROUPS);
-                mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] = !mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ];
-                mymodule->lights[ LIGHT_AUX_PRE + ( group * nAUX ) + knob ].value = mymodule->m_bGroupPreFadeAuxStates[ group ][ knob ] ? 1.0 : 0.0;
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
-
-    //-----------------------------------------------------
-    // MySquareButton_ChMute
-    //-----------------------------------------------------
-    struct MySquareButton_ChMute : MySquareButton2
-    {
-        int ch;
-
-        Mix_1x4_Stereo *mymodule;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Mix_1x4_Stereo*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                ch = paramId - Mix_1x4_Stereo::PARAM_MUTE_BUTTON;
-                //mymodule->lg.f("mute ch = %d\n", ch );
-                mymodule->ProcessMuteSolo( ch, true, false );
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
-
-    //-----------------------------------------------------
-    // MySquareButton_ChSolo
-    //-----------------------------------------------------
-    struct MySquareButton_ChSolo : MySquareButton2
-    {
-        int ch;
-
-        Mix_1x4_Stereo *mymodule;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Mix_1x4_Stereo*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                ch = paramId - Mix_1x4_Stereo::PARAM_SOLO_BUTTON;
-                //mymodule->lg.f("solo ch = %d\n", ch );
-                mymodule->ProcessMuteSolo( ch, false, false );
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
-
-    //-----------------------------------------------------
-    // MySquareButton_GroupMute
-    //-----------------------------------------------------
-    struct MySquareButton_GroupMute : MySquareButton2
-    {
-        int group;
-
-        Mix_1x4_Stereo *mymodule;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Mix_1x4_Stereo*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                group = paramId - Mix_1x4_Stereo::PARAM_GROUP_MUTE;
-                //mymodule->lg.f("group mute group = %d\n", group );
-                mymodule->ProcessMuteSolo( group, true, true );
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
+	Mix_1x4_Stereo() : Module( nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
 
     //-----------------------------------------------------
     // MyEQHi_Knob
@@ -298,6 +197,58 @@ struct Mix_1x4_Stereo : Module
     void ProcessEQ( int ch, float *pL, float *pR );
 };
 
+//-----------------------------------------------------
+// MyLEDButton_Aux
+//-----------------------------------------------------
+void MyLEDButton_Aux( void *pClass, int id, bool bOn ) 
+{
+    Mix_1x4_Stereo *mymodule;
+    mymodule = (Mix_1x4_Stereo*)pClass;
+
+    mymodule->m_bGroupPreFadeAuxStates[ 0 ][ id ] = !mymodule->m_bGroupPreFadeAuxStates[ 0 ][ id ];
+    mymodule->m_pButtonAuxPreFader[ 0 ][ id ]->Set( mymodule->m_bGroupPreFadeAuxStates[ 0 ][ id ] );
+}
+
+//-----------------------------------------------------
+// MyLEDButton_ChMute
+//-----------------------------------------------------
+void MyLEDButton_ChMute( void *pClass, int id, bool bOn ) 
+{
+    Mix_1x4_Stereo *mymodule;
+    mymodule = (Mix_1x4_Stereo*)pClass;
+    mymodule->ProcessMuteSolo( id, true, false );
+}
+
+//-----------------------------------------------------
+// MyLEDButton_ChSolo
+//-----------------------------------------------------
+void MyLEDButton_ChSolo( void *pClass, int id, bool bOn ) 
+{
+    Mix_1x4_Stereo *mymodule;
+    mymodule = (Mix_1x4_Stereo*)pClass;
+    mymodule->ProcessMuteSolo( id, false, false );
+}
+
+//-----------------------------------------------------
+// MyLEDButton_GroupMute
+//-----------------------------------------------------
+void MyLEDButton_GroupMute( void *pClass, int id, bool bOn ) 
+{
+    Mix_1x4_Stereo *mymodule;
+    mymodule = (Mix_1x4_Stereo*)pClass;
+    mymodule->ProcessMuteSolo( id, true, true );
+}
+
+//-----------------------------------------------------
+// MyLEDButton_GroupSolo
+//-----------------------------------------------------
+/*void MyLEDButton_GroupSolo( void *pClass, int id, bool bOn ) 
+{
+    Mix_1x4_Stereo *mymodule;
+    mymodule = (Mix_1x4_Stereo*)pClass;
+    mymodule->ProcessMuteSolo( id, false, true );
+}*/
+
 #define CUTOFF (0.025f)
 //-----------------------------------------------------
 // Procedure:   Widget
@@ -366,13 +317,13 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         y += 22;
 
         // mute buttons
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_ChMute>( Vec( x - 7, y ), module, Mix_1x4_Stereo::PARAM_MUTE_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<RedLight>>( Vec( x - 2, y + 5 ), module, Mix_1x4_Stereo::LIGHT_MUTE + ch ) );
+        module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x - 5, y, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChMute );
+	    addChild( module->m_pButtonChannelMute[ ch ] );
         //y += 26;
 
         // solo buttons
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_ChSolo>( Vec( x + 9, y ), module, Mix_1x4_Stereo::PARAM_SOLO_BUTTON + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<GreenLight>>( Vec( x + 13, y + 5 ), module, Mix_1x4_Stereo::LIGHT_SOLO + ch ) );
+        module->m_pButtonChannelSolo[ ch ] = new MyLEDButton( x + 11, y, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_ChSolo );
+	    addChild( module->m_pButtonChannelSolo[ ch ] );
 
         y += 22;
         y2 = y;
@@ -403,7 +354,7 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
             x += CHANNEL_OFF_X;
         }
 
-        y = 39;
+        y = 38;
     }
 
     // group mixers
@@ -415,8 +366,8 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 81;
         y2 = ybase;
 
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_GroupMute>( Vec( x2, y2 ), module, Mix_1x4_Stereo::PARAM_GROUP_MUTE + i, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<RedLight>>( Vec( x2 + 4, y2 + 4 ), module, Mix_1x4_Stereo::LIGHT_GROUP_MUTE + i ) );
+        module->m_pButtonGroupMute[ i ] = new MyLEDButton( x2, y2 + 4, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, i, module, MyLEDButton_GroupMute );
+	    addChild( module->m_pButtonGroupMute[ i ] );
 
         // group level and pan inputs
         x2 = x + 79;
@@ -449,12 +400,13 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 6;
         y2 = ybase + 20;
         
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_1x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 0, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_1x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 0 ) );
+        module->m_pButtonAuxPreFader[ 0 ][ 0 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, MyLEDButton_Aux );
+	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 0 ] );
 
         y2 += AUX_H;
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_1x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 2, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_1x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 2 ) );
+
+        module->m_pButtonAuxPreFader[ 0 ][ 2 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 2, module, MyLEDButton_Aux );
+	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 2 ] );
 
         x2 = x + 20;
         y2 = ybase + 16;
@@ -473,12 +425,13 @@ Mix_1x4_Stereo_Widget::Mix_1x4_Stereo_Widget()
         x2 = x + 62;
         y2 = ybase + 32;
         
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_1x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 1, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_1x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 1 ) );
+        module->m_pButtonAuxPreFader[ 0 ][ 1 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 1, module, MyLEDButton_Aux );
+	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 1 ] );
 
         y2 += AUX_H;
-        addParam(createParam<Mix_1x4_Stereo::MySquareButton_Aux>( Vec( x2, y2 ), module, Mix_1x4_Stereo::PARAM_AUX_PREFADE + (i * nAUX) + 3, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 2, y2 + 2 ), module, Mix_1x4_Stereo::LIGHT_AUX_PRE + ( i * nAUX ) + 3 ) );
+
+        module->m_pButtonAuxPreFader[ 0 ][ 3 ] = new MyLEDButton( x2, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 3, module, MyLEDButton_Aux );
+	    addChild( module->m_pButtonAuxPreFader[ 0 ][ 3 ] );
 
         // account for slight error in pixel conversion to svg area
         x += 155;
@@ -544,12 +497,15 @@ void Mix_1x4_Stereo::reset()
 {
     int ch, i, aux;
 
+    if( !m_bInitialized )
+        return;
+
     for( ch = 0; ch < CHANNELS; ch++ )
     {
         m_FadeState[ ch ] = MUTE_FADE_STATE_IDLE;
 
-        lights[ LIGHT_MUTE + ch ].value = 0.0;
-        lights[ LIGHT_SOLO + ch ].value = 0.0;
+        m_pButtonChannelMute[ ch ]->Set( false );
+        m_pButtonChannelSolo[ ch ]->Set( false );
 
         m_bMuteStates[ ch ] = false;
         m_bSoloStates[ ch ] = false;
@@ -561,12 +517,12 @@ void Mix_1x4_Stereo::reset()
         for( aux = 0; aux < nAUX; aux++ )
         {
             m_bGroupPreFadeAuxStates[ i ][ aux ] = false;
-            lights[ LIGHT_AUX_PRE + ( i * nAUX ) + aux ].value = 0.0;
+            m_pButtonAuxPreFader[ i ][ aux ]->Set( false );
         }
 
         m_GroupFadeState[ i ] = MUTE_FADE_STATE_IDLE;
-        lights[ LIGHT_GROUP_MUTE + i ].value = 0.0;
-        //lights[ LIGHT_GROUP_SOLO + i ].value = 0.0;
+        m_pButtonGroupMute[ i ]->Set( false );
+        //m_pButtonGroupSolo[ i ]->Set( false );
         m_bGroupMuteStates[ i ] = false;
         m_fGroupMuteFade[ i ] = 1.0;
     }
@@ -737,20 +693,18 @@ void Mix_1x4_Stereo::fromJson(json_t *rootJ)
             m_fMuteFade[ ch ] = m_bMuteStates[ ch ] ? 0.0: 1.0;
         }
 
-        lights[ LIGHT_MUTE + ch ].value = m_bMuteStates[ ch ] ? 1.0: 0.0;
-        lights[ LIGHT_SOLO + ch ].value = m_bSoloStates[ ch ] ? 1.0: 0.0;
+        m_pButtonChannelMute[ ch ]->Set( m_bMuteStates[ ch ] );
+        m_pButtonChannelSolo[ ch ]->Set( m_bSoloStates[ ch ] );
     }
 
     for( i = 0; i < GROUPS; i++ )
     {
         for( aux = 0; aux < nAUX; aux++ )
-        {
-            lights[ LIGHT_AUX_PRE + ( i * nAUX ) + aux ].value = m_bGroupPreFadeAuxStates[ i ][ aux ] ? 1.0: 0.0;
-        }
+            m_pButtonAuxPreFader[ i ][ aux ]->Set( m_bGroupPreFadeAuxStates[ i ][ aux ] );
 
         m_fGroupMuteFade[ i ] = m_bGroupMuteStates[ i ] ? 0.0: 1.0;
-        lights[ LIGHT_GROUP_MUTE + i ].value = m_bGroupMuteStates[ i ] ? 1.0: 0.0;
-        //lights[ LIGHT_GROUP_SOLO + i ].value = m_bGroupSoloStates[ i ] ? 1.0: 0.0;
+        m_pButtonGroupMute[ i ]->Set( m_bGroupMuteStates[ i ] );
+        //m_pButtonGroupSolo[ i ]->Set( m_bGroupSoloStates[ i ] );
     }
 }
 
@@ -772,12 +726,12 @@ void Mix_1x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             // if mute is off then set volume
             if( m_bGroupMuteStates[ index ] )
             {
-                lights[ LIGHT_GROUP_MUTE + index ].value = 1.0;
+                m_pButtonGroupMute[ index ]->Set( true );
                 m_GroupFadeState[ index ] = MUTE_FADE_STATE_DEC;
             }
             else
             {
-                lights[ LIGHT_GROUP_MUTE + index ].value = 0.0;
+                m_pButtonGroupMute[ index ]->Set( false );
                 m_GroupFadeState[ index ] = MUTE_FADE_STATE_INC;
             }
         }
@@ -799,18 +753,18 @@ void Mix_1x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             {
                 bSoloOff = true;
                 m_bSoloStates[ index ] = false;
-                lights[ LIGHT_SOLO + index ].value = 0.0;
+                m_pButtonChannelSolo[ index ]->Set( false );
             }
 
             // if mute is off then set volume
             if( m_bMuteStates[ index ] )
             {
-                lights[ LIGHT_MUTE + index ].value = 1.0;
+                m_pButtonChannelMute[ index ]->Set( true );
                 m_FadeState[ index ] = MUTE_FADE_STATE_DEC;
             }
             else
             {
-                lights[ LIGHT_MUTE + index ].value = 0.0;
+                m_pButtonChannelMute[ index ]->Set( false );
                 m_FadeState[ index ] = MUTE_FADE_STATE_INC;
             }
         }
@@ -822,18 +776,18 @@ void Mix_1x4_Stereo::ProcessMuteSolo( int index, bool bMute, bool bGroup )
             if( m_bMuteStates[ index ] )
             {
                 m_bMuteStates[ index ] = false;
-                lights[ LIGHT_MUTE + index ].value = 0.0;
+                m_pButtonChannelMute[ index ]->Set( false );
             }
 
             // toggle solo
             if( !m_bSoloStates[ index ] )
             {
                 bSoloOff = true;
-                lights[ LIGHT_SOLO + index ].value = 0.0;
+                m_pButtonChannelSolo[ index ]->Set( false );
             }
             else
             {
-                lights[ LIGHT_SOLO + index ].value = 1.0;
+                m_pButtonChannelSolo[ index ]->Set( true );
             }
         }
 

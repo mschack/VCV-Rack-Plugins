@@ -766,8 +766,8 @@ void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
         foutL *= m_Pan[ ch ][ m_nWaves[ ch ] ][ i ][ 0 ];
         foutR *= m_Pan[ ch ][ m_nWaves[ ch ] ][ i ][ 1 ];
 
-        // 38.8909 65.4064
-        m_Wave[ ch ].phase[ i ] += 38.8909 * powf( 2.0, inputs[ IN_VOCT + ch ].value ) + m_Detune[ ch ][ m_nWaves[ ch ] ][ i ];
+        // ( 32.7032 is C1 ) ( 4186.01 is C8)
+        m_Wave[ ch ].phase[ i ] += 32.7032f * clampf( powf( 2.0f, clampf( inputs[ IN_VOCT + ch ].value, 0.0f, VOCT_MAX ) ) + m_Detune[ ch ][ m_nWaves[ ch ] ][ i ], 0.0, 4186.01f );
 
         if( m_Wave[ ch ].phase[ i ] >= engineGetSampleRate() )
             m_Wave[ ch ].phase[ i ] = m_Wave[ ch ].phase[ i ] - engineGetSampleRate();
