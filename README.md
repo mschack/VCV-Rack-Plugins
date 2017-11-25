@@ -3,6 +3,8 @@
 (Note the release folder is in the mdsHack.zip Windows Only at the moment)
 
 # Updates
+- 25 Nov 17:
+	- improved buttons on multiple modules.
 - 24 Nov 17:
 	- (NEW) 4 Channel Master Clock (BPM, mult and div, chainable, humanize setting, sync buttons)
 	- fix 2x4 mixer solo/mute

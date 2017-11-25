@@ -51,15 +51,6 @@ struct SEQ_6x32x16 : Module
         nOUTPUTS     = OUT_BEAT1 + nCHANNELS
 	};
 
-	enum LightIds 
-    {
-        //LIGHT_COPY,
-        //LIGHT_RAND      = LIGHT_COPY + nCHANNELS,
-        //LIGHT_BILEVEL   = LIGHT_RAND + nCHANNELS,
-        //LIGHT_PAUSE     = LIGHT_BILEVEL + nCHANNELS,
-        nLIGHTS         //= LIGHT_PAUSE + nCHANNELS
-	};
-
     bool            m_bInitialized = false;
     CLog            lg;
 
@@ -105,7 +96,7 @@ struct SEQ_6x32x16 : Module
     bool                    m_bAutoPatChange[ nCHANNELS ] = {};
 
     // Contructor
-	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
 
     // Overrides 
 	void    step() override;
@@ -263,33 +254,20 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
         addParam(createParam<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_HI_KNOB + ch, 0.0, 1.0, 0.0 ) );
 
         // add buttons
-        
         module->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
 	    addChild( module->m_pButtonAutoPat[ ch ] );
 
-		//addParam(createParam<SEQ_6x32x16::MySquareButton_Pause>( Vec( x + 26, y + 10 ), module, SEQ_6x32x16::PARAM_PAUSE + ch, 0.0, 1.0, 0.0 ) );
-        //addChild(createLight<SmallLight<RedLight>>( Vec( x + 26 + 2, y + 10 + 3 ), module, SEQ_6x32x16::LIGHT_PAUSE + ch ) );
-
-        module->m_pButtonPause[ ch ] = new MyLEDButton( x + 26, y + 10, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_Pause );
+        module->m_pButtonPause[ ch ] = new MyLEDButton( x + 26, y + 10, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_Pause );
 	    addChild( module->m_pButtonPause[ ch ] );
 
         y2 = y + 34;
-		//addParam(createParam<SEQ_6x32x16::MySquareButton_CpyNxt>( Vec( x + 290, y2 ), module, SEQ_6x32x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-        //addChild(createLight<SmallLight<GreenLight>>( Vec( x + 290 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_COPY + ch ) );
-
-        module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_CpyNxt );
+        module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_CpyNxt );
 	    addChild( module->m_pButtonCopy[ ch ] );
 
-		//addParam(createParam<SEQ_6x32x16::MySquareButton_Rand>( Vec( x + 315, y2 ), module, SEQ_6x32x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-        //addChild(createLight<SmallLight<GreenLight>>( Vec( x + 315 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_RAND + ch ) );
-
-        module->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
+        module->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
 	    addChild( module->m_pButtonRand[ ch ] );
 
-		//addParam(createParam<SEQ_6x32x16::MySquareButton_BiLevel>( Vec( x + 425, y2 ), module, SEQ_6x32x16::PARAM_BILEVEL + ch, 0.0, 1.0, 0.0 ) );
-        //addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 425 + 2, y2 + 3 ), module, SEQ_6x32x16::LIGHT_BILEVEL + ch ) );
-
-        module->m_pButtonBiLevel[ ch ] = new MyLEDButton( x + 425, y2, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_BiLevel );
+        module->m_pButtonBiLevel[ ch ] = new MyLEDButton( x + 425, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_BiLevel );
 	    addChild( module->m_pButtonBiLevel[ ch ] );
 
         // add outputs

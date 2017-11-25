@@ -9,7 +9,7 @@
 #define CHANNEL_X 10
 
 #define MAX_nWAVES 7
-#define MAX_DETUNE 100 //Hz
+#define MAX_DETUNE 20 //Hz
 
 #define freqMAX 300.0f
 #define ADS_MAX_TIME_SECONDS 0.5f
@@ -94,12 +94,6 @@ struct Osc_3Ch : Module
         nOUTPUTS        = OUTPUT_AUDIO + (nCHANNELS * 2)
 	};
 
-	enum LightIds 
-    {
-        LIGHT_WAVE_SEL,
-        nLIGHTS         = LIGHT_WAVE_SEL + (nWAVEFORMS * nCHANNELS)
-	};
-
     enum ADRSTATES
     {
         ADR_OFF,
@@ -136,35 +130,10 @@ struct Osc_3Ch : Module
 
     int             m_nWaves[ nCHANNELS ] = {};
 
+    MyLEDButtonStrip *m_pButtonWaveSelect[ nCHANNELS ] = {};
+
     // Contructor
-	Osc_3Ch() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
-
-    //-----------------------------------------------------
-    // MyWaveButton
-    //-----------------------------------------------------
-    struct MyWaveButton : MySquareButton
-    {
-        int ch, but;
-        Osc_3Ch *mymodule;
-        int param;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Osc_3Ch*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                param = paramId - Osc_3Ch::PARAM_WAVES;
-                ch = param / nWAVEFORMS;
-                but = param - (ch * nWAVEFORMS);
-
-                mymodule->m_Wave[ ch ].wavetype = but;
-                mymodule->SetWaveLights();
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
+	Osc_3Ch() : Module( nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
 
     //-----------------------------------------------------
     // MynWaves_Knob
@@ -255,6 +224,17 @@ struct Osc_3Ch : Module
 };
 
 //-----------------------------------------------------
+// Osc_3Ch_WaveSelect
+//-----------------------------------------------------
+void Osc_3Ch_WaveSelect( void *pClass, int id, int nbutton, bool bOn )
+{
+    Osc_3Ch *mymodule;
+    mymodule = (Osc_3Ch*)pClass;
+
+    mymodule->m_Wave[ id ].wavetype = nbutton;
+}
+
+//-----------------------------------------------------
 // Procedure:   
 //
 //-----------------------------------------------------
@@ -298,7 +278,6 @@ void Osc_3Ch::fromJson(json_t *rootJ)
 			if (gateJ)
 				m_Wave[ i ].wavetype = json_integer_value( gateJ );
 		}
-	
     }
 
     // set up parameters
@@ -321,7 +300,7 @@ void Osc_3Ch::fromJson(json_t *rootJ)
 //-----------------------------------------------------
 Osc_3Ch_Widget::Osc_3Ch_Widget() 
 {
-    int ch, x, y, x2, y2, i;
+    int ch, x, y, x2, y2;
 	Osc_3Ch *module = new Osc_3Ch();
 	setModule(module);
 	box.size = Vec( 15*21, 380);
@@ -351,15 +330,11 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Osc_3Ch::IN_VOCT + ch ) );
         addInput(createInput<MyPortInSmall>( Vec( x, y + 43 ), module, Osc_3Ch::IN_TRIG + ch ) );
 
-        x2 = x + 33;
+        x2 = x + 32;
         y2 = y + 52;
 
-        for( i = 0; i < Osc_3Ch::nWAVEFORMS; i++ )
-        {
-            addParam(createParam<Osc_3Ch::MyWaveButton>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_WAVES + ( ch * Osc_3Ch::nWAVEFORMS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<YellowLight>>( Vec( x2 + 1, y2 + 2  ), module, Osc_3Ch::LIGHT_WAVE_SEL + ( ch * Osc_3Ch::nWAVEFORMS ) + i ) );
-            x2 += 16;
-        }
+        module->m_pButtonWaveSelect[ ch ] = new MyLEDButtonStrip( x2, y2, 11, 11, 5, 8.0, 5, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, Osc_3Ch_WaveSelect );
+	    addChild( module->m_pButtonWaveSelect[ ch ] );
 
         x2 = x + 24;
         y2 = y + 18;
@@ -447,15 +422,10 @@ void Osc_3Ch::randomize()
 //-----------------------------------------------------
 void Osc_3Ch::SetWaveLights( void )
 {
-    int i, ch;
+    int ch;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
-    {
-        for( i = 0; i < nWAVEFORMS; i++ )
-            lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + i ].value = 0.0;
-
-        lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + m_Wave[ ch ].wavetype ].value = 1.0;
-    }
+        m_pButtonWaveSelect[ ch ]->Set( m_Wave[ ch ].wavetype, true );
 }
 
 //-----------------------------------------------------

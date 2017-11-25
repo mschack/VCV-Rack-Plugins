@@ -56,12 +56,6 @@ struct PingPong : Module
         nOUTPUTS
 	};
 
-	enum LightIds 
-    {
-		LIGHT_REVERSE,
-        nLIGHTS
-	};
-
     enum FILTER_TYPES
     {
         FILTER_OFF,
@@ -70,6 +64,7 @@ struct PingPong : Module
         FILTER_BP,
      };
 
+    bool            m_bInitialized = false;
     CLog            lg;
 
     FILTER_PARAM_STRUCT m_Filter[ 2 ];
@@ -81,7 +76,6 @@ struct PingPong : Module
     int             m_DelayIn = 0;
     int             m_DelayOut[ 2 ] = {0};
 
-    float           m_fLightReverse = 0.0;
     bool            m_bReverseState = false;
 
     // sync clock
@@ -94,8 +88,10 @@ struct PingPong : Module
     int             m_LastDelayKnob[ 2 ] = {};
     bool            m_bWasSynced = false;
 
+    MyLEDButton     *m_pButtonReverse = NULL;
+
     // Contructor
-	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
 
     // Overrides 
 	void    step() override;
@@ -107,6 +103,29 @@ struct PingPong : Module
     void    ChangeFilterCutoff( float cutfreq );
     float   Filter( int ch, float in );
 };
+
+//-----------------------------------------------------
+// PingPong_Reverse
+//-----------------------------------------------------
+void PingPong_Reverse( void *pClass, int id, bool bOn ) 
+{
+    float delay;
+    PingPong *mymodule;
+    mymodule = (PingPong*)pClass;
+
+    mymodule->m_bReverseState = !mymodule->m_bReverseState;
+    mymodule->m_pButtonReverse->Set( mymodule->m_bReverseState );
+
+    // recalc delay offsets when going back to forward mode
+    if( !mymodule->m_bReverseState )
+    {
+        delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+        mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
+
+        delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+        mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
+    }
+}
 
 //-----------------------------------------------------
 // MyEQHi_Knob
@@ -125,39 +144,6 @@ struct MyCutoffKnob : Green1_Big
         }
 
 		RoundKnob::onChange( e );
-	}
-};
-
-//-----------------------------------------------------
-// MySquareButton_Reverse
-//-----------------------------------------------------
-struct MySquareButton_Reverse : MySquareButton2
-{
-    float delay;
-
-    PingPong *mymodule;
-
-    void onChange( EventChange &e ) override 
-    {
-        mymodule = (PingPong*)module;
-
-        if( mymodule && value == 1.0 )
-        {
-            mymodule->m_bReverseState = !mymodule->m_bReverseState;
-            mymodule->m_fLightReverse = mymodule->m_bReverseState ? 1.0 : 0.0;
-
-            // recalc delay offsets when going back to forward mode
-            if( !mymodule->m_bReverseState )
-            {
-                delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
-                mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
-
-                delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
-                mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
-            }
-        }
-
-		MomentarySwitch::onChange( e );
 	}
 };
 
@@ -220,8 +206,8 @@ PingPong_Widget::PingPong_Widget()
     addParam(createParam<Red1_Med>( Vec( 49, 308 ), module, PingPong::PARAM_LEVEL_FB_RR, 0.0, 1.0, 0.0 ) );
 
     // reverse button
-    addParam(createParam<MySquareButton_Reverse>( Vec( 17, 343 ), module, PingPong::PARAM_REVERSE, 0.0, 1.0, 0.0 ) );
-    addChild(createLight<SmallLight<RedLight>>( Vec( 20, 347 ), module, PingPong::LIGHT_REVERSE ) );
+    module->m_pButtonReverse = new MyLEDButton( 17, 343, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, PingPong_Reverse );
+	addChild( module->m_pButtonReverse );
 }
 
 //-----------------------------------------------------
@@ -230,7 +216,7 @@ PingPong_Widget::PingPong_Widget()
 //-----------------------------------------------------
 void PingPong::reset()
 {
-    m_fLightReverse = 0.0;
+    m_pButtonReverse->Set( false );
     m_bReverseState = false;
 }
 
@@ -268,7 +254,7 @@ void PingPong::fromJson(json_t *rootJ)
 	if (revJ)
 		m_bReverseState = json_is_true( revJ );
 
-    m_fLightReverse = m_bReverseState ? 1.0 : 0.0;
+    m_pButtonReverse->Set( m_bReverseState );
 }
 
 //-----------------------------------------------------

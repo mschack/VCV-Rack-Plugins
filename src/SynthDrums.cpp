@@ -85,12 +85,6 @@ struct SynthDrums : Module
         nOUTPUTS        = OUTPUT_AUDIO + nCHANNELS
 	};
 
-	enum LightIds 
-    {
-        LIGHT_WAVE_SEL,
-        nLIGHTS         = LIGHT_WAVE_SEL + (nWAVEFORMS * nCHANNELS)
-	};
-
     enum ADSRSTATES
     {
         ADSR_OFF,
@@ -106,11 +100,13 @@ struct SynthDrums : Module
 
     OSC_PARAM_STRUCT m_Wave[ nCHANNELS ] = {};
 
+    MyLEDButtonStrip *m_pButtonWaveSelect[ nCHANNELS ] = {};
+
     // waveforms
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
 
     // Contructor
-	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
+	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
 
     //-----------------------------------------------------
     // MyParamKnob
@@ -138,33 +134,6 @@ struct SynthDrums : Module
 	    }
     };
 
-    //-----------------------------------------------------
-    // MyWaveButton
-    //-----------------------------------------------------
-    struct MyWaveButton : MySquareButton
-    {
-        int ch, but;
-        SynthDrums *mymodule;
-        int param;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (SynthDrums*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                param = paramId - SynthDrums::PARAM_WAVES;
-                ch = param / nWAVEFORMS;
-                but = param - (ch * nWAVEFORMS);
-
-                mymodule->m_Wave[ ch ].wavetype = but;
-                mymodule->SetWaveLights();
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
-
     // Overrides 
 	void    step() override;
     json_t* toJson() override;
@@ -180,6 +149,16 @@ struct SynthDrums : Module
     float   ProcessADS( int ch, bool bWave );
     float   GetAudio( int ch );
 };
+
+//-----------------------------------------------------
+// SynthDrums_WaveSelect
+//-----------------------------------------------------
+void SynthDrums_WaveSelect( void *pClass, int id, int nbutton, bool bOn )
+{
+    SynthDrums *mymodule;
+    mymodule = (SynthDrums*)pClass;
+    mymodule->m_Wave[ id ].wavetype = nbutton;
+}
 
 //-----------------------------------------------------
 // Procedure:   
@@ -236,7 +215,7 @@ void SynthDrums::fromJson(json_t *rootJ)
 //-----------------------------------------------------
 SynthDrums_Widget::SynthDrums_Widget() 
 {
-    int ch, x, y, i;
+    int ch, x, y;
 	SynthDrums *module = new SynthDrums();
 	setModule(module);
 	box.size = Vec( 15*11, 380);
@@ -272,12 +251,9 @@ SynthDrums_Widget::SynthDrums_Widget()
         x += 32;
         y += 7;
 
-        for( i = 0; i < SynthDrums::nWAVEFORMS; i++ )
-        {
-            addParam(createParam<SynthDrums::MyWaveButton>( Vec( x, y ), module, SynthDrums::PARAM_WAVES + ( ch * SynthDrums::nWAVEFORMS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<YellowLight>>( Vec( x + 1, y + 2  ), module, SynthDrums::LIGHT_WAVE_SEL + ( ch * SynthDrums::nWAVEFORMS ) + i ) );
-            x += 16;
-        }
+        // wave select buttons
+        module->m_pButtonWaveSelect[ ch ] = new MyLEDButtonStrip( x, y, 11, 11, 5, 8.0, 5, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, SynthDrums_WaveSelect );
+	    addChild( module->m_pButtonWaveSelect[ ch ] );
 
         x = CHANNEL_X + 25;
         y -= 34;
@@ -341,15 +317,10 @@ void SynthDrums::randomize()
 //-----------------------------------------------------
 void SynthDrums::SetWaveLights( void )
 {
-    int i, ch;
+    int ch;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
-    {
-        for( i = 0; i < nWAVEFORMS; i++ )
-            lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + i ].value = 0.0;
-
-        lights[ LIGHT_WAVE_SEL + ( ch * nWAVEFORMS ) + m_Wave[ ch ].wavetype ].value = 1.0;
-    }
+        m_pButtonWaveSelect[ ch ]->Set( m_Wave[ ch ].wavetype, true );
 }
 
 //-----------------------------------------------------
