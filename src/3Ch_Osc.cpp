@@ -230,68 +230,7 @@ void Osc_3Ch_WaveSelect( void *pClass, int id, int nbutton, bool bOn )
 {
     Osc_3Ch *mymodule;
     mymodule = (Osc_3Ch*)pClass;
-
     mymodule->m_Wave[ id ].wavetype = nbutton;
-}
-
-//-----------------------------------------------------
-// Procedure:   
-//
-//-----------------------------------------------------
-json_t *Osc_3Ch::toJson() 
-{
-    json_t *gatesJ;
-	json_t *rootJ = json_object();
-
-    // wavetypes
-	gatesJ = json_array();
-
-	for (int i = 0; i < nCHANNELS; i++)
-    {
-		json_t *gateJ = json_integer( m_Wave[ i ].wavetype );
-		json_array_append_new( gatesJ, gateJ );
-	}
-
-	json_object_set_new( rootJ, "wavetypes", gatesJ );
-
-	return rootJ;
-}
-
-//-----------------------------------------------------
-// Procedure:   fromJson
-//
-//-----------------------------------------------------
-void Osc_3Ch::fromJson(json_t *rootJ) 
-{
-    int i;
-    json_t *StepsJ;
-
-    // wave select
-	StepsJ = json_object_get( rootJ, "wavetypes" );
-
-	if (StepsJ) 
-    {
-		for ( i = 0; i < nCHANNELS; i++)
-        {
-			json_t *gateJ = json_array_get(StepsJ, i);
-
-			if (gateJ)
-				m_Wave[ i ].wavetype = json_integer_value( gateJ );
-		}
-    }
-
-    // set up parameters
-    for ( i = 0; i < nCHANNELS; i++)
-    {
-        m_nWaves[ i ] = (int)( params[ PARAM_nWAVES + i ].value * (float)(MAX_nWAVES - 1) );
-               
-        m_SpreadIn[ i ] = params[ PARAM_SPREAD + i ].value;
-        CalcSpread( i );
-        m_DetuneIn[ i ] = params[ PARAM_DETUNE + i ].value;
-        CalcDetune( i );
-    }
-
-    SetWaveLights();
 }
 
 //-----------------------------------------------------
@@ -390,6 +329,66 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
 
     module->BuildWaves();
     module->SetWaveLights();
+}
+
+//-----------------------------------------------------
+// Procedure:   
+//
+//-----------------------------------------------------
+json_t *Osc_3Ch::toJson() 
+{
+    json_t *gatesJ;
+	json_t *rootJ = json_object();
+
+    // wavetypes
+	gatesJ = json_array();
+
+	for (int i = 0; i < nCHANNELS; i++)
+    {
+		json_t *gateJ = json_integer( m_Wave[ i ].wavetype );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "wavetypes", gatesJ );
+
+	return rootJ;
+}
+
+//-----------------------------------------------------
+// Procedure:   fromJson
+//
+//-----------------------------------------------------
+void Osc_3Ch::fromJson(json_t *rootJ) 
+{
+    int i;
+    json_t *StepsJ;
+
+    // wave select
+	StepsJ = json_object_get( rootJ, "wavetypes" );
+
+	if (StepsJ) 
+    {
+		for ( i = 0; i < nCHANNELS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				m_Wave[ i ].wavetype = json_integer_value( gateJ );
+		}
+    }
+
+    // set up parameters
+    for ( i = 0; i < nCHANNELS; i++)
+    {
+        m_nWaves[ i ] = (int)( params[ PARAM_nWAVES + i ].value * (float)(MAX_nWAVES - 1) );
+               
+        m_SpreadIn[ i ] = params[ PARAM_SPREAD + i ].value;
+        CalcSpread( i );
+        m_DetuneIn[ i ] = params[ PARAM_DETUNE + i ].value;
+        CalcDetune( i );
+    }
+
+    SetWaveLights();
 }
 
 //-----------------------------------------------------

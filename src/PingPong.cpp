@@ -207,6 +207,8 @@ PingPong_Widget::PingPong_Widget()
     // reverse button
     module->m_pButtonReverse = new MyLEDButton( 17, 343, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, PingPong_Reverse );
 	addChild( module->m_pButtonReverse );
+
+    module->m_bInitialized = true;
 }
 
 //-----------------------------------------------------
