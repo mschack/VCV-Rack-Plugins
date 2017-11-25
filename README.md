@@ -5,6 +5,7 @@
 # Updates
 - 25 Nov 17:
 	- improved buttons on multiple modules.
+	- fixed LED Meters randomly not working.
 - 24 Nov 17:
 	- (NEW) 4 Channel Master Clock (BPM, mult and div, chainable, humanize setting, sync buttons)
 	- fix 2x4 mixer solo/mute

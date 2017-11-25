@@ -1094,10 +1094,6 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
 			nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
 			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
 			nvgLineTo(vg, xi, m_RectsMaxPat[ i ].y2 );
-			/*nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y2 );
-			nvgLineTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );*/
 			nvgClosePath(vg);
 		    nvgFill(vg);
 
@@ -1200,8 +1196,9 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
 const float fleveldb[ nDISPLAY_LEDS ] = { 0, 3, 6, 10, 20, 30, 40, 50, 60, 80 };
 struct CompressorLEDMeterWidget : TransparentWidget 
 {
+    bool            m_bInitialized = false;
     bool            m_bOn[ nDISPLAY_LEDS ] = {};
-    int             m_StepCount;
+    int             m_StepCount = 0;
     float           m_fLargest = 0;
     RECT_STRUCT     m_Rects[ nDISPLAY_LEDS ];
     RGB_STRUCT      m_ColourOn;
@@ -1237,6 +1234,8 @@ struct CompressorLEDMeterWidget : TransparentWidget
 
             y += ( h + 2 );
         }
+
+        m_bInitialized = true;
     }
 
     //-----------------------------------------------------
@@ -1245,6 +1244,9 @@ struct CompressorLEDMeterWidget : TransparentWidget
     void draw(NVGcontext *vg) override
     {
         int i;
+
+        if( !m_bInitialized )
+            return;
 
 		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
 		nvgBeginPath(vg);
@@ -1279,6 +1281,9 @@ struct CompressorLEDMeterWidget : TransparentWidget
     {
         int steptime = (int)( engineGetSampleRate() * 0.05 );
         int i;
+
+        if( !m_bInitialized )
+            return;
 
         if( fabs( level ) > m_fLargest )
             m_fLargest = fabs( level );
@@ -1319,9 +1324,10 @@ struct CompressorLEDMeterWidget : TransparentWidget
 //-----------------------------------------------------
 struct LEDMeterWidget : TransparentWidget 
 {
+    bool            m_bInitialized = false;
     bool            m_bOn[ nDISPLAY_LEDS ] = {};
     int             m_space;
-    int             m_StepCount;
+    int             m_StepCount = 0;
     bool            m_bVert;
     float           m_fLargest = 0.0;
     RECT_STRUCT     m_Rects[ nDISPLAY_LEDS ];
@@ -1381,6 +1387,8 @@ struct LEDMeterWidget : TransparentWidget
             xpos += xoff;
             ypos += yoff;
         }
+
+        m_bInitialized = true;
     }
 
     //-----------------------------------------------------
@@ -1389,6 +1397,9 @@ struct LEDMeterWidget : TransparentWidget
     void draw(NVGcontext *vg) override
     {
         int i;
+
+        if( !m_bInitialized )
+            return;
 
 		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
 		nvgBeginPath(vg);
@@ -1423,6 +1434,9 @@ struct LEDMeterWidget : TransparentWidget
     {
         int steptime = (int)( engineGetSampleRate() * 0.05 );
         int i;
+
+        if( !m_bInitialized )
+            return;
 
         if( fabs( level ) > m_fLargest )
             m_fLargest = fabs( level );

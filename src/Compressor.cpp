@@ -43,12 +43,6 @@ struct Compressor : Module
         nOUTPUTS
 	};
 
-	enum LightIds 
-    {
-		LIGHT_BYPASS,
-        nLIGHTS
-	};
-
     enum CompState
     {
         COMP_IDLE,
@@ -67,34 +61,13 @@ struct Compressor : Module
     LEDMeterWidget  *m_pLEDMeterOut[ 2 ] = {0};
 
     bool            m_bBypass = false;
+    MyLEDButton     *m_pButtonBypass = NULL;
 
     COMP_STATE      m_CompL = {};
     COMP_STATE      m_CompR = {};
 
-    //-----------------------------------------------------
-    // MySquareButton_Bypass
-    //-----------------------------------------------------
-    struct MySquareButton_Bypass : MySquareButton
-    {
-        Compressor *mymodule;
-
-        void onChange( EventChange &e ) override 
-        {
-            mymodule = (Compressor*)module;
-
-            if( mymodule && value == 1.0 )
-            {
-                mymodule->m_bBypass = !mymodule->m_bBypass;
-                mymodule->lights[ LIGHT_BYPASS ].value = mymodule->m_bBypass ? 1.0 : 0.0;
-            }
-
-		    MomentarySwitch::onChange( e );
-	    }
-    };
-
-
     // Contructor
-	Compressor() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
+	Compressor() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
 
     // Overrides 
 	void    step() override;
@@ -106,6 +79,16 @@ struct Compressor : Module
     bool    ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold );
     void    Compress( float *inL, float *inR, float *outDiffL, float *outDiffR );
 };
+
+//-----------------------------------------------------
+// Compressor_Bypass
+//-----------------------------------------------------
+void Compressor_Bypass( void *pClass, int id, bool bOn ) 
+{
+    Compressor *mymodule;
+    mymodule = (Compressor*)pClass;
+    mymodule->m_bBypass = bOn;
+}
 
 //-----------------------------------------------------
 // Procedure:   Widget
@@ -135,8 +118,8 @@ Compressor_Widget::Compressor_Widget()
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // bypass switch
-    addParam(createParam<Compressor::MySquareButton_Bypass>( Vec( x, y ), module, Compressor::PARAM_BYPASS, 0.0, 1.0, 0.0 ) );
-    addChild(createLight<SmallLight<RedLight>>( Vec( x + 2, y + 2 ), module, Compressor::LIGHT_BYPASS ) );
+    module->m_pButtonBypass = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, Compressor_Bypass );
+	addChild( module->m_pButtonBypass );
 
     // audio inputs
     addInput(createInput<MyPortInSmall>( Vec( x, y + 32 ), module, Compressor::IN_AUDIOL ) );
@@ -206,7 +189,7 @@ void Compressor::fromJson(json_t *rootJ)
 	if (revJ)
 		m_bBypass = json_is_true( revJ );
 
-    lights[ LIGHT_BYPASS ].value = m_bBypass ? 1.0 : 0.0;
+    m_pButtonBypass->Set( m_bBypass );
 }
 
 //-----------------------------------------------------

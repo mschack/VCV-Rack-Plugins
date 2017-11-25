@@ -113,8 +113,7 @@ void PingPong_Reverse( void *pClass, int id, bool bOn )
     PingPong *mymodule;
     mymodule = (PingPong*)pClass;
 
-    mymodule->m_bReverseState = !mymodule->m_bReverseState;
-    mymodule->m_pButtonReverse->Set( mymodule->m_bReverseState );
+    mymodule->m_bReverseState = bOn;
 
     // recalc delay offsets when going back to forward mode
     if( !mymodule->m_bReverseState )
@@ -216,6 +215,9 @@ PingPong_Widget::PingPong_Widget()
 //-----------------------------------------------------
 void PingPong::reset()
 {
+    if( !m_bInitialized )
+        return;
+
     m_pButtonReverse->Set( false );
     m_bReverseState = false;
 }
@@ -354,6 +356,9 @@ void PingPong::step()
     float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0;
     bool bMono = false;
     int i, dR, dL;
+
+    if( !m_bInitialized )
+        return;
 
     dL = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
     dR = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
