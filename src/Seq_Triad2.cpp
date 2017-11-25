@@ -863,7 +863,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
         m_pPatternSelect[ i ]->SetMax( m_nSteps[ i ] );
         m_pPatternSelect[ i ]->SetPat( m_CurrentPattern[ i ], false );
 
-        lights[ LIGHT_PAUSE + i ].value = m_bPause ? 1.0 : 0.0;
+        lights[ LIGHT_PAUSE + i ].value = m_bPause[ i ] ? 1.0 : 0.0;
 
         SetSteps( i, m_nSteps[ i ] );
         SetPhraseSteps( i, m_PhrasesUsed[ i ] );

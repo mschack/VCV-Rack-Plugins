@@ -5,6 +5,9 @@
 # Updates
 - 24 Nov 17:
 	- (NEW) 4 Channel Master Clock (BPM, mult and div, chainable, humanize setting, sync buttons)
+	- fix 2x4 mixer solo/mute
+	- fix triad sequencer keyboard bug
+	- fix OSC 3 crash when VOCT offset push note into to high a range, and fix osc tuning.
 - 22 Nov 17:
 	- Fixed random crash of OSC 3 when loading.
 	- Added "Beat 0" auto increment pattern button.
@@ -20,8 +23,9 @@
 - 4 Channel Master Clock
 - 3 Channel 16 Step Programmable Sequencer.
 - 6 Channel 32 Step Sequencer
+- Mixer 4x4 (old) (GOING OBSOLETE!!!)
 - Mixer 1x4, 2x4 and 4x4 (with EQ, 4xAUX buses, and 2 x amplification )
-- Triad Sequencer
+- Triad Sequencer (GOING OBSOLETE!!!)
 - Triad Sequencer (Type 2), with Independantly clocked channels
 - Synth Drums
 - 3 Channel Oscillator with Filter and Amp Envelope (latest has multi oscillator capability)
