@@ -6,7 +6,7 @@
 - 26 Nov 17:
 	- Added Freq CV to Synth Drums.
 	- Added Notch filters to 3xOSC and Ping Pong Delay.
-	- 6x32 sequencer now saves max step with each saved pattern.
+	- 6x32 sequencer and triad2 now can have different max steps per saved pattern.
 - 25 Nov 17:
 	- improved buttons on multiple modules.
 	- fixed LED Meters randomly not working.

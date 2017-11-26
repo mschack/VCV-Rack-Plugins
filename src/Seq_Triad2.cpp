@@ -85,7 +85,7 @@ struct Seq_Triad2 : Module
     PatternSelectStrip *m_pPhraseSelect[ nKEYBOARDS ] = {};
 
     // number of steps
-    int             m_nSteps[ nKEYBOARDS ] = {};    
+    int             m_nSteps[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};    
 
     // pause button
     bool            m_bPause[ nKEYBOARDS ] = {};
@@ -97,6 +97,7 @@ struct Seq_Triad2 : Module
     // global triggers
     SchmittTrigger  m_SchTrigGlobalClkReset;
     SchmittTrigger  m_SchTrigGlobalPatChange;
+    bool            m_GlobalClkResetPending = false;
 
     // glide
     float           m_fglideInc[ nKEYBOARDS ] = {};
@@ -202,7 +203,7 @@ void Seq_Triad2_Widget_PatternChangeCallback ( void *pClass, int kb, int pat, in
 
     if( mymodule->m_CurrentPattern[ kb ] != pat )
         mymodule->ChangePattern( kb, pat, false );
-    else if( mymodule->m_nSteps[ kb ] != max )
+    else if( mymodule->m_nSteps[ kb ][ mymodule->m_CurrentPhrase[ kb ] ] != max )
         mymodule->SetSteps( kb, max );
 }
 
@@ -316,12 +317,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 
     module->m_bInitialized = true;
 
-    for( kb = 0; kb < nKEYBOARDS; kb++ )
-    {
-        module->SetPhraseSteps( 0, 3 );
-        module->ChangePattern( 0, 0, true );
-        module->ChangePhrase( 0, 0, true );
-    }
+    reset();
 }
 
 //-----------------------------------------------------
@@ -342,10 +338,12 @@ void Seq_Triad2::reset()
     
     for( int kb = 0; kb < nKEYBOARDS; kb++ )
     {
+        for( int pat = 0; pat < nPHRASE_SAVES; pat++ )
+            m_nSteps[ kb ][ pat ] = 3;
+
         SetPhraseSteps( kb, 3 );
-        SetSteps( kb, 16 );
-        ChangePattern( 0, 0, true );
-        ChangePhrase( 0, 0, true );
+        ChangePattern( kb, 0, true );
+        ChangePhrase( kb, 0, true );
     }
 }
 
@@ -411,7 +409,7 @@ void Seq_Triad2::SetSteps( int kb, int nSteps )
     if( nSteps < 0 || nSteps >= nPATTERNS )
         nSteps = 0;
 
-    m_nSteps[ kb ] = nSteps;
+    m_nSteps[ kb ][ m_CurrentPhrase[ kb ] ] = nSteps;
 }
 
 //-----------------------------------------------------
@@ -511,6 +509,8 @@ void Seq_Triad2::ChangePhrase( int kb, int index, bool bForce )
     m_CurrentPhrase[ kb ] = index;
 
     m_pPhraseSelect[ kb ]->SetPat( index, false );
+    m_pPhraseSelect[ kb ]->SetMax( m_PhrasesUsed[ kb ] );
+    m_pPatternSelect[ kb ]->SetMax( m_nSteps[ kb ][ index ] );
 
     // set keyboard key
     SetKey( kb );
@@ -585,11 +585,11 @@ json_t *Seq_Triad2::toJson()
 	json_object_set_new( rootJ, "m_bPause", gatesJ );
 
     // number of steps
-    pint = (int*)&m_nSteps[ 0 ];
+    pint = (int*)&m_nSteps[ 0 ][ 0 ];
 
 	gatesJ = json_array();
 
-	for (int i = 0; i < nKEYBOARDS; i++)
+	for (int i = 0; i < nKEYBOARDS * nPHRASE_SAVES; i++)
     {
 		json_t *gateJ = json_integer( pint[ i ] );
 		json_array_append_new( gatesJ, gateJ );
@@ -693,12 +693,12 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 	}
 
     // number of steps
-    pint = (int*)&m_nSteps[ 0 ];
+    pint = (int*)&m_nSteps[ 0 ][ 0 ];
 	StepsJ = json_object_get( rootJ, "m_nSteps" );
 
 	if (StepsJ) 
     {
-		for ( i = 0; i < nKEYBOARDS; i++)
+		for ( i = 0; i < nKEYBOARDS * nPHRASE_SAVES; i++)
         {
 			json_t *gateJ = json_array_get(StepsJ, i);
 
@@ -790,12 +790,11 @@ void Seq_Triad2::fromJson(json_t *rootJ)
         m_pPhraseSelect[ i ]->SetMax( m_PhrasesUsed[ i ] );
         m_pPhraseSelect[ i ]->SetPat( m_CurrentPhrase[ i ], false );
 
-        m_pPatternSelect[ i ]->SetMax( m_nSteps[ i ] );
+        m_pPatternSelect[ i ]->SetMax( m_nSteps[ i ][ m_CurrentPhrase[ i ] ] );
         m_pPatternSelect[ i ]->SetPat( m_CurrentPattern[ i ], false );
 
         m_pButtonPause[ i ]->Set( m_bPause[ i ] );
 
-        SetSteps( i, m_nSteps[ i ] );
         SetPhraseSteps( i, m_PhrasesUsed[ i ] );
         ChangePhrase( i, m_CurrentPhrase[ i ], true );
         ChangePattern( i, m_CurrentPattern[ i ], true );
@@ -810,7 +809,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 void Seq_Triad2::step() 
 {
     int kb;
-    bool bGlobalPatChange = false, bClkReset = false;
+    bool bGlobalPatChange = false, bGlobalClkTriggered = false;
 
     if( !m_bInitialized )
         return;
@@ -826,7 +825,7 @@ void Seq_Triad2::step()
     if( inputs[ IN_CLOCK_RESET ].active )
     {
 	    if( m_SchTrigGlobalClkReset.process( inputs[ IN_CLOCK_RESET ].value ) )
-            bClkReset = true;
+            m_GlobalClkResetPending = true;
     }
 
     // process triggered phrase changes
@@ -848,11 +847,12 @@ void Seq_Triad2::step()
         {
             if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) ) 
             {
-                if( bClkReset )
+                if( m_GlobalClkResetPending )
                 {
+                    bGlobalClkTriggered = true;
                     m_CurrentPattern[ kb ] = -1;
                 }
-                else if( m_CurrentPattern[ kb ] >= ( m_nSteps[ kb ] ) )
+                else if( m_CurrentPattern[ kb ] >= ( m_nSteps[ kb ][ m_CurrentPhrase[ kb ] ] ) )
                 {
                     m_CurrentPattern[ kb ] = (nPATTERNS - 1);
                 }
@@ -894,4 +894,7 @@ void Seq_Triad2::step()
 
         outputs[ OUT_VOCTS + kb ].value = ( m_fCvStartOut[ kb ] * m_fglide[ kb ] ) + ( m_fCvEndOut[ kb ] * ( 1.0 - m_fglide[ kb ] ) );
     }
+
+    if( bGlobalClkTriggered )
+        m_GlobalClkResetPending = false;
 }
