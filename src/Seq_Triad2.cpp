@@ -7,7 +7,7 @@
 #define nKEYS       37
 #define nOCTAVESEL  4
 #define nPATTERNS   16
-#define nPHRASE_SAVES 4
+#define nPHRASE_SAVES 8
 #define SEMI ( 1.0f / 12.0f )
 
 typedef struct
