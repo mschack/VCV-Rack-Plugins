@@ -7,6 +7,7 @@
 	- Added Freq CV to Synth Drums.
 	- Added Notch filters to 3xOSC and Ping Pong Delay.
 	- 6x32 sequencer and triad2 now can have different max steps per saved pattern.
+	- Triad Sequencer now has 8 pattern saves.
 - 25 Nov 17:
 	- improved buttons on multiple modules.
 	- fixed LED Meters randomly not working.
