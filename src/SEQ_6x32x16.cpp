@@ -63,7 +63,7 @@ struct SEQ_6x32x16 : Module
 
     SinglePatternClocked32  *m_pPatternDisplay[ nCHANNELS ] = {};
     int                     m_Pattern[ nCHANNELS ][ nPROG ][ nSTEPS ];
-    int                     m_MaxPat[ nCHANNELS ] = {};
+    int                     m_MaxPat[ nCHANNELS ][ nPROG ] = {};
 
     PatternSelectStrip      *m_pProgramDisplay[ nCHANNELS ] = {};
     int                     m_CurrentProg[ nCHANNELS ] = {};
@@ -174,8 +174,7 @@ void SEQ_6x32x16_PatternChangeCallback ( void *pClass, int ch, int pat, int leve
     if( !mymodule || !mymodule->m_bInitialized )
         return;
 
-    mymodule->m_MaxPat[ ch  ] = maxpat;
-
+    mymodule->m_MaxPat[ ch ][ mymodule->m_CurrentProg[ ch ] ] = maxpat;
     mymodule->m_Pattern[ ch ][ mymodule->m_CurrentProg[ ch ] ] [ pat ] = level;
 }
 
@@ -338,11 +337,11 @@ json_t *SEQ_6x32x16::toJson()
 	json_object_set_new( rootJ, "m_Pattern", gatesJ );
 
 	// m_MaxPat
-    pint = &m_MaxPat[ 0 ];
+    pint = &m_MaxPat[ 0 ][ 0 ];
 
 	gatesJ = json_array();
 
-	for (int i = 0; i < nCHANNELS; i++)
+	for (int i = 0; i < nCHANNELS * nPROG; i++)
     {
 		json_t *gateJ = json_integer( pint[ i ] );
 		json_array_append_new( gatesJ, gateJ );
@@ -450,13 +449,13 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 	}
 
 	// m_MaxPat
-    pint = &m_MaxPat[ 0 ];
+    pint = &m_MaxPat[ 0 ][ 0 ];
 
 	StepsJ = json_object_get(rootJ, "m_MaxPat");
 
 	if (StepsJ) 
     {
-		for (int i = 0; i < nCHANNELS; i++)
+		for (int i = 0; i < nCHANNELS * nPROG; i++)
         {
 			json_t *gateJ = json_array_get(StepsJ, i);
 
@@ -520,7 +519,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
         m_pButtonBiLevel[ ch ]->Set( m_bBiLevelState[ ch ] );
 
         m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ m_CurrentProg[ ch ] ] );
-        m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ] );
+        m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ][ m_CurrentProg[ ch ] ] );
 
         m_pProgramDisplay[ ch ]->SetPat( m_CurrentProg[ ch ], false );
         m_pProgramDisplay[ ch ]->SetMax( m_MaxProg[ ch ] );
@@ -549,11 +548,13 @@ void SEQ_6x32x16::reset()
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_MaxPat[ ch ] = nSTEPS - 1;
+        for( int prog = 0; prog < nCHANNELS; prog++ )
+            m_MaxPat[ ch ][ prog ] = nSTEPS - 1;
+
         m_MaxProg[ ch ] = nPROG - 1;
 
         m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ 0 ] );
-        m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ] );
+        m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ][ 0 ] );
 
         m_pProgramDisplay[ ch ]->SetPat( 0, false );
         m_pProgramDisplay[ ch ]->SetMax( m_MaxProg[ ch ] );
@@ -637,6 +638,7 @@ void SEQ_6x32x16::ChangeProg( int ch, int prog, bool bforce )
     m_CurrentProg[ ch ] = prog;
 
     m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ prog ] );
+    m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ][ prog ] );
     m_pProgramDisplay[ ch ]->SetPat( prog, false );
 }
 

@@ -1821,6 +1821,7 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
         addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_02.svg")));
         addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_03.svg")));
         addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_04.svg")));
+        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_05.svg")));
 
 		sw->wrap();
 		box.size = sw->box.size;

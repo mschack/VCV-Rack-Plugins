@@ -110,6 +110,7 @@ struct Osc_3Ch : Module
         FILTER_LP,
         FILTER_HP,
         FILTER_BP,
+        FILTER_NT
      };
 
     bool            m_bInitialized = false;
@@ -294,7 +295,7 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         y2 = y + 56;
 
         addParam(createParam<Osc_3Ch::MynWaves_Knob>( Vec( x + 129, y + 11 ), module, Osc_3Ch::PARAM_nWAVES + ch, 0.0, 1.0, 0.0 ) );
-        addParam(createParam<Osc_3Ch::MyDetune_Knob>( Vec( x + 116, y + 48 ), module, Osc_3Ch::PARAM_DETUNE + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Osc_3Ch::MyDetune_Knob>( Vec( x + 116, y + 48 ), module, Osc_3Ch::PARAM_DETUNE + ch, 0.0, 0.05, 0.0 ) );
         addParam(createParam<Osc_3Ch::MySpread_Knob>( Vec( x + 116 + 28, y + 48 ), module, Osc_3Ch::PARAM_SPREAD + ch, 0.0, 1.0, 0.0 ) );
 
         // inputs
@@ -310,8 +311,8 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         // filter
         y2 = y + 6;
         x2 = x + 167; 
-        addParam(createParam<Green1_Big>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_CUTOFF + ch, 0.0, 0.4, 0.0 ) );
-        addParam(createParam<FilterSelectToggle>( Vec( x2 + 43, y2 + 2 ), module, Osc_3Ch::PARAM_FILTER_MODE + ch, 0.0, 3.0, 0.0 ) );
+        addParam(createParam<Green1_Big>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_CUTOFF + ch, 0.0, 0.1, 0.0 ) );
+        addParam(createParam<FilterSelectToggle>( Vec( x2 + 43, y2 + 2 ), module, Osc_3Ch::PARAM_FILTER_MODE + ch, 0.0, 4.0, 0.0 ) );
         addParam(createParam<Purp1_Med>( Vec( x2 + 46, y2 + 20 ), module, Osc_3Ch::PARAM_RES + ch, 0.0, 1.0, 0.0 ) );
 
         // main level
@@ -658,6 +659,9 @@ void Osc_3Ch::Filter( int ch, float *InL, float *InR )
             break;
         case FILTER_BP:
             out[ i ]  = bandpass;
+            break;
+        case FILTER_NT:
+            out[ i ]  = lowpass + highpass;
             break;
         default:
             break;

@@ -62,6 +62,7 @@ struct PingPong : Module
         FILTER_LP,
         FILTER_HP,
         FILTER_BP,
+        FILTER_NT
      };
 
     bool            m_bInitialized = false;
@@ -177,7 +178,7 @@ PingPong_Widget::PingPong_Widget()
 	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // Filter/Res knobs
-    addParam(createParam<FilterSelectToggle>( Vec( 66, 55 ), module, PingPong::PARAM_FILTER_MODE, 0.0, 3.0, 0.0 ) );
+    addParam(createParam<FilterSelectToggle>( Vec( 66, 55 ), module, PingPong::PARAM_FILTER_MODE, 0.0, 4.0, 0.0 ) );
     addParam(createParam<MyCutoffKnob>( Vec( 23, 60 ), module, PingPong::PARAM_CUTOFF, 0.0, 1.0, 0.0 ) );
     addParam(createParam<Purp1_Med>( Vec( 73, 79 ), module, PingPong::PARAM_Q, 0.0, 1.0, 0.0 ) );
  
@@ -340,6 +341,9 @@ float PingPong::Filter( int ch, float in )
         break;
     case FILTER_BP:
         out = bandpass;
+        break;
+    case FILTER_NT:
+        out  = lowpass + highpass;
         break;
     default:
         break;

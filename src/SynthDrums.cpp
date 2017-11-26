@@ -76,7 +76,8 @@ struct SynthDrums : Module
     {
         IN_LEVEL,
         IN_TRIG         = IN_LEVEL + nCHANNELS,
-        nINPUTS         = IN_TRIG + nCHANNELS,
+        IN_FREQ_MOD     = IN_TRIG + nCHANNELS,
+        nINPUTS         = IN_FREQ_MOD + nCHANNELS
 	};
 
 	enum OutputIds 
@@ -241,6 +242,9 @@ SynthDrums_Widget::SynthDrums_Widget()
     {
         x = CHANNEL_X;
 
+        // IN_FREQ_MOD
+        addInput(createInput<MyPortInSmall>( Vec( x + 48, y ), module, SynthDrums::IN_FREQ_MOD + ch ) );
+
         // inputs
         addInput(createInput<MyPortInSmall>( Vec( x, y ), module, SynthDrums::IN_LEVEL + ch ) );
 
@@ -274,7 +278,7 @@ SynthDrums_Widget::SynthDrums_Widget()
 
         // outputs
         addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, SynthDrums::OUTPUT_AUDIO + ch ) );
-        
+
         y += CHANNEL_H;
     }
 
@@ -559,24 +563,26 @@ float SynthDrums::Filter( int ch, float in, bool bHighPass )
 //-----------------------------------------------------
 float SynthDrums::GetAudio( int ch )
 {
-    float fout = 0, fenv = 0.0, freq;
+    float fout = 0, fenv = 0.0, freq, freqmod;
 
     if( outputs[ OUTPUT_AUDIO + ch ].active )
     {
+        freqmod = clampf( inputs[ IN_FREQ_MOD + ch ].value / CV_MAX, 0.0f, 1.0f );
+
         // process our second envelope for hit
         fenv = ProcessADS( ch, false );
 
         // if noise then frequency affects the filter cutoff and not the wave frequency
         if( m_Wave[ ch ].wavetype == WAVE_NOISE )
         {
-            freq = clampf( ( params[ PARAM_FREQ + ch ].value + (fenv*2) ), 0.0, 1.0 );
+            freq = clampf( ( ( freqmod + params[ PARAM_FREQ + ch ].value ) + (fenv*2) ), 0.0, 1.0 );
 
             ChangeFilterCutoff( ch, freq );
         }
         // other signals the second ADS affects the frequency for the hit
         else
         {
-            m_Wave[ ch ].phase += 35 + ( params[ PARAM_FREQ + ch ].value * freqMAX ) + ( fenv * 400 );
+            m_Wave[ ch ].phase += 35 + ( ( freqmod + params[ PARAM_FREQ + ch ].value ) * freqMAX ) + ( fenv * 400 );
 
             if( m_Wave[ ch ].phase >= engineGetSampleRate() )
                 m_Wave[ ch ].phase = m_Wave[ ch ].phase - engineGetSampleRate();
