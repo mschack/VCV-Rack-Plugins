@@ -2,7 +2,7 @@
 
 (Note the release folder is in the mscHack.zip Windows Only at the moment)
 
-![Modules screenshot](./modules.png)
+![screenshot](./modules.png)
 
 # Updates
 - 26 Nov 17:
