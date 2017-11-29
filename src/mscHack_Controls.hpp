@@ -577,10 +577,11 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
         nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
 
 		nvgBeginPath( vg );
-		nvgMoveTo( vg, 0, 0 );
-		nvgLineTo( vg, box.size.x - 1, 0 );
-		nvgLineTo( vg, box.size.x - 1, box.size.y - 1 );
-		nvgLineTo( vg, 0, box.size.y - 1 );
+        nvgRect( vg, 0, 0, box.size.x - 1, box.size.y - 1 );
+		//nvgMoveTo( vg, 0, 0 );
+		//nvgLineTo( vg, box.size.x - 1, 0 );
+		//nvgLineTo( vg, box.size.x - 1, box.size.y - 1 );
+		//nvgLineTo( vg, 0, box.size.y - 1 );
 		nvgClosePath( vg );
 		nvgFill( vg );
 
@@ -593,10 +594,11 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
         yi = ( ( (float)m_Rect.y2 + (float)m_Rect.y ) / 2.0f ) - m_fLEDsize_d2 ;
 
 		nvgBeginPath( vg );
-        nvgMoveTo(vg, xi, yi );
-		nvgLineTo(vg, xi + m_fLEDsize, yi );
-		nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
-		nvgLineTo(vg, xi, yi + m_fLEDsize );
+        nvgRoundedRect( vg, xi, yi, m_fLEDsize, m_fLEDsize, 2.5 );
+        //nvgMoveTo(vg, xi, yi );
+		//nvgLineTo(vg, xi + m_fLEDsize, yi );
+		//nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
+		//nvgLineTo(vg, xi, yi + m_fLEDsize );
 		nvgClosePath( vg );
 		nvgFill( vg );
 	}
