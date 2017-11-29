@@ -2,7 +2,7 @@
 
 (Note the release folder is in the mscHack.zip Windows Only at the moment)
 
-![screenshot](./modules.png)
+![screenshot](./VCV-Rack-Plugins/modules.PNG)
 
 # Updates
 - 26 Nov 17:
