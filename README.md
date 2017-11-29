@@ -2,6 +2,8 @@
 
 (Note the release folder is in the mscHack.zip Windows Only at the moment)
 
+<img src="https://github.com/mschack/VCV-Rack-Plugins/blob/master/modules.png" width="100%">
+
 # Updates
 - 26 Nov 17:
 	- Added Freq CV to Synth Drums.
