@@ -5,6 +5,9 @@
 ![screenshot](./VCV-Rack-Plugins/modules.PNG)
 
 # Updates
+- 6 Dec 17:
+	- Added side chain input to compressor
+	- Fixes to compressor.
 - 26 Nov 17:
 	- Added Freq CV to Synth Drums.
 	- Added Notch filters to 3xOSC and Ping Pong Delay.

@@ -24,7 +24,7 @@ struct DarkRedValueLight : ModuleLightWidget
 {
 	DarkRedValueLight() 
     {
-		addBaseColor( nvgRGB(0x70, 0, 0x30) );;
+		addBaseColor( nvgRGB(0x70, 0, 0x30) );
 	}
 };
 
@@ -1281,7 +1281,7 @@ struct CompressorLEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     void Process( float level )
     {
-        int steptime = (int)( engineGetSampleRate() * 0.05 );
+        int steptime = (int)( engineGetSampleRate() * 0.05f );
         int i;
 
         if( !m_bInitialized )
@@ -1466,17 +1466,24 @@ struct LEDMeterWidget : TransparentWidget
 //-----------------------------------------------------
 struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
 {
-    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int note );
+    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn );
 
+#define nKEYS 37
+#define MAX_MULT_KEYS 16
+#define OCT_OFFSET_X 91
+
+    bool    m_bInitialized = false;
+    RGB_STRUCT m_rgb_white, m_rgb_black, m_rgb_on;
+    CLog *lg;
+    int m_MaxMultKeys = 1;
+    int m_KeySave[ MAX_MULT_KEYS ] = {0};
     int m_KeyOn = 0;
-    int m_LastKeyOn = 0;
-    int m_x, m_y;
-    RECT_STRUCT keyrects[ 37 ] ={};
+    RECT_STRUCT keyrects[ nKEYS ] ={};
     NOTECHANGECALLBACK *pNoteChangeCallback = NULL;
     void *m_pClass = NULL;
     int m_nKb;
 
-DRAW_VECT_STRUCT OctaveKeyDrawVects[ 37 ] = 
+DRAW_VECT_STRUCT OctaveKeyDrawVects[ nKEYS ] = 
 {
     { 6, { {1, 1}, {1, 62}, {12, 62}, {12, 39}, {7, 39}, {7, 1}, {0, 0}, {0, 0} } },
     { 4, { {8, 1}, {8, 38}, {16, 38}, {16, 1},  {0, 0},  {0, 0}, {0, 0}, {0, 0} } },
@@ -1492,48 +1499,45 @@ DRAW_VECT_STRUCT OctaveKeyDrawVects[ 37 ] =
     { 6, { {84, 1}, {84, 39}, {79, 39}, {79, 62}, {90, 62}, {90, 1}, {0, 0}, {0, 0} } },
 };
 
-int keysquare_x[ 37 ] = 
+int keysquare_x[ nKEYS ] = 
 {
     1, 8, 14, 23, 27, 40, 47, 53, 61, 66, 75, 79
 };
 
-DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]= 
+DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] = 
 {
     { 5, { {1, 1}, {1, 62}, {12, 62}, {12, 44}, {12, 1}, {0, 0}, {0, 0}, {0, 0} } }
 };
 
-#define OCT_OFFSET_X 91
-    bool    m_bInitialized = false;
-    bool    m_bForceChange = true;
-    RGB_STRUCT rgb_white, rgb_black, rgb_on;
-    CLog *lg;
-
     //-----------------------------------------------------
     // Procedure:   Constructor
     //-----------------------------------------------------
-    Keyboard_3Oct_Widget( int x, int y, int nKb, void *pClass, NOTECHANGECALLBACK *pcallback, CLog *plog )
+    Keyboard_3Oct_Widget( int x, int y, int maxkeysel, int nKb, unsigned int rgbon, void *pClass, NOTECHANGECALLBACK *pcallback, CLog *plog )
     {
         int i, j, oct = 0;
 
+        if( maxkeysel > MAX_MULT_KEYS )
+            return;
+
+        m_MaxMultKeys = maxkeysel;
         pNoteChangeCallback = pcallback;
         m_pClass = pClass;
         m_nKb = nKb;
-
-        m_x = x;
-        m_y = y;
+        m_KeyOn = -1;
+        m_rgb_on.dwCol = rgbon;
 
         lg = plog;
 
 		box.pos = Vec(x, y);
 
         // calc key rects and calculate the remainder of the key vec list
-        for( i = 0; i < 37; i++ )
+        for( i = 0; i < nKEYS; i++ )
         {
             if( i >= 12 )
             {
                 oct = i / 12;
 
-                if( i == 36 )
+                if( i == (nKEYS-1) )
                 {
                     // populate the rest of the key vect table based on the first octave
                     memcpy( &OctaveKeyDrawVects[ i ], &OctaveKeyHighC[ 0 ], sizeof(DRAW_VECT_STRUCT) ); 
@@ -1573,53 +1577,97 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]=
             }
         }
 
-        box.size = Vec( keyrects[ 36 ].x2, 62 );
+        box.size = Vec( keyrects[ (nKEYS-1) ].x2, 62 );
 
-        rgb_white.dwCol = DWRGB( 215, 207, 198 );
-        rgb_black.dwCol = 0;
-        rgb_on.dwCol = DWRGB( 217, 97, 38 );
+        m_rgb_white.dwCol = DWRGB( 215, 207, 198 );
+        m_rgb_black.dwCol = 0;
+        memset( m_KeySave, 0xFF, sizeof(m_KeySave) );
 
         m_bInitialized = true;
     }
 
     //-----------------------------------------------------
-    // Procedure:   drawkey
+    // Procedure:   addtokeylist
     //-----------------------------------------------------
-    void drawkey( NVGcontext *vg, int key, bool bOn )
+    void addtokeylist( int key )
     {
-        int i;
+        int templist[ MAX_MULT_KEYS ] = {0xFF}, small, ismall;
+        bool bOn = false, bChange = false;
 
-        if( !m_bInitialized )
-            return;
-
-        if( key < 0 || key >= 37 )
-            return;
-
-        if( bOn )
+        // single key
+        if( m_MaxMultKeys == 1 )
         {
-            nvgFillColor(vg, nvgRGB( rgb_on.Col[ 2 ], rgb_on.Col[ 1 ], rgb_on.Col[ 0 ] ) );
+            m_KeySave[ 0 ] = key;
+            bOn = true;
+            bChange = true;
         }
         else
         {
-            if( OctaveKeyDrawVects[ key ].nUsed == 4 )
-                nvgFillColor(vg, nvgRGB( rgb_black.Col[ 2 ], rgb_black.Col[ 1 ], rgb_black.Col[ 0 ] ) );
-            else
-                nvgFillColor(vg, nvgRGB( rgb_white.Col[ 2 ], rgb_white.Col[ 1 ], rgb_white.Col[ 0 ] ) );
+            // find duplicate key
+            for( int i = 0; i < m_MaxMultKeys; i++ )
+            {
+                // key was on, turn off
+                if( key == m_KeySave[ i ] )
+                {
+                    bChange = true;
+                    m_KeySave[ i ] = -1;
+                    break;
+                }
+            }
+
+            // new key, add it if there is a position available
+            if( !bChange )
+            {
+                // add key to list
+                for( int i = 0; i < m_MaxMultKeys; i++ )
+                {
+                    // put key into empty position
+                    if( m_KeySave[ i ] == -1 )
+                    {
+                        bOn = true;
+                        bChange = true;
+                        m_KeySave[ i ] = key;
+                    }
+                }
+            }
+
+            if( !bChange )
+                return;
+
+            memcpy( templist, m_KeySave, sizeof(m_KeySave) );
+            memset( m_KeySave, 0xFF, sizeof(m_KeySave) );
+
+            // ugly resort list
+            for( int i = 0; i < m_MaxMultKeys; i++ )
+            {
+                small = nKEYS + 1;
+                ismall = -1;
+
+                // find the next smallest key
+                for( int j = 0; j < m_MaxMultKeys; j++ )
+                {
+                    // find the smallest key
+                    if( ( templist[ j ] != -1 ) && ( templist[ j ] <= small ) )
+                    {
+                        small = templist[ j ];
+                        ismall = j;
+                    }
+                }
+
+                // we are finished
+                if( ismall == -1 )
+                    break;
+
+                // adding the next smallest to list
+                m_KeySave[ i ] = small;
+
+                // remove this value
+                templist[ ismall ] = -1;
+            }
         }
 
-        // draw key
-		nvgBeginPath(vg);
-
-        for( i = 0; i < OctaveKeyDrawVects[ key ].nUsed; i++ )
-        {
-            if( i == 0 )
-                nvgMoveTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
-            else
-		        nvgLineTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
-        }
-        
-        nvgClosePath(vg);
-		nvgFill(vg);
+        if( pNoteChangeCallback && bChange )
+            pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn );
     }
 
     //-----------------------------------------------------
@@ -1645,17 +1693,12 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]=
         if( !m_bInitialized )
             return;
 
-        //lg->f("Down x = %.3f, y = %.3f\n", pos.x, pos.y );
-
         // check black keys first they are on top
-        for( i = 0; i < 37; i++)
+        for( i = 0; i < nKEYS; i++)
         {
-            //lg->f("rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x, keyrects[ i ].y, keyrects[ i ].x2, keyrects[ i ].y2 );
             if( OctaveKeyDrawVects[ i ].nUsed == 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                if( pNoteChangeCallback )
-                    pNoteChangeCallback( m_pClass, m_nKb, i );
-                m_KeyOn = i;
+                addtokeylist( i );
                 dirty = true;
                 e.consumed = true;
                 return;
@@ -1663,17 +1706,11 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]=
         }
 
         // check white keys
-        for( i = 0; i < 37; i++)
+        for( i = 0; i < nKEYS; i++)
         {
-            //lg->f("rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x - m_x, keyrects[ i ].y, keyrects[ i ].x2 - m_x, keyrects[ i ].y2 );
             if( OctaveKeyDrawVects[ i ].nUsed != 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                //lg->f("found rect %d) x = %d, y = %d, x2 = %d, y2 = %d\n", i, keyrects[ i ].x - m_x, keyrects[ i ].y, keyrects[ i ].x2, keyrects[ i ].y2 );
-                //lg->f("white found!\n");
-                if( pNoteChangeCallback )
-                    pNoteChangeCallback( m_pClass, m_nKb, i );
-
-                m_KeyOn = i;
+                addtokeylist( i );
                 dirty = true;
                 e.consumed = true;
                 return;
@@ -1686,39 +1723,89 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ]=
     //-----------------------------------------------------
     // Procedure:   setkey
     //-----------------------------------------------------
-    void setkey( int key ) 
+    void setkey( int *pkey ) 
     {
-	    m_KeyOn = key;
+        memcpy( m_KeySave, pkey, sizeof( int ) * m_MaxMultKeys );
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   setkeyhighlight
+    //-----------------------------------------------------
+    void setkeyhighlight( int key ) 
+    {
+        m_KeyOn = key;
         dirty = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   step
     //-----------------------------------------------------
-    void step() override
+    /*void step() override
     {
 	    FramebufferWidget::step();
+    }*/
+
+    //-----------------------------------------------------
+    // Procedure:   drawkey
+    //-----------------------------------------------------
+    void drawkey( NVGcontext *vg, int key, bool bOn )
+    {
+        int i;
+
+        if( !m_bInitialized )
+            return;
+
+        if( key < 0 || key >= nKEYS )
+            return;
+
+        if( bOn )
+        {
+            // hilite on
+            if( key == m_KeyOn )
+                nvgFillColor( vg, nvgRGBA( m_rgb_on.Col[ 2 ], m_rgb_on.Col[ 1 ], m_rgb_on.Col[ 0 ], 0x80 ) );
+            // normal on
+            else
+                nvgFillColor( vg, nvgRGB( m_rgb_on.Col[ 2 ], m_rgb_on.Col[ 1 ], m_rgb_on.Col[ 0 ] ) );
+        }
+        else
+        {
+            if( OctaveKeyDrawVects[ key ].nUsed == 4 )
+                nvgFillColor( vg, nvgRGB( m_rgb_black.Col[ 2 ], m_rgb_black.Col[ 1 ], m_rgb_black.Col[ 0 ] ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_rgb_white.Col[ 2 ], m_rgb_white.Col[ 1 ], m_rgb_white.Col[ 0 ] ) );
+        }
+
+        // draw key
+		nvgBeginPath(vg);
+
+        for( i = 0; i < OctaveKeyDrawVects[ key ].nUsed; i++ )
+        {
+            if( i == 0 )
+                nvgMoveTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
+            else
+		        nvgLineTo(vg, (float)OctaveKeyDrawVects[ key ].p[ i ].fx, (float)OctaveKeyDrawVects[ key ].p[ i ].fy );
+        }
+        
+        nvgClosePath(vg);
+		nvgFill(vg);
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw( NVGcontext *vg ) override
     {
-        for( int key = 0; key < 37; key++ )
+        int key;
+
+        for( key = 0; key < nKEYS; key++ )
             drawkey( vg, key, false );
 
-        //don't draw if we don't have to
-        //if( m_KeyOn == m_LastKeyOn && !m_bForceChange )
-            //return;
-
-        m_bForceChange = false;
-        
-
-        //drawkey( vg, m_LastKeyOn, false );
-        drawkey( vg, m_KeyOn, true );
-
-        m_LastKeyOn = m_KeyOn;
+        for( key = 0; key < m_MaxMultKeys; key++ )
+        {
+            if( m_KeySave[ key ] != -1 )
+                drawkey( vg, m_KeySave[ key ], true );
+        }
 	}
 };
 
