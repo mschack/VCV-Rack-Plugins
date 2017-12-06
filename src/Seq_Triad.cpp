@@ -373,7 +373,7 @@ struct Seq_Triad : Module
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-void NoteChangeCallback ( void *pClass, int kb, int note )
+void NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn )
 {
     int i;
     Seq_Triad *mymodule = (Seq_Triad *)pClass;
@@ -387,12 +387,12 @@ void NoteChangeCallback ( void *pClass, int kb, int note )
     {
         for( i = 0; i < nPATTERNS; i++ )
         {
-            mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = note;
+            mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ i ].note = notepressed;
         }
     }
     else
     {
-        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = note;
+        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = notepressed;
     }
 
     mymodule->SetOut( kb );    
@@ -486,7 +486,7 @@ Seq_Triad_Widget::Seq_Triad_Widget()
         x = CHANNEL_X;
 
         // keyboard widget
-        module->pKeyboardWidget[ kb ] = new Keyboard_3Oct_Widget( x, y - 1, kb, module, NoteChangeCallback, &module->lg );
+        module->pKeyboardWidget[ kb ] = new Keyboard_3Oct_Widget( x, y - 1, 1, kb, DWRGB( 255, 128, 64 ), module, NoteChangeCallback, &module->lg );
 	    addChild( module->pKeyboardWidget[ kb ] );
 
         x = 55;
@@ -725,7 +725,7 @@ void Seq_Triad::SetOut( int kb )
 //-----------------------------------------------------
 void Seq_Triad::SetKey( int kb )
 {
-    pKeyboardWidget[ kb ]->setkey( m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note );
+    pKeyboardWidget[ kb ]->setkey( &m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern ].note );
 }
 
 //-----------------------------------------------------

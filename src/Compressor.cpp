@@ -26,6 +26,7 @@ struct Compressor : Module
         PARAM_ATTACK,
         PARAM_RELEASE,
         PARAM_BYPASS,
+        PARAM_SIDE_CHAIN,
         nPARAMS
     };
 
@@ -33,6 +34,7 @@ struct Compressor : Module
     {
         IN_AUDIOL,
         IN_AUDIOR,
+        IN_SIDE_CHAIN,
         nINPUTS 
 	};
 
@@ -45,11 +47,11 @@ struct Compressor : Module
 
     enum CompState
     {
-        COMP_IDLE,
+        COMP_DONE,
+        COMP_START,
         COMP_ATTACK,
         COMP_RELEASE,
-        COMP_FINISHED,
-        COMP_ON
+        COMP_IDLE
     };
 
     bool            m_bInitialized = false;
@@ -65,6 +67,7 @@ struct Compressor : Module
 
     COMP_STATE      m_CompL = {};
     COMP_STATE      m_CompR = {};
+    float           m_fThreshold;
 
     // Contructor
 	Compressor() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
@@ -77,7 +80,7 @@ struct Compressor : Module
     void    randomize() override;
 
     bool    ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold );
-    void    Compress( float *inL, float *inR, float *outDiffL, float *outDiffR );
+    float   Compress( float *pDetectInL, float *pDetectInR );
 };
 
 //-----------------------------------------------------
@@ -124,6 +127,7 @@ Compressor_Widget::Compressor_Widget()
     // audio inputs
     addInput(createInput<MyPortInSmall>( Vec( x, y + 32 ), module, Compressor::IN_AUDIOL ) );
     addInput(createInput<MyPortInSmall>( Vec( x, y + 78 ), module, Compressor::IN_AUDIOR ) );
+    addInput(createInput<MyPortInSmall>( Vec( x - 1, y + 210 ), module, Compressor::IN_SIDE_CHAIN ) );
 
     // LED meters
     module->m_pLEDMeterIn[ 0 ] = new LEDMeterWidget( x + 22, y + 25, 5, 3, 2, true );
@@ -150,12 +154,13 @@ Compressor_Widget::Compressor_Widget()
 
     // add param knobs
     y2 = y + 149;
-    addParam(createParam<Yellow1_Small>( Vec( x + 11, y + 113 ), module, Compressor::PARAM_INGAIN, 0.0, 4.0, 0.0 ) );
-    addParam(createParam<Yellow1_Small>( Vec( x + 62, y + 113 ), module, Compressor::PARAM_OUTGAIN, 0.0, 8.0, 0.0 ) );
-    addParam(createParam<Yellow1_Small>( Vec( x + 34, y2 ), module, Compressor::PARAM_THRESHOLD, 0.4, 0.95, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 34, y2 ), module, Compressor::PARAM_RATIO, 0.0, 1.0, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 34, y2 ), module, Compressor::PARAM_ATTACK, 0.0, 1.0, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 34, y2 ), module, Compressor::PARAM_RELEASE, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Yellow1_Small>( Vec( x + 11, y + 113 ), module, Compressor::PARAM_INGAIN, 0.0, 4.0, 1.0 ) );
+    addParam(createParam<Yellow1_Small>( Vec( x + 62, y + 113 ), module, Compressor::PARAM_OUTGAIN, 0.0, 8.0, 1.0 ) );
+    addParam(createParam<Blue2_Small>( Vec( x - 5, y2 + 20 ), module, Compressor::PARAM_SIDE_CHAIN, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_THRESHOLD, 0.0, 0.99, 0.0 ) ); y2 += 40;
+    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RATIO, 0.0, 2.0, 0.0 ) ); y2 += 40;
+    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_ATTACK, 0.0, 1.0, 0.0 ) ); y2 += 40;
+    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RELEASE, 0.0, 1.0, 0.0 ) );
 
     //for( int i = 0; i < 15; i++ )
         //module->lg.f("level %d = %.3f\n", i, module->m_pLEDMeterThreshold->flevels[ i ] );
@@ -212,27 +217,30 @@ void Compressor::randomize()
 // Procedure:   ProcessCompStatus
 //
 //-----------------------------------------------------
-#define MAX_ATTREL_TIME (0.02f) // .5ms
+#define MAX_ATT_TIME (0.5f) // 500ms
+#define MAX_REL_TIME (2.0f) // 2s
 bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
 {
     bool bCompressing = true;
 
+    // restart compressor if it has finished
+    if( bAboveThreshold && ( pComp->state == COMP_IDLE ) )
+    {
+        pComp->state = COMP_START;
+    }
+    // ready compressor for restart
+    else if( !bAboveThreshold && ( pComp->state == COMP_DONE ) )
+    {
+        pComp->state = COMP_IDLE;
+    }
+
     switch( pComp->state )
     {
-    case COMP_IDLE:
-        pComp->count = (int)( MAX_ATTREL_TIME * engineGetSampleRate() * params[ PARAM_ATTACK ].value );
+    case COMP_START:
+        pComp->count = 10 + (int)( MAX_ATT_TIME * engineGetSampleRate() * params[ PARAM_ATTACK ].value );
 
-        if( pComp->count )
-        {
-            pComp->fade = 0.0;
-            pComp->finc = 1.0 / (float)pComp->count;
-            pComp->state = COMP_ATTACK;
-        }
-        else
-        {
-            pComp->fade = 1.0;
-            pComp->state = COMP_ATTACK;
-        }
+        pComp->state = COMP_ATTACK;
+        pComp->finc = (1.0f - pComp->fade) / (float)pComp->count;
             
         break;
 
@@ -241,24 +249,15 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
         {
             pComp->fade += pComp->finc;
 
-            if( pComp->fade > 1.0 )
-                pComp->fade = 1.0;
+            if( pComp->fade > 1.0f )
+                pComp->fade = 1.0f;
         }
         else
         {
-            pComp->count = (int)( MAX_ATTREL_TIME * engineGetSampleRate() * params[ PARAM_RELEASE ].value );
-
-            if( pComp->count )
-            {
-                pComp->fade = 1.0;
-                pComp->finc = 1.0 / (float)pComp->count;
-                pComp->state = COMP_RELEASE;
-            }
-            else
-            {
-                pComp->fade = 1.0;
-                pComp->state = COMP_ON;
-            }
+            pComp->count = 10 + (int)( MAX_REL_TIME * engineGetSampleRate() * params[ PARAM_RELEASE ].value );
+            pComp->fade = 1.0f;
+            pComp->finc = 1.0f / (float)pComp->count;
+            pComp->state = COMP_RELEASE;
         }
 
         break;
@@ -268,28 +267,28 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
         {
             pComp->fade -= pComp->finc;
 
-            if( pComp->fade < 0.0 )
-                pComp->fade = 0.0;
+            if( pComp->fade < 0.0f )
+                pComp->fade = 0.0f;
         }
         else
         {
-            pComp->fade = 0.0;
-            pComp->state = COMP_FINISHED;
+            pComp->fade = 0.0f;
+            pComp->state = COMP_DONE;
             bCompressing = false;
         }
         break;
 
-    case COMP_ON:
-        pComp->fade = 1.0;
+    case COMP_DONE:
+        pComp->fade = 0.0f;
+        bCompressing = false;
         break;
 
-    case COMP_FINISHED:
-        pComp->fade = 0.0;
+    case COMP_IDLE:
+        pComp->fade = 0.0f;
         bCompressing = false;
         break;
     }
-    //lg.f("%.3f\n", pComp->fade );
-    //lg.f("%d\n", pComp->count );
+
     return bCompressing;
 }
 
@@ -297,48 +296,31 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
 // Procedure:   Compress
 //
 //-----------------------------------------------------
-void Compressor::Compress( float *inL, float *inR, float *outDiffL, float *outDiffR )
+float Compressor::Compress( float *pDetectInL, float *pDetectInR )
 {
-    float diffR = 0, diffL = 0, th, rat;
+    float diff = 0, rat, th, finL, finR, compL = 1.0f, compR = 1.0f;
 
-    th = ( 1.0 - params[ PARAM_THRESHOLD ].value );
-    rat= params[ PARAM_RATIO ].value;
+    m_fThreshold = params[ PARAM_THRESHOLD ].value;
+    th = 1.0f - m_fThreshold;
+    rat = params[ PARAM_RATIO ].value;
 
-    *outDiffL = fabs(*inL);
-    *outDiffR = fabs(*inR);
+    finL = fabs( *pDetectInL );
 
-    if( fabs( *inL ) > th )
+    if( ProcessCompState( &m_CompL, ( finL > th ) ) )
+        compL = 1.0f - ( rat * m_CompL.fade );
+
+    if( pDetectInR )
     {
-        if( *inL < 0.0 )
-            diffL = *inL + th;
-        else
-            diffL = *inL - th;
-
-        if( ProcessCompState( &m_CompL, true ) )
-            *inL -= (diffL * rat * m_CompL.fade );
-    }
-    else
-    {
-        m_CompL.state = COMP_IDLE;
-    }
-
-    if( fabs( *inR ) > th )
-    {
-        if( *inR < 0.0 )
-            diffR = *inR + th;
-        else
-            diffR = *inR - th;
-
-        if( ProcessCompState( &m_CompR, true ) )
-            *inR -= (diffR * rat * m_CompR.fade);
+        if( ProcessCompState( &m_CompR, ( finR > th ) ) )
+            compR = 1.0f - ( rat * m_CompR.fade );
     }
     else
     {
         m_CompR.state = COMP_IDLE;
+        m_CompR.fade = 0.0;
     }
 
-    *outDiffL -= fabs(*inL);
-    *outDiffR -= fabs(*inR);
+    return fmin( compL, compR );
 }
 
 //-----------------------------------------------------
@@ -347,19 +329,19 @@ void Compressor::Compress( float *inL, float *inR, float *outDiffL, float *outDi
 //-----------------------------------------------------
 void Compressor::step() 
 {
-    float outL, outR, diffL, diffR, orgL, orgR;
+    float outL, outR, diffL, diffR, fcomp, fside;
 
     if( !m_bInitialized )
         return;
 
-    outL = clampf( inputs[ IN_AUDIOL ].normalize( 0.0 ) / AUDIO_MAX, -1.0, 1.0 );
-    outR = clampf( inputs[ IN_AUDIOR ].normalize( 0.0 ) / AUDIO_MAX, -1.0, 1.0 );
+    outL = inputs[ IN_AUDIOL ].normalize( 0.0 ) / AUDIO_MAX;
+    outR = inputs[ IN_AUDIOR ].normalize( 0.0 ) / AUDIO_MAX;
 
-    outL = outL * params[ PARAM_INGAIN ].value;
-    outR = outR * params[ PARAM_INGAIN ].value;
-
-    orgL = outL;
-    orgR = outR;
+    if( !m_bBypass )
+    {
+        outL = clampf( outL * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
+        outR = clampf( outR * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
+    }
 
     if( m_pLEDMeterIn[ 0 ] )
         m_pLEDMeterIn[ 0 ]->Process( outL );
@@ -367,9 +349,27 @@ void Compressor::step()
     if( m_pLEDMeterIn[ 1 ] )
        m_pLEDMeterIn[ 1 ]->Process( outR );
 
+    diffL = fabs( outL );
+    diffR = fabs( outR );
+
     if( !m_bBypass )
     {
-        Compress( &outL, &outR, &diffL, &diffR );
+        // compress
+        if( inputs[ IN_SIDE_CHAIN ].active )
+        {
+            fside = clampf( ( inputs[ IN_SIDE_CHAIN ].normalize( 0.0 ) / AUDIO_MAX ) * params[ PARAM_SIDE_CHAIN ].value, -1.0, 1.0 );
+            fcomp = Compress( &fside, NULL );
+        }
+        else
+        {
+            fcomp = Compress( &outL, &outR );
+        }
+
+        outL *= fcomp;
+        outR *= fcomp;
+
+        diffL -= fabs( outL );
+        diffR -= fabs( outR );
 
         if( m_pLEDMeterComp[ 0 ] )
             m_pLEDMeterComp[ 0 ]->Process( diffL );
@@ -378,7 +378,10 @@ void Compressor::step()
             m_pLEDMeterComp[ 1 ]->Process( diffR );
 
         if( m_pLEDMeterThreshold )
-            m_pLEDMeterThreshold->Process( params[ PARAM_THRESHOLD ].value - 0.4 );
+            m_pLEDMeterThreshold->Process( m_fThreshold );
+
+        outL = clampf( outL * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
+        outR = clampf( outR * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
     }
     else
     {
@@ -390,13 +393,7 @@ void Compressor::step()
 
         if( m_pLEDMeterThreshold )
            m_pLEDMeterThreshold->Process( 0 );
-
-        outL = orgL;
-        outR = orgR;
     }
-
-    outL = outL * params[ PARAM_OUTGAIN ].value;
-    outR = outR * params[ PARAM_OUTGAIN ].value;
 
     if( m_pLEDMeterOut[ 0 ] )
         m_pLEDMeterOut[ 0 ]->Process( outL );
@@ -404,6 +401,6 @@ void Compressor::step()
     if( m_pLEDMeterOut[ 1 ] )
         m_pLEDMeterOut[ 1 ]->Process( outR );
 
-    outputs[ OUT_AUDIOL ].value = clampf( outL * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
-    outputs[ OUT_AUDIOR ].value = clampf( outR * AUDIO_MAX, -AUDIO_MAX, AUDIO_MAX );
+    outputs[ OUT_AUDIOL ].value = outL * AUDIO_MAX;
+    outputs[ OUT_AUDIOR ].value = outR * AUDIO_MAX;
 }

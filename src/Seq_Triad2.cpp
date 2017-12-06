@@ -179,14 +179,14 @@ void Seq_Triad2_Trig( void *pClass, int id, bool bOn )
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int note )
+void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn )
 {
     Seq_Triad2 *mymodule = (Seq_Triad2 *)pClass;
 
     if( !pClass )
         return;
 
-    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = note;
+    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
     mymodule->SetOut( kb );    
 }
 
@@ -248,7 +248,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 		addChild(panel);
 	}
 
-    //module->lg.Open("TriadSequencer2.txt");
+    module->lg.Open("TriadSequencer2.txt");
 
     //----------------------------------------------------
     // Keyboard Keys 
@@ -275,7 +275,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 	    addChild( module->m_pButtonOctaveSelect[ kb ] );
 
         // keyboard widget
-        module->pKeyboardWidget[ kb ] = new Keyboard_3Oct_Widget( x + 39, y + 19, kb, module, Seq_Triad2_Widget_NoteChangeCallback, &module->lg );
+        module->pKeyboardWidget[ kb ] = new Keyboard_3Oct_Widget( x + 39, y + 19, 1, kb, DWRGB( 255, 128, 64 ), module, Seq_Triad2_Widget_NoteChangeCallback, &module->lg );
 	    addChild( module->pKeyboardWidget[ kb ] );
 
         // pattern selects
@@ -464,7 +464,7 @@ void Seq_Triad2::SetOut( int kb )
 //-----------------------------------------------------
 void Seq_Triad2::SetKey( int kb )
 {
-    pKeyboardWidget[ kb ]->setkey( m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].note );
+    pKeyboardWidget[ kb ]->setkey( &m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].note );
 }
 
 //-----------------------------------------------------
