@@ -92,8 +92,10 @@ struct SEQ_6x32x16 : Module
     MyLEDButton             *m_pButtonBiLevel[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonRand[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonAutoPat[ nCHANNELS ] = {};
+    MyLEDButton             *m_pButtonHoldCV[ nCHANNELS ] = {};
 
     bool                    m_bAutoPatChange[ nCHANNELS ] = {};
+    bool                    m_bHoldCVState[ nCHANNELS ] = {};
 
     // Contructor
 	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
@@ -131,6 +133,16 @@ void MyLEDButton_Pause( void *pClass, int id, bool bOn )
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
     mymodule->m_bPauseState[ id ] = bOn;
+}
+
+//-----------------------------------------------------
+// MyLEDButton_HoldCV
+//-----------------------------------------------------
+void MyLEDButton_HoldCV( void *pClass, int id, bool bOn ) 
+{
+    SEQ_6x32x16 *mymodule;
+    mymodule = (SEQ_6x32x16*)pClass;
+    mymodule->m_bHoldCVState[ id ] = bOn;
 }
 
 //-----------------------------------------------------
@@ -259,12 +271,15 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
         module->m_pButtonPause[ ch ] = new MyLEDButton( x + 26, y + 10, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_Pause );
 	    addChild( module->m_pButtonPause[ ch ] );
 
-        y2 = y + 34;
+        y2 = y + 33;
         module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_CpyNxt );
 	    addChild( module->m_pButtonCopy[ ch ] );
 
         module->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
 	    addChild( module->m_pButtonRand[ ch ] );
+
+        module->m_pButtonHoldCV[ ch ] = new MyLEDButton( x + 405, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_HoldCV );
+	    addChild( module->m_pButtonHoldCV[ ch ] );
 
         module->m_pButtonBiLevel[ ch ] = new MyLEDButton( x + 425, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_BiLevel );
 	    addChild( module->m_pButtonBiLevel[ ch ] );
@@ -387,6 +402,19 @@ json_t *SEQ_6x32x16::toJson()
 	}
 
 	json_object_set_new( rootJ, "m_bAutoPatChange", gatesJ );
+
+	// m_bHoldCVState
+    pbool = &m_bHoldCVState[ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < nCHANNELS; i++)
+    {
+		json_t *gateJ = json_boolean( pbool[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "m_bHoldCVState", gatesJ );
 
 	return rootJ;
 }
@@ -512,11 +540,28 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 		}
 	}
 
+	// m_bHoldCVState
+    pbool = &m_bHoldCVState[ 0 ];
+
+	StepsJ = json_object_get(rootJ, "m_bHoldCVState");
+
+	if (StepsJ) 
+    {
+		for (int i = 0; i < nCHANNELS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pbool[ i ] = json_boolean_value( gateJ );
+		}
+	}
+
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
         m_pButtonAutoPat[ ch ]->Set( m_bAutoPatChange[ ch ] );
         m_pButtonPause[ ch ]->Set( m_bPauseState[ ch ] );
         m_pButtonBiLevel[ ch ]->Set( m_bBiLevelState[ ch ] );
+        m_pButtonHoldCV[ ch ]->Set( m_bHoldCVState[ ch ] );
 
         m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ m_CurrentProg[ ch ] ] );
         m_pPatternDisplay[ ch ]->SetMax( m_MaxPat[ ch ][ m_CurrentProg[ ch ] ] );
@@ -798,8 +843,10 @@ void SEQ_6x32x16::step()
             fout = params[ PARAM_HI_KNOB + ch ].value;
             break;
         default:
-            fout = 0.0;
-            break;
+            if( m_bHoldCVState[ ch ] )
+                continue;
+            else
+                fout = 0.0f;
         }
 
         // bidirectional convert to -1.0 to 1.0

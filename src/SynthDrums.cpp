@@ -17,8 +17,8 @@ typedef struct
 {
     int   state;
     int   a, s, r;
-    int   acount, scount, rcount;
-    float fainc, fsinc, frinc;
+    int   acount, scount, rcount, fadecount;
+    float fainc, fsinc, frinc, fadeinc;
     float out;
     bool  bTrig;
 }ASR_STRUCT;
@@ -89,6 +89,7 @@ struct SynthDrums : Module
     enum ADSRSTATES
     {
         ADSR_OFF,
+        ADSR_FADE,
         ADSR_ON,
         ADSR_ATTACK,
         ADSR_SUSTAIN,
@@ -429,13 +430,16 @@ float SynthDrums::ProcessADS( int ch, bool bWave )
     // rettrig the adsr
     if( pasr->bTrig )
     {
-        pasr->state = ADSR_ATTACK;
+        pasr->state = ADSR_FADE;
 
-        pasr->acount = 0;
-        pasr->fainc  = 0;
+        pasr->fadecount = 900;
+        pasr->fadeinc  = pasr->out / (float)pasr->fadecount;
 
-        pasr->scount = (int)(.1 * engineGetSampleRate());
-        pasr->fsinc  = 1.0 / pasr->scount;
+        pasr->acount = 20;
+        pasr->fainc  = 1.0 / pasr->acount;
+
+        pasr->scount = 0;//(int)(.1 * engineGetSampleRate());
+        pasr->fsinc  = 0;//1.0 / pasr->scount;
         
         if( bWave )
         {
@@ -451,38 +455,65 @@ float SynthDrums::ProcessADS( int ch, bool bWave )
         if( pasr->rcount )
             pasr->frinc = 1.0 / pasr->rcount;
 
-        m_Wave[ ch ].phase = 0.0;
-
         pasr->bTrig = false;
     }
 
     // process
     switch( pasr->state )
     {
+    case ADSR_FADE:
+        if( --pasr->fadecount <= 0 )
+        {
+            pasr->state = ADSR_ATTACK;
+            pasr->out = 0.0f;
+            m_Wave[ ch ].phase = 0.0;
+        }
+        else
+        {
+            pasr->out -= pasr->fadeinc;
+        }
+
+        break;
+
     case ADSR_OFF:
         pasr->out = 0.0;
         break;
 
     case ADSR_ATTACK:
-        pasr->out += pasr->fainc;
         if( --pasr->acount <= 0 )
+        {
             pasr->state = ADSR_SUSTAIN;
+        }
+        else
+        {
+            pasr->out += pasr->fainc;
+        }
         break;
 
     case ADSR_SUSTAIN:
         pasr->out = 1.0;
-        //if( --pasr->scount <= 0 )
+        if( --pasr->scount <= 0 )
+        {
             pasr->state = ADSR_RELEASE;
+        }
+
         break;
 
     case ADSR_RELEASE:
-        pasr->out -= pasr->frinc;
+        
         if( --pasr->rcount <= 0 )
+        {
+            pasr->out = 0.0f;
             pasr->state = ADSR_OFF;
+        }
+        else
+        {
+            pasr->out -= pasr->frinc;
+        }
         break;
     }
 
-    return clampf( pasr->out, 0.0, 1.0 );
+    return clampf( pasr->out, 0.0f, 1.0f );
 }
 
 //-----------------------------------------------------
@@ -575,14 +606,14 @@ float SynthDrums::GetAudio( int ch )
         // if noise then frequency affects the filter cutoff and not the wave frequency
         if( m_Wave[ ch ].wavetype == WAVE_NOISE )
         {
-            freq = clampf( ( ( freqmod + params[ PARAM_FREQ + ch ].value ) + (fenv*2) ), 0.0, 1.0 );
+            freq = clampf( ( ( freqmod + params[ PARAM_FREQ + ch ].value ) + (fenv*2) ), 0.0f, 1.0f );
 
             ChangeFilterCutoff( ch, freq );
         }
         // other signals the second ADS affects the frequency for the hit
         else
         {
-            m_Wave[ ch ].phase += 35 + ( ( freqmod + params[ PARAM_FREQ + ch ].value ) * freqMAX ) + ( fenv * 400 );
+            m_Wave[ ch ].phase += 35 + ( ( freqmod + params[ PARAM_FREQ + ch ].value ) * freqMAX ) + ( fenv * 400.0f );
 
             if( m_Wave[ ch ].phase >= engineGetSampleRate() )
                 m_Wave[ ch ].phase = m_Wave[ ch ].phase - engineGetSampleRate();

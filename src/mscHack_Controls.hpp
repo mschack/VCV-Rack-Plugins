@@ -2008,6 +2008,21 @@ struct Yellow3_Med : RoundKnob
 };
 
 //-----------------------------------------------------
+// Procedure:   Yellow3_Med_Snap
+//
+//-----------------------------------------------------
+struct Yellow3_Med_Snap : RoundKnob 
+{
+	Yellow3_Med_Snap() 
+    {
+        snap = true;
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobYellow3.svg" )));
+		box.size = Vec(20, 20);
+	}
+};
+
+
+//-----------------------------------------------------
 // Procedure:   Purp1_Med
 //
 //-----------------------------------------------------
@@ -2119,7 +2134,7 @@ struct Yellow1_Small : RoundKnob
 {
 	Yellow1_Small() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow1_small.svg" )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow1_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -2132,7 +2147,7 @@ struct Yellow1_Tiny : RoundKnob
 {
 	Yellow1_Tiny() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow1_small.svg" )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow1_small.svg" )));
 		box.size = Vec(15, 15);
 	}
 };
@@ -2146,7 +2161,7 @@ struct Yellow2_Small : RoundKnob
 {
 	Yellow2_Small() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };
@@ -2159,7 +2174,7 @@ struct Yellow2_Big : RoundKnob
 {
 	Yellow2_Big() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
 		box.size = Vec(40, 40);
 	}
 };
@@ -2172,7 +2187,7 @@ struct Yellow2_Huge : RoundKnob
 {
 	Yellow2_Huge() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
 		box.size = Vec(56, 56);
 	}
 };
@@ -2181,11 +2196,12 @@ struct Yellow2_Huge : RoundKnob
 // Procedure:   Yellow2_Huge_Snap
 //
 //-----------------------------------------------------
-struct Yellow2_Huge_Snap : RoundSmallBlackSnapKnob 
+struct Yellow2_Huge_Snap : RoundKnob 
 {
 	Yellow2_Huge_Snap() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+        snap = true;
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
 		box.size = Vec(56, 56);
 	}
 };
@@ -2194,11 +2210,12 @@ struct Yellow2_Huge_Snap : RoundSmallBlackSnapKnob
 // Procedure:   Yellow2_Huge
 //
 //-----------------------------------------------------
-struct Yellow2_Snap : RoundSmallBlackSnapKnob 
+struct Yellow2_Snap : RoundKnob 
 {
 	Yellow2_Snap() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Yellow2_small.svg" )));
+        snap = true;
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
 		box.size = Vec(26, 26);
 	}
 };

@@ -2,9 +2,12 @@
 
 (Note the release folder is in the mscHack.zip Windows Only at the moment)
 
-![screenshot](./VCV-Rack-Plugins/modules.PNG)
+![screenshot](modules.PNG)
 
 # Updates
+- 7 Dec 17:
+	- Remove annoying click from 3xOSC
+	- Add Hold CV option to 6x32 SEQ
 - 6 Dec 17:
 	- Added side chain input to compressor
 	- Fixes to compressor.
@@ -21,16 +24,6 @@
 	- fix 2x4 mixer solo/mute
 	- fix triad sequencer keyboard bug
 	- fix OSC 3 crash when VOCT offset push note into to high a range, and fix osc tuning.
-- 22 Nov 17:
-	- Fixed random crash of OSC 3 when loading.
-	- Added "Beat 0" auto increment pattern button.
-	- Added "Beat 0" output trig to each channel of the 6x32 sequencer
-	- fixed crashes from 0.5.0 update
-	- 6x32 sequencer graphics update
-	- triad sequencers fixed bug with connectors not connecting 
-- 21 Nov 17:
-	- Now built for 0.5.0
-	- Updates for 0.4.0 plugins will now cease.
 
 # Includes
 - 4 Channel Master Clock
