@@ -20,8 +20,8 @@ typedef struct
 {
     int   state;
     int   a, d, r;
-    int   acount, dcount, rcount;
-    float fainc, frinc;
+    int   acount, dcount, rcount, fadecount;
+    float fainc, frinc, fadeinc;
     float out;
     bool  bTrig;
 }ADR_STRUCT;
@@ -97,6 +97,7 @@ struct Osc_3Ch : Module
     enum ADRSTATES
     {
         ADR_OFF,
+        ADR_FADE,
         ADR_WAIT_PHASE,
         ADR_FADE_OUT,
         ADR_ATTACK,
@@ -139,7 +140,7 @@ struct Osc_3Ch : Module
     //-----------------------------------------------------
     // MynWaves_Knob
     //-----------------------------------------------------
-    struct MynWaves_Knob : Yellow3_Med
+    struct MynWaves_Knob : Yellow3_Med_Snap
     {
         Osc_3Ch *mymodule;
         int param;
@@ -151,7 +152,7 @@ struct Osc_3Ch : Module
             if( mymodule )
             {
                 param = paramId - Osc_3Ch::PARAM_nWAVES;
-                mymodule->m_nWaves[ param ] = (int)( value * (float)(MAX_nWAVES - 1) ); 
+                mymodule->m_nWaves[ param ] = (int)( value ); 
             }
 
 		    RoundKnob::onChange( e );
@@ -294,7 +295,7 @@ Osc_3Ch_Widget::Osc_3Ch_Widget()
         x2 = x + 149;
         y2 = y + 56;
 
-        addParam(createParam<Osc_3Ch::MynWaves_Knob>( Vec( x + 129, y + 11 ), module, Osc_3Ch::PARAM_nWAVES + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Osc_3Ch::MynWaves_Knob>( Vec( x + 129, y + 11 ), module, Osc_3Ch::PARAM_nWAVES + ch, 0.0, 6.0, 0.0 ) );
         addParam(createParam<Osc_3Ch::MyDetune_Knob>( Vec( x + 116, y + 48 ), module, Osc_3Ch::PARAM_DETUNE + ch, 0.0, 0.05, 0.0 ) );
         addParam(createParam<Osc_3Ch::MySpread_Knob>( Vec( x + 116 + 28, y + 48 ), module, Osc_3Ch::PARAM_SPREAD + ch, 0.0, 1.0, 0.0 ) );
 
@@ -381,7 +382,7 @@ void Osc_3Ch::fromJson(json_t *rootJ)
     // set up parameters
     for ( i = 0; i < nCHANNELS; i++)
     {
-        m_nWaves[ i ] = (int)( params[ PARAM_nWAVES + i ].value * (float)(MAX_nWAVES - 1) );
+        m_nWaves[ i ] = (int)( params[ PARAM_nWAVES + i ].value );
                
         m_SpreadIn[ i ] = params[ PARAM_SPREAD + i ].value;
         CalcSpread( i );
@@ -527,51 +528,86 @@ float Osc_3Ch::ProcessADR( int ch )
     // retrig the adsr
     if( padr->bTrig )
     {
-        padr->state = ADR_ATTACK;
+        padr->state = ADR_FADE;
 
-        padr->acount = 20 + (int)( params[ PARAM_ATT + ch ].value * 2.0 * engineGetSampleRate() );;
-        padr->fainc  = 1.0 / (float)padr->acount;
+        padr->fadecount = 900;
+        padr->fadeinc  = padr->out / (float)padr->fadecount;
 
-        padr->dcount = 20 + (int)( params[ PARAM_DELAY + ch ].value * 4.0 * engineGetSampleRate() );
+        padr->acount = 40 + (int)( params[ PARAM_ATT + ch ].value * 2.0f * engineGetSampleRate() );
+        padr->fainc  = 1.0f / (float)padr->acount;
 
-        padr->rcount = 20 + (int)( params[ PARAM_REL + ch ].value * 10.0 * engineGetSampleRate() );
-        padr->frinc = 1.0 / (float)padr->rcount;
+        padr->dcount = (int)( params[ PARAM_DELAY + ch ].value * 4.0f * engineGetSampleRate() );
 
-        //m_Wave[ ch ].phase = 0.0;
-        padr->out = 0.0;
+        padr->rcount = 20 + (int)( params[ PARAM_REL + ch ].value * 10.0f * engineGetSampleRate() );
+        padr->frinc = 1.0f / (float)padr->rcount;
+
         padr->bTrig = false;
     }
 
     // process
     switch( padr->state )
     {
+    case ADR_FADE:
+        if( --padr->fadecount <= 0 )
+        {
+            padr->state = ADR_ATTACK;
+            padr->out = 0.0f;
+            m_Wave[ ch ].phase[ 0 ] = 0.0f;
+            m_Wave[ ch ].phase[ 1 ] = 0.0f;
+            m_Wave[ ch ].phase[ 2 ] = 0.0f;
+            m_Wave[ ch ].phase[ 3 ] = 0.0f;
+            m_Wave[ ch ].phase[ 4 ] = 0.0f;
+            m_Wave[ ch ].phase[ 5 ] = 0.0f;
+            m_Wave[ ch ].phase[ 6 ] = 0.0f;
+        }
+        else
+        {
+            padr->out -= padr->fadeinc;
+        }
+
+        break;
+
     case ADR_OFF:
-        padr->out = 0.0;
+        padr->out = 0.0f;
         break;
 
     case ADR_ATTACK:
-        padr->out += padr->fainc;
+        
         if( --padr->acount <= 0 )
+        {
             padr->state = ADR_DELAY;
+        }
+        else
+        {
+            padr->out += padr->fainc;
+        }
+
         break;
 
     case ADR_DELAY:
-        padr->out = 1.0;
+        padr->out = 1.0f;
         if( --padr->dcount <= 0 )
+        {
             padr->state = ADR_RELEASE;
+        }
         break;
 
     case ADR_RELEASE:
-        padr->out -= padr->frinc;
+        
         if( --padr->rcount <= 0 )
         {
             padr->state = ADR_OFF;
-            padr->out = 0.0;
+            padr->out = 0.0f;
         }
+        else
+        {
+            padr->out -= padr->frinc;
+        }
+
         break;
     }
 
-    return clampf( padr->out, 0.0, 1.0 );
+    return clampf( padr->out, 0.0f, 1.0f );
 }
 
 //-----------------------------------------------------
