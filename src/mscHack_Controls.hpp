@@ -315,6 +315,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
     int             m_nButtons;
     bool            m_bOn[ nMAX_STRIP_BUTTONS ] = {};
     int             m_ExclusiveOn = 0;
+    int             m_HiLightOn = -1;
     RGB_STRUCT      m_Colour;
     RGB_STRUCT      m_LEDColour[ nMAX_STRIP_BUTTONS ] = {};
     float           m_fLEDsize;
@@ -328,6 +329,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
 	enum MyLEDButton_Types 
     {
         TYPE_EXCLUSIVE,
+        TYPE_EXCLUSIVE_WOFF,
         TYPE_INDEPENDANT
 	};
 
@@ -381,15 +383,37 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   Set
     //-----------------------------------------------------
+    void SetHiLightOn( int button )
+    {
+        m_HiLightOn = button;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   Set
+    //-----------------------------------------------------
     void Set( int button, bool bOn )
     {
-        if( !m_bInitialized || button < 0 || button >= m_nButtons )
+        if( !m_bInitialized || button < 0 )
             return;
 
-        if( m_Type == TYPE_EXCLUSIVE )
+        if( m_Type == TYPE_EXCLUSIVE_WOFF )
+        {
+            if( button > m_nButtons )
+                return;
+
             m_ExclusiveOn = button;
+        }
         else
+        {
+            if( button >= m_nButtons )
+                return;
+
+            if( m_Type == TYPE_EXCLUSIVE )
+                m_ExclusiveOn = button;
+
             m_bOn[ button ] = bOn;
+        }
 
         dirty = true;
     }
@@ -413,13 +437,17 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
     {
         float xi, yi;
         int i;
+        char alpha = 0xFF;
 
         if( !m_bInitialized )
             return;
 
         for( i = 0; i < m_nButtons; i ++)
         {
-            nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
+            if( m_HiLightOn == i )
+                nvgFillColor( vg, nvgRGB( 255, 255, 255 ) );
+            else
+                nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
 
             // background
 		    nvgBeginPath( vg );
@@ -432,15 +460,23 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
 
             nvgFillColor( vg, nvgRGB(0x40, 0x40, 0x40) );
 
-            if( m_Type == TYPE_EXCLUSIVE )
+            if( m_HiLightOn == i )
+                alpha = 0x40;
+
+            if( m_Type == TYPE_EXCLUSIVE_WOFF )
+            {
+                if( i == ( m_ExclusiveOn - 1 ) )
+                    nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
+            }
+            else if( m_Type == TYPE_EXCLUSIVE || m_Type == TYPE_EXCLUSIVE_WOFF )
             {
                 if( i == m_ExclusiveOn )
-                    nvgFillColor( vg, nvgRGB( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ] ) );
+                    nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
             else
             {
                 if( m_bOn[ i ] )
-                   nvgFillColor( vg, nvgRGB( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ] ) );
+                   nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
 
             xi = ( ( (float)m_Rect[ i ].x2 + (float)m_Rect[ i ].x ) / 2.0f ) - m_fLEDsize_d2;
@@ -484,10 +520,23 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
             {
                 m_bOn[ i ] = !m_bOn[ i ];
 
-                Set( i, m_bOn[ i ] );
+                if( m_Type == TYPE_EXCLUSIVE_WOFF )
+                {
+                    if( m_ExclusiveOn == ( i + 1 ) )
+                        m_ExclusiveOn = 0;
+                    else
+                        m_ExclusiveOn = i + 1;
 
-                if( m_pCallback )
-                    m_pCallback( m_pClass, m_Id, i, m_bOn[ i ] );
+                    if( m_pCallback )
+                        m_pCallback( m_pClass, m_Id, m_ExclusiveOn, false );
+                }
+                else
+                {
+                    Set( i, m_bOn[ i ] );
+
+                    if( m_pCallback )
+                        m_pCallback( m_pClass, m_Id, i, m_bOn[ i ] );
+                }
 
                 dirty = true;
                 e.consumed = true;
@@ -578,10 +627,6 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
 
 		nvgBeginPath( vg );
         nvgRect( vg, 0, 0, box.size.x - 1, box.size.y - 1 );
-		//nvgMoveTo( vg, 0, 0 );
-		//nvgLineTo( vg, box.size.x - 1, 0 );
-		//nvgLineTo( vg, box.size.x - 1, box.size.y - 1 );
-		//nvgLineTo( vg, 0, box.size.y - 1 );
 		nvgClosePath( vg );
 		nvgFill( vg );
 
@@ -595,10 +640,6 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
 
 		nvgBeginPath( vg );
         nvgRoundedRect( vg, xi, yi, m_fLEDsize, m_fLEDsize, 2.5 );
-        //nvgMoveTo(vg, xi, yi );
-		//nvgLineTo(vg, xi + m_fLEDsize, yi );
-		//nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
-		//nvgLineTo(vg, xi, yi + m_fLEDsize );
 		nvgClosePath( vg );
 		nvgFill( vg );
 	}
@@ -1477,6 +1518,8 @@ struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
     CLog *lg;
     int m_MaxMultKeys = 1;
     int m_KeySave[ MAX_MULT_KEYS ] = {0};
+    bool m_bKeyOnList[ nKEYS ] = {false};
+    int  m_nKeysOn = 0;
     int m_KeyOn = 0;
     RECT_STRUCT keyrects[ nKEYS ] ={};
     NOTECHANGECALLBACK *pNoteChangeCallback = NULL;
@@ -1591,82 +1634,45 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     void addtokeylist( int key )
     {
-        int templist[ MAX_MULT_KEYS ] = {0xFF}, small, ismall;
-        bool bOn = false, bChange = false;
+        int count = 0;
+        bool bOn = false;
 
         // single key
         if( m_MaxMultKeys == 1 )
         {
             m_KeySave[ 0 ] = key;
             bOn = true;
-            bChange = true;
         }
         else
         {
-            // find duplicate key
-            for( int i = 0; i < m_MaxMultKeys; i++ )
+            // if key is off we are turning it on, check max keys
+            if( !m_bKeyOnList[ key ] )
             {
-                // key was on, turn off
-                if( key == m_KeySave[ i ] )
-                {
-                    bChange = true;
-                    m_KeySave[ i ] = -1;
-                    break;
-                }
+                // ignore if we already have max keys
+                if( ( m_nKeysOn + 1 ) > m_MaxMultKeys )
+                    return;
+
+                bOn = true;
+                m_nKeysOn++;
+                m_bKeyOnList[ key ] = true;
+            }
+            else
+            {
+                m_nKeysOn--;
+                m_bKeyOnList[ key ] = false;
             }
 
-            // new key, add it if there is a position available
-            if( !bChange )
-            {
-                // add key to list
-                for( int i = 0; i < m_MaxMultKeys; i++ )
-                {
-                    // put key into empty position
-                    if( m_KeySave[ i ] == -1 )
-                    {
-                        bOn = true;
-                        bChange = true;
-                        m_KeySave[ i ] = key;
-                    }
-                }
-            }
-
-            if( !bChange )
-                return;
-
-            memcpy( templist, m_KeySave, sizeof(m_KeySave) );
             memset( m_KeySave, 0xFF, sizeof(m_KeySave) );
 
-            // ugly resort list
-            for( int i = 0; i < m_MaxMultKeys; i++ )
+            // build key list
+            for( int i = 0; i < nKEYS; i++ )
             {
-                small = nKEYS + 1;
-                ismall = -1;
-
-                // find the next smallest key
-                for( int j = 0; j < m_MaxMultKeys; j++ )
-                {
-                    // find the smallest key
-                    if( ( templist[ j ] != -1 ) && ( templist[ j ] <= small ) )
-                    {
-                        small = templist[ j ];
-                        ismall = j;
-                    }
-                }
-
-                // we are finished
-                if( ismall == -1 )
-                    break;
-
-                // adding the next smallest to list
-                m_KeySave[ i ] = small;
-
-                // remove this value
-                templist[ ismall ] = -1;
+                if( m_bKeyOnList[ i ] )
+                    m_KeySave[ count++ ] = i;
             }
         }
 
-        if( pNoteChangeCallback && bChange )
+        if( pNoteChangeCallback )
             pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn );
     }
 
@@ -1725,7 +1731,21 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     void setkey( int *pkey ) 
     {
-        memcpy( m_KeySave, pkey, sizeof( int ) * m_MaxMultKeys );
+        memset( m_bKeyOnList, 0, sizeof( m_bKeyOnList ) );
+        memset( m_KeySave, 0xFF, sizeof( m_KeySave ) );
+        m_nKeysOn = 0;
+
+        // build key list
+        for( int i = 0; i < m_MaxMultKeys; i++ )
+        {
+            if( pkey[ i ] != -1 )
+            {
+                m_nKeysOn++;
+                m_bKeyOnList[ pkey[ i ] ] = true;
+                m_KeySave[ i ] = pkey[ i ];
+            }
+        }
+
         dirty = true;
     }
 
@@ -1737,14 +1757,6 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         m_KeyOn = key;
         dirty = true;
     }
-
-    //-----------------------------------------------------
-    // Procedure:   step
-    //-----------------------------------------------------
-    /*void step() override
-    {
-	    FramebufferWidget::step();
-    }*/
 
     //-----------------------------------------------------
     // Procedure:   drawkey

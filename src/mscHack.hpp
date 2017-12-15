@@ -9,6 +9,12 @@ extern Plugin *plugin;
 #define AUDIO_MAX (6.0f)
 #define VOCT_MAX (6.0f)
 
+#define TOJSON true
+#define FROMJSON false
+
+void JsonDataInt( bool bTo, std::string strName, json_t *root, int *pdata, int len );
+void JsonDataBool( bool bTo, std::string strName, json_t *root, bool *pdata, int len );
+
 ////////////////////
 // module widgets
 ////////////////////
@@ -35,6 +41,10 @@ struct Seq_Triad_Widget : ModuleWidget {
 
 struct Seq_Triad2_Widget : ModuleWidget {
 	Seq_Triad2_Widget();
+};
+
+struct ARP700_Widget : ModuleWidget {
+	ARP700_Widget();
 };
 
 struct Mix_1x4_Stereo_Widget : ModuleWidget {
