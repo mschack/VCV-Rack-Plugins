@@ -5,6 +5,11 @@
 ![screenshot](modules.PNG)
 
 # Updates
+- 14 Dec 17
+	- NEW ARP 700 - 7 note arpeggiator with different pattern modes
+	- externally clocked
+	- 16 programs
+	- glide and legato
 - 7 Dec 17:
 	- Remove annoying click from 3xOSC
 	- Add Hold CV option to 6x32 SEQ
@@ -38,6 +43,7 @@
 - Ping Pong Delay
 - Compressor (a work in progress...)
 - X Fade, 3 stereo channel cross fader
+- ARP 700, 7 note arpeggiator.
 
 # Demo Vids
 - 4 Channel Master Clock https://www.youtube.com/watch?v=hiQciS8ch5U
@@ -51,3 +57,4 @@
 - Compressor https://www.youtube.com/watch?v=0F9KCk0IgFU
 - X Fade https://www.youtube.com/watch?v=1NN4ly77nXo
 - 6 x 32 trigger sequencer https://www.youtube.com/watch?v=S1PB-WaqXt4
+- ARP 700 quicky demo https://www.youtube.com/watch?v=ht9EwXmkDJI

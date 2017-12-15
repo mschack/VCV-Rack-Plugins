@@ -476,7 +476,7 @@ void Seq_Triad2::SetPendingPhrase( int kb, int phraseIn )
     int phrase;
 
     if( phraseIn < 0 || phraseIn >= nPHRASE_SAVES )
-        phrase = ( m_CurrentPhrase[ kb ] + 1 ) & 0x3;
+        phrase = ( m_CurrentPhrase[ kb ] + 1 ) & 0x7;
     else
         phrase = phraseIn;
 
