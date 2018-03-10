@@ -17,9 +17,9 @@ typedef struct
 // Module Definition
 //
 //-----------------------------------------------------
-struct SEQ_6x32x16 : Module 
+struct SEQ_6x32x16 : Module
 {
-	enum ParamIds 
+	enum ParamIds
     {
         PARAM_CPY_NEXT,
         PARAM_RAND          = PARAM_CPY_NEXT + nCHANNELS,
@@ -34,7 +34,7 @@ struct SEQ_6x32x16 : Module
         nPARAMS             = PARAM_SWING_KNOB2 + nCHANNELS
     };
 
-	enum InputIds 
+	enum InputIds
     {
         IN_GLOBAL_CLK_RESET,
         IN_GLOBAL_PAT_CHANGE,
@@ -43,7 +43,7 @@ struct SEQ_6x32x16 : Module
         nINPUTS         = IN_PAT_TRIG + nCHANNELS
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
         OUT_TRIG,
         OUT_LEVEL    = OUT_TRIG + nCHANNELS,
@@ -86,7 +86,7 @@ struct SEQ_6x32x16 : Module
     int                     m_SwingCount[ nCHANNELS ] = {0};
     int                     m_ClockTick[ nCHANNELS ] = {0};
 
-    // buttons    
+    // buttons
     MyLEDButton             *m_pButtonPause[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonCopy[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonBiLevel[ nCHANNELS ] = {};
@@ -100,7 +100,7 @@ struct SEQ_6x32x16 : Module
     // Contructor
 	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
@@ -118,7 +118,7 @@ struct SEQ_6x32x16 : Module
 //-----------------------------------------------------
 // MyLEDButton_AutoPat
 //-----------------------------------------------------
-void MyLEDButton_AutoPat( void *pClass, int id, bool bOn ) 
+void MyLEDButton_AutoPat( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -128,7 +128,7 @@ void MyLEDButton_AutoPat( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // MyLEDButton_Pause
 //-----------------------------------------------------
-void MyLEDButton_Pause( void *pClass, int id, bool bOn ) 
+void MyLEDButton_Pause( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -138,7 +138,7 @@ void MyLEDButton_Pause( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // MyLEDButton_HoldCV
 //-----------------------------------------------------
-void MyLEDButton_HoldCV( void *pClass, int id, bool bOn ) 
+void MyLEDButton_HoldCV( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -148,7 +148,7 @@ void MyLEDButton_HoldCV( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // MyLEDButton_BiLevel
 //-----------------------------------------------------
-void MyLEDButton_BiLevel( void *pClass, int id, bool bOn ) 
+void MyLEDButton_BiLevel( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -158,7 +158,7 @@ void MyLEDButton_BiLevel( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // MyLEDButton_CpyNxt
 //-----------------------------------------------------
-void MyLEDButton_CpyNxt( void *pClass, int id, bool bOn ) 
+void MyLEDButton_CpyNxt( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -168,7 +168,7 @@ void MyLEDButton_CpyNxt( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // MyLEDButton_Rand
 //-----------------------------------------------------
-void MyLEDButton_Rand( void *pClass, int id, bool bOn ) 
+void MyLEDButton_Rand( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
@@ -218,19 +218,12 @@ void SEQ_6x32x16_ProgramChangeCallback ( void *pClass, int ch, int pat, int max 
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-SEQ_6x32x16_Widget::SEQ_6x32x16_Widget() 
+struct SEQ_6x32x16_Widget : ModuleWidget {
+    SEQ_6x32x16_Widget(SEQ_6x32x16 *module) : ModuleWidget(module)
 {
     int x, y, x2, y2;
-	SEQ_6x32x16 *module = new SEQ_6x32x16();
-	setModule(module);
-	box.size = Vec( 15*41, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/SEQ_6x32x16.svg")));
-		addChild(panel);
-	}
+	setPanel(SVG::load(assetPlugin(plugin, "res/SEQ_6x32x16.svg")));
 
     //module->lg.Open("SEQ_6x32x16.txt");
 
@@ -238,14 +231,14 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
     y = 22;
 
     // global inputs
-    addInput(createInput<MyPortInSmall>( Vec( 204, 357 ), module, SEQ_6x32x16::IN_GLOBAL_CLK_RESET ) );
-    addInput(createInput<MyPortInSmall>( Vec( 90, 357 ), module, SEQ_6x32x16::IN_GLOBAL_PAT_CHANGE ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 204, 357 ), Port::INPUT, module, SEQ_6x32x16::IN_GLOBAL_CLK_RESET ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 90, 357 ), Port::INPUT, module, SEQ_6x32x16::IN_GLOBAL_PAT_CHANGE ) );
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
         // inputs
-        addInput(createInput<MyPortInSmall>( Vec( x + 6, y + 7 ), module, SEQ_6x32x16::IN_CLK + ch ) );
-        addInput(createInput<MyPortInSmall>( Vec( x + 64, y + 31 ), module, SEQ_6x32x16::IN_PAT_TRIG + ch ) );
+        addChild(Port::create<MyPortInSmall>( Vec( x + 6, y + 7 ), Port::INPUT, module, SEQ_6x32x16::IN_CLK + ch ) );
+        addChild(Port::create<MyPortInSmall>( Vec( x + 64, y + 31 ), Port::INPUT, module, SEQ_6x32x16::IN_PAT_TRIG + ch ) );
 
         // pattern display
         module->m_pPatternDisplay[ ch ] = new SinglePatternClocked32( x + 39, y + 2, 13, 13, 5, 2, 7, DWRGB( 255, 128, 64 ), DWRGB( 18, 18, 0 ), DWRGB( 180, 75, 180 ), DWRGB( 80, 45, 80 ), nSTEPS, ch, module, SEQ_6x32x16_PatternChangeCallback );
@@ -257,12 +250,12 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
 
         // add knobs
         y2 = y + 34;
-        addParam(createParam<Green1_Tiny>( Vec( x + 374, y2 ), module, SEQ_6x32x16::PARAM_SWING_KNOB + ch, 0.0, 0.6, 0.0 ) );
+        addParam(ParamWidget::create<Green1_Tiny>( Vec( x + 374, y2 ), module, SEQ_6x32x16::PARAM_SWING_KNOB + ch, 0.0, 0.6, 0.0 ) );
 
         x2 = x + 447;
-        addParam(createParam<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LO_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
-        addParam(createParam<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_MD_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
-        addParam(createParam<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_HI_KNOB + ch, 0.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LO_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
+        addParam(ParamWidget::create<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_MD_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
+        addParam(ParamWidget::create<Green1_Tiny>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_HI_KNOB + ch, 0.0, 1.0, 0.0 ) );
 
         // add buttons
         module->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
@@ -285,28 +278,32 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget()
 	    addChild( module->m_pButtonBiLevel[ ch ] );
 
         // add outputs
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 580, y + 7 ), module, SEQ_6x32x16::OUT_TRIG + ch ) );
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 544, y + 33 ), module, SEQ_6x32x16::OUT_LEVEL + ch ) );
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 37, y + 31 ), module, SEQ_6x32x16::OUT_BEAT1 + ch ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x + 580, y + 7 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_TRIG + ch ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x + 544, y + 33 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_LEVEL + ch ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x + 37, y + 31 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_BEAT1 + ch ) );
 
         y += 56;
     }
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     module->m_bInitialized = true;
 
     reset();
 }
+};
+
+Model *modelSEQ_6x32x16_Widget = Model::create<SEQ_6x32x16, SEQ_6x32x16_Widget>( "mscHack", "Seq_6ch_32step", "SEQ 6 x 32", SEQUENCER_TAG, MULTIPLE_TAG );
+
 
 //-----------------------------------------------------
-// Procedure:   
+// Procedure:
 //
 //-----------------------------------------------------
-json_t *SEQ_6x32x16::toJson() 
+json_t *SEQ_6x32x16::toJson()
 {
     bool *pbool;
     int  *pint;
@@ -423,7 +420,7 @@ json_t *SEQ_6x32x16::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void SEQ_6x32x16::fromJson(json_t *rootJ) 
+void SEQ_6x32x16::fromJson(json_t *rootJ)
 {
    bool *pbool;
     int *pint;
@@ -433,7 +430,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	json_t *StepsJ = json_object_get(rootJ, "m_bPauseState");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -449,7 +446,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_bBiLevelState");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -465,7 +462,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_Pattern");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS * nSTEPS * nPROG; i++)
         {
@@ -481,7 +478,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_MaxPat");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS * nPROG; i++)
         {
@@ -497,7 +494,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_CurrentProg");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -513,7 +510,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_MaxProg");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -529,7 +526,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_bAutoPatChange");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -545,7 +542,7 @@ void SEQ_6x32x16::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get(rootJ, "m_bHoldCVState");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < nCHANNELS; i++)
         {
@@ -622,7 +619,7 @@ void SEQ_6x32x16::randomize()
         {
             for( int i = 0; i < nSTEPS; i++ )
             {
-                m_Pattern[ ch ][ p ][ i ] = (int)(randomf() * 3.4 );
+                m_Pattern[ ch ][ p ][ i ] = (int)(randomUniform() * 3.4 );
             }
         }
 
@@ -638,7 +635,7 @@ void SEQ_6x32x16::Rand( int ch )
 {
     for( int i = 0; i < nSTEPS; i++ )
     {
-        m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(randomf() * 3.4 );
+        m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(randomUniform() * 3.4 );
     }
 
     m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ m_CurrentProg[ ch ] ] );
@@ -714,7 +711,7 @@ void SEQ_6x32x16::SetPendingProg( int ch, int progIn )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void SEQ_6x32x16::step() 
+void SEQ_6x32x16::step()
 {
     bool bClk, bClkTrig, bClockAtZero = false, bGlobalClk = false, bGlobalProg = false, bTrigOut;
     float fout = 0.0;

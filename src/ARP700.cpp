@@ -95,14 +95,14 @@ typedef struct
 // Module Definition
 //
 //-----------------------------------------------------
-struct ARP700 : Module 
+struct ARP700 : Module
 {
-	enum ParamIds 
+	enum ParamIds
     {
         nPARAMS
     };
 
-	enum InputIds 
+	enum InputIds
     {
         IN_CLOCK_TRIG,
         IN_VOCT_OFF,
@@ -111,9 +111,9 @@ struct ARP700 : Module
         nINPUTS
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
-        OUT_TRIG,               
+        OUT_TRIG,
         OUT_VOCTS,
         nOUTPUTS
 	};
@@ -135,7 +135,7 @@ struct ARP700 : Module
     // pattern
     ARP_PATTERN_STRUCT  m_PatternSave[ MAX_ARP_PATTERNS ] = {};
     PAT_STEP_STRUCT     m_PatCtrl = {};
-    
+
     SchmittTrigger      m_SchTrigPatternChange;
     PatternSelectStrip  *m_pPatternSelect = NULL;
 
@@ -147,10 +147,10 @@ struct ARP700 : Module
     MyLEDButton         *m_pButtonTrig  [ MAX_ARP_NOTES ] = {};
     MyLEDButtonStrip    *m_plastbut = NULL;
 
-    // clock     
+    // clock
     SchmittTrigger      m_SchTrigClk;
     MAIN_SYNC_CLOCK     m_Clock;
-    
+
     // global triggers
     SchmittTrigger      m_SchTrigGlobalClkReset;
     bool                m_GlobalClkResetPending = false;
@@ -170,7 +170,7 @@ struct ARP700 : Module
     // mode
     MyLEDButtonStrip    *m_pButtonMode = 0;
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
     json_t* toJson() override;
@@ -237,7 +237,7 @@ void ARP700_OctSelect( void *pClass, int id, int nbutton, bool bOn )
 //-----------------------------------------------------
 // Procedure:   ARP700_mod
 //-----------------------------------------------------
-void ARP700_mod( void *pClass, int id, int nbutton, bool bOn ) 
+void ARP700_mod( void *pClass, int id, int nbutton, bool bOn )
 {
     int note, param;
     ARP700 *mymodule;
@@ -251,7 +251,7 @@ void ARP700_mod( void *pClass, int id, int nbutton, bool bOn )
 //-----------------------------------------------------
 // Procedure:   ARP700_Pause
 //-----------------------------------------------------
-void ARP700_Pause( void *pClass, int id, bool bOn ) 
+void ARP700_Pause( void *pClass, int id, bool bOn )
 {
     ARP700 *mymodule;
     mymodule = (ARP700*)pClass;
@@ -261,7 +261,7 @@ void ARP700_Pause( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // Procedure:   ARP700_Glide
 //-----------------------------------------------------
-void ARP700_Glide( void *pClass, int id, bool bOn ) 
+void ARP700_Glide( void *pClass, int id, bool bOn )
 {
     ARP700 *mymodule;
     mymodule = (ARP700*)pClass;
@@ -272,7 +272,7 @@ void ARP700_Glide( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // Procedure:   ARP700_Trig
 //-----------------------------------------------------
-void ARP700_Trig( void *pClass, int id, bool bOn ) 
+void ARP700_Trig( void *pClass, int id, bool bOn )
 {
     ARP700 *mymodule;
     mymodule = (ARP700*)pClass;
@@ -312,7 +312,7 @@ void ARP700_Widget_PatternChangeCallback ( void *pClass, int kb, int pat, int ma
             mymodule->SetPendingPattern( pat );
         else
             mymodule->ChangePattern( pat, false );
-            
+
     }
     else if( mymodule->m_PatCtrl.used != max )
         mymodule->SetPatternSteps( max );
@@ -322,22 +322,16 @@ void ARP700_Widget_PatternChangeCallback ( void *pClass, int kb, int pat, int ma
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-ARP700_Widget::ARP700_Widget() 
+struct ARP700_Widget : ModuleWidget {
+    ARP700_Widget(ARP700 *module) : ModuleWidget(module)
 {
     int x, y, note, param;
-	ARP700 *module = new ARP700();
-	setModule(module);
-	box.size = Vec( 15*27, 380);
-
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/ARP700.svg")));
-		addChild(panel);
-	}
+// ##HS endIntro	}
 
     for( int i = 0; i < 37; i++ )
         module->m_fKeyNotes[ i ] = (float)i * SEMI;
+
+    setPanel(SVG::load(assetPlugin(plugin, "res/ARP700.svg")));
 
     //module->lg.Open("ARP700.txt");
 
@@ -401,40 +395,44 @@ ARP700_Widget::ARP700_Widget()
     }
 
     // clock trigger
-    addInput(createInput<MyPortInSmall>( Vec( 44, 21 ), module, ARP700::IN_CLOCK_TRIG ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 44, 21 ), Port::INPUT, module, ARP700::IN_CLOCK_TRIG ) );
 
     // VOCT offset input
-    addInput(createInput<MyPortInSmall>( Vec( 44, 52 ), module, ARP700::IN_VOCT_OFF ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 44, 52 ), Port::INPUT, module, ARP700::IN_VOCT_OFF ) );
 
     // prog change trigger
-    addInput(createInput<MyPortInSmall>( Vec( 44, 102 ), module, ARP700::IN_PROG_CHANGE ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 44, 102 ), Port::INPUT, module, ARP700::IN_PROG_CHANGE ) );
 
     // outputs
-    addOutput(createOutput<MyPortOutSmall>( Vec( 365, 38 ), module, ARP700::OUT_VOCTS ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( 365, 79 ), module, ARP700::OUT_TRIG ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( 365, 38 ), Port::OUTPUT, module, ARP700::OUT_VOCTS ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( 365, 79 ), Port::OUTPUT, module, ARP700::OUT_TRIG ) );
 
     // reset inputs
-    addInput(createInput<MyPortInSmall>( Vec( 14, 21 ), module, ARP700::IN_CLOCK_RESET ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 14, 21 ), Port::INPUT, module, ARP700::IN_CLOCK_RESET ) );
 
     // mode buttons
     module->m_pButtonMode = new MyLEDButtonStrip( 154, 360, 12, 12, 7, 10.0, 7, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, ARP700_ModeSelect );
 	addChild( module->m_pButtonMode );
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     module->m_bInitialized = true;
 
     module->reset();
 }
+};
+
+Model *modelARP700_Widget = Model::create<ARP700, ARP700_Widget>( "mscHack", "ARP700", "ARP 700", SEQUENCER_TAG, OSCILLATOR_TAG );
+
 
 //-----------------------------------------------------
-// Procedure: JsonParams  
+// Procedure: JsonParams
 //
 //-----------------------------------------------------
-void ARP700::JsonParams( bool bTo, json_t *root) 
+void ARP700::JsonParams( bool bTo, json_t *root)
 {
     JsonDataBool    ( bTo, "m_bPauseState",     root, &m_bPauseState, 1 );
     JsonDataInt     ( bTo, "m_CurrentPattern",  root, &m_PatCtrl.pat, 1 );
@@ -443,10 +441,10 @@ void ARP700::JsonParams( bool bTo, json_t *root)
 }
 
 //-----------------------------------------------------
-// Procedure: toJson  
+// Procedure: toJson
 //
 //-----------------------------------------------------
-json_t *ARP700::toJson() 
+json_t *ARP700::toJson()
 {
 	json_t *root = json_object();
 
@@ -454,7 +452,7 @@ json_t *ARP700::toJson()
         return NULL;
 
     JsonParams( TOJSON, root );
-    
+
 	return root;
 }
 
@@ -462,7 +460,7 @@ json_t *ARP700::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void ARP700::fromJson( json_t *root ) 
+void ARP700::fromJson( json_t *root )
 {
     JsonParams( FROMJSON, root );
 
@@ -538,7 +536,7 @@ void ARP700::SetOut( void )
     if( m_PatternSave[ m_PatCtrl.pat ].onoffsel[ nstep ][ substep ] == ARP_ON )
     {
         note = m_PatternSave[ m_PatCtrl.pat ].notes[ nstep ];
-        pKeyboardWidget->setkeyhighlight( note ); 
+        pKeyboardWidget->setkeyhighlight( note );
     }
     else
         return;
@@ -648,7 +646,7 @@ void ARP700::ChangePattern( int index, bool bForce )
 
 const float fbasenotelen[ 6 ] = { BASE_TICK_16th * 4, BASE_TICK_16th * 2, BASE_TICK_16th, BASE_TICK_16th / 2, BASE_TICK_16th / 4, BASE_TICK_16th / 8};
 
-const int patmode[ 7 ][ 42 ] = 
+const int patmode[ 7 ][ 42 ] =
 {
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1 },
@@ -659,7 +657,7 @@ const int patmode[ 7 ][ 42 ] =
     { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }
 };
 
-void ARP700::ArpStep( bool bReset ) 
+void ARP700::ArpStep( bool bReset )
 {
     int i, nstep, substep, modestp;
 
@@ -683,9 +681,9 @@ void ARP700::ArpStep( bool bReset )
                 m_PatCtrl.virtstep = 0;
 
             if( m_PatternSave[ m_PatCtrl.pat ].mode == 6 )
-                modestp = (int)( randomf() * 20.0f );
+                modestp = (int)( randomUniform() * 20.0f );
             else
-                modestp = patmode[ m_PatternSave[ m_PatCtrl.pat ].mode ][ m_PatCtrl.virtstep ]; 
+                modestp = patmode[ m_PatternSave[ m_PatCtrl.pat ].mode ][ m_PatCtrl.virtstep ];
 
             if( modestp != -1 )
             {
@@ -762,7 +760,7 @@ stepfound:
 // Procedure:   step
 //
 //-----------------------------------------------------
-void ARP700::step() 
+void ARP700::step()
 {
     bool bSyncTick = false;
 

@@ -1,11 +1,12 @@
 
 SOURCES = $(wildcard src/*.cpp)
 
-include ../../plugin.mk
+# Add files to the ZIP package when running `make dist`
+# The compiled plugin is automatically added.
+DISTRIBUTABLES += $(wildcard LICENSE*) res
 
+# If RACK_DIR is not defined when calling the Makefile, default to two levels above
+RACK_DIR ?= ../..
 
-dist: all
-	mkdir -p dist/mscHack	
-	cp LICENSE* dist/mscHack/
-	cp plugin.* dist/mscHack/
-	cp -R res dist/mscHack/
+# Include the VCV Rack plugin Makefile framework
+include $(RACK_DIR)/plugin.mk

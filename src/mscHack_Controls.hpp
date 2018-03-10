@@ -1933,7 +1933,7 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 // Procedure:   MySlider_01
 //
 //-----------------------------------------------------
-struct MySlider_01 : SVGSlider 
+struct MySlider_01 : SVGFader 
 {
 	MySlider_01() 
     {

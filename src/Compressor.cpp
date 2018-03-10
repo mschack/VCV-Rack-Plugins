@@ -15,11 +15,11 @@ typedef struct
 // Module Definition
 //
 //-----------------------------------------------------
-struct Compressor : Module 
+struct Compressor : Module
 {
-	enum ParamIds 
+	enum ParamIds
     {
-        PARAM_INGAIN, 
+        PARAM_INGAIN,
         PARAM_OUTGAIN,
         PARAM_THRESHOLD,
         PARAM_RATIO,
@@ -30,15 +30,15 @@ struct Compressor : Module
         nPARAMS
     };
 
-	enum InputIds 
+	enum InputIds
     {
         IN_AUDIOL,
         IN_AUDIOR,
         IN_SIDE_CHAIN,
-        nINPUTS 
+        nINPUTS
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
         OUT_AUDIOL,
         OUT_AUDIOR,
@@ -72,7 +72,7 @@ struct Compressor : Module
     // Contructor
 	Compressor() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
@@ -86,7 +86,7 @@ struct Compressor : Module
 //-----------------------------------------------------
 // Compressor_Bypass
 //-----------------------------------------------------
-void Compressor_Bypass( void *pClass, int id, bool bOn ) 
+void Compressor_Bypass( void *pClass, int id, bool bOn )
 {
     Compressor *mymodule;
     mymodule = (Compressor*)pClass;
@@ -97,37 +97,30 @@ void Compressor_Bypass( void *pClass, int id, bool bOn )
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-Compressor_Widget::Compressor_Widget() 
+struct Compressor_Widget : ModuleWidget {
+    Compressor_Widget(Compressor *module) : ModuleWidget(module)
 {
     int x, y, y2;
-	Compressor *module = new Compressor();
-	setModule(module);
-	box.size = Vec( 15*8, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Compressor.svg")));
-		addChild(panel);
-	}
+    setPanel(SVG::load(assetPlugin(plugin, "res/Compressor.svg")));
 
     //module->lg.Open("Compressor.txt");
     x = 10;
     y = 34;
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // bypass switch
     module->m_pButtonBypass = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, Compressor_Bypass );
 	addChild( module->m_pButtonBypass );
 
     // audio inputs
-    addInput(createInput<MyPortInSmall>( Vec( x, y + 32 ), module, Compressor::IN_AUDIOL ) );
-    addInput(createInput<MyPortInSmall>( Vec( x, y + 78 ), module, Compressor::IN_AUDIOR ) );
-    addInput(createInput<MyPortInSmall>( Vec( x - 1, y + 210 ), module, Compressor::IN_SIDE_CHAIN ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x, y + 32 ), Port::INPUT, module, Compressor::IN_AUDIOL ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x, y + 78 ), Port::INPUT, module, Compressor::IN_AUDIOR ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x - 1, y + 210 ), Port::INPUT, module, Compressor::IN_SIDE_CHAIN ) );
 
     // LED meters
     module->m_pLEDMeterIn[ 0 ] = new LEDMeterWidget( x + 22, y + 25, 5, 3, 2, true );
@@ -149,30 +142,34 @@ Compressor_Widget::Compressor_Widget()
     addChild( module->m_pLEDMeterOut[ 1 ] );
 
     // audio  outputs
-    addOutput(createOutput<MyPortOutSmall>( Vec( x + 83, y + 32 ), module, Compressor::OUT_AUDIOL ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x + 83, y + 78 ), module, Compressor::OUT_AUDIOR ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x + 83, y + 32 ), Port::OUTPUT, module, Compressor::OUT_AUDIOL ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x + 83, y + 78 ), Port::OUTPUT, module, Compressor::OUT_AUDIOR ) );
 
     // add param knobs
     y2 = y + 149;
-    addParam(createParam<Yellow1_Small>( Vec( x + 11, y + 113 ), module, Compressor::PARAM_INGAIN, 0.0, 4.0, 1.0 ) );
-    addParam(createParam<Yellow1_Small>( Vec( x + 62, y + 113 ), module, Compressor::PARAM_OUTGAIN, 0.0, 8.0, 1.0 ) );
-    addParam(createParam<Blue2_Small>( Vec( x - 5, y2 + 20 ), module, Compressor::PARAM_SIDE_CHAIN, 0.0, 1.0, 0.0 ) );
-    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_THRESHOLD, 0.0, 0.99, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RATIO, 0.0, 2.0, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_ATTACK, 0.0, 1.0, 0.0 ) ); y2 += 40;
-    addParam(createParam<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RELEASE, 0.0, 1.0, 0.0 ) );
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 11, y + 113 ), module, Compressor::PARAM_INGAIN, 0.0, 4.0, 1.0 ) );
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 62, y + 113 ), module, Compressor::PARAM_OUTGAIN, 0.0, 8.0, 1.0 ) );
+    addParam(ParamWidget::create<Blue2_Small>( Vec( x - 5, y2 + 20 ), module, Compressor::PARAM_SIDE_CHAIN, 0.0, 1.0, 0.0 ) );
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_THRESHOLD, 0.0, 0.99, 0.0 ) ); y2 += 40;
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RATIO, 0.0, 2.0, 0.0 ) ); y2 += 40;
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_ATTACK, 0.0, 1.0, 0.0 ) ); y2 += 40;
+    addParam(ParamWidget::create<Yellow1_Small>( Vec( x + 39, y2 ), module, Compressor::PARAM_RELEASE, 0.0, 1.0, 0.0 ) );
 
     //for( int i = 0; i < 15; i++ )
         //module->lg.f("level %d = %.3f\n", i, module->m_pLEDMeterThreshold->flevels[ i ] );
 
     module->m_bInitialized = true;
 }
+};
+
+Model *modelCompressor_Widget = Model::create<Compressor, Compressor_Widget>( "mscHack", "Compressor1", "COMP Basic Compressor", DYNAMICS_TAG );
+
 
 //-----------------------------------------------------
-// Procedure:   
+// Procedure:
 //
 //-----------------------------------------------------
-json_t *Compressor::toJson() 
+json_t *Compressor::toJson()
 {
 	json_t *rootJ = json_object();
 
@@ -186,7 +183,7 @@ json_t *Compressor::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Compressor::fromJson(json_t *rootJ) 
+void Compressor::fromJson(json_t *rootJ)
 {
 	// reverse state
 	json_t *revJ = json_object_get(rootJ, "m_bBypass");
@@ -241,7 +238,7 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
 
         pComp->state = COMP_ATTACK;
         pComp->finc = (1.0f - pComp->fade) / (float)pComp->count;
-            
+
         break;
 
     case COMP_ATTACK:
@@ -298,13 +295,14 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
 //-----------------------------------------------------
 float Compressor::Compress( float *pDetectInL, float *pDetectInR )
 {
-    float diff = 0, rat, th, finL, finR, compL = 1.0f, compR = 1.0f;
+    float rat, th, finL, finR, compL = 1.0f, compR = 1.0f;
 
     m_fThreshold = params[ PARAM_THRESHOLD ].value;
     th = 1.0f - m_fThreshold;
     rat = params[ PARAM_RATIO ].value;
 
     finL = fabs( *pDetectInL );
+    finR = pDetectInR ? fabs( *pDetectInR ) : 0.0f;
 
     if( ProcessCompState( &m_CompL, ( finL > th ) ) )
         compL = 1.0f - ( rat * m_CompL.fade );
@@ -327,7 +325,7 @@ float Compressor::Compress( float *pDetectInL, float *pDetectInR )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Compressor::step() 
+void Compressor::step()
 {
     float outL, outR, diffL, diffR, fcomp, fside;
 
@@ -339,8 +337,8 @@ void Compressor::step()
 
     if( !m_bBypass )
     {
-        outL = clampf( outL * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
-        outR = clampf( outR * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
+        outL = clamp( outL * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
+        outR = clamp( outR * params[ PARAM_INGAIN ].value, -1.0, 1.0 );
     }
 
     if( m_pLEDMeterIn[ 0 ] )
@@ -357,7 +355,7 @@ void Compressor::step()
         // compress
         if( inputs[ IN_SIDE_CHAIN ].active )
         {
-            fside = clampf( ( inputs[ IN_SIDE_CHAIN ].normalize( 0.0 ) / AUDIO_MAX ) * params[ PARAM_SIDE_CHAIN ].value, -1.0, 1.0 );
+            fside = clamp( ( inputs[ IN_SIDE_CHAIN ].normalize( 0.0 ) / AUDIO_MAX ) * params[ PARAM_SIDE_CHAIN ].value, -1.0, 1.0 );
             fcomp = Compress( &fside, NULL );
         }
         else
@@ -380,8 +378,8 @@ void Compressor::step()
         if( m_pLEDMeterThreshold )
             m_pLEDMeterThreshold->Process( m_fThreshold );
 
-        outL = clampf( outL * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
-        outR = clampf( outR * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
+        outL = clamp( outL * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
+        outR = clamp( outR * params[ PARAM_OUTGAIN ].value, -1.0, 1.0 );
     }
     else
     {
