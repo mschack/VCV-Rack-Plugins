@@ -325,7 +325,7 @@ struct MySlider_Levels : MySlider_01
             mymodule->m_fLevels[ mymodule->m_PatternSelect[ ch ] ][ ch ][ stp ] = value;
         }
 
-        SVGSlider::onChange( e );
+        SVGFader::onChange( e );
 	}
 };
 
