@@ -1,7 +1,10 @@
 /backup
+/dist
 /build
 /mschack
 plugin.dll
+plugin.so
+plugin.dylib
 WaveShaper1.svg
 WaveShaper.cpp
 *.bat
