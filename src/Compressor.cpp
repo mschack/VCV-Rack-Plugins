@@ -295,7 +295,7 @@ bool Compressor::ProcessCompState( COMP_STATE *pComp, bool bAboveThreshold )
 //-----------------------------------------------------
 float Compressor::Compress( float *pDetectInL, float *pDetectInR )
 {
-    float diff = 0, rat, th, finL, finR, compL = 1.0f, compR = 1.0f;
+    float rat, th, finL, finR, compL = 1.0f, compR = 1.0f;
 
     m_fThreshold = params[ PARAM_THRESHOLD ].value;
     th = 1.0f - m_fThreshold;
