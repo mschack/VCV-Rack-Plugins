@@ -230,7 +230,6 @@ struct SynthDrums_Widget : ModuleWidget {
 	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     y = CHANNEL_Y;
-    x = CHANNEL_X;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {

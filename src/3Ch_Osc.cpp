@@ -254,7 +254,6 @@ struct Osc_3Ch_Widget : ModuleWidget {
 	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     y = CHANNEL_Y;
-    x = CHANNEL_X;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
@@ -285,9 +284,6 @@ struct Osc_3Ch_Widget : ModuleWidget {
         addParam(ParamWidget::create<Yellow2_Small>( Vec( x2, y2 ), module, Osc_3Ch::PARAM_REL + ch, 0.0, 1.0, 0.0 ) );
 
         // waves/detune/spread
-        x2 = x + 149;
-        y2 = y + 56;
-
         addParam(ParamWidget::create<Osc_3Ch::MynWaves_Knob>( Vec( x + 129, y + 11 ), module, Osc_3Ch::PARAM_nWAVES + ch, 0.0, 6.0, 0.0 ) );
         addParam(ParamWidget::create<Osc_3Ch::MyDetune_Knob>( Vec( x + 116, y + 48 ), module, Osc_3Ch::PARAM_DETUNE + ch, 0.0, 0.05, 0.0 ) );
         addParam(ParamWidget::create<Osc_3Ch::MySpread_Knob>( Vec( x + 116 + 28, y + 48 ), module, Osc_3Ch::PARAM_SPREAD + ch, 0.0, 1.0, 0.0 ) );
