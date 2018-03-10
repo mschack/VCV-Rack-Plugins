@@ -111,7 +111,7 @@ void CLog::f( std::string string, ... )
 	va_end( arglist );
 
 	// write string to file
-	fprintf( fp,(char*)buffer.c_str() );
+	fprintf( fp, "%s", (char*)buffer.c_str() );
 
 	// write string to callback so user can display it somewhere
     if( m_LogCallbackFunc )
@@ -139,7 +139,7 @@ void CLog::fnr( std::string string, ...)
 	va_end( arglist );
 
 	// write string to file
-	fprintf( fp, (char*)buffer.c_str() );
+	fprintf( fp, "%s", buffer.c_str());
 
 	// write string to callback so user can display it somewhere
     if( m_LogCallbackFunc )
