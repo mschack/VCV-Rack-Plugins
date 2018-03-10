@@ -693,6 +693,7 @@ void Osc_3Ch::Filter( int ch, float *InL, float *InR )
             out[ i ]  = lowpass + highpass;
             break;
         default:
+            out[ i ]  = 0;
             break;
         }
     }
