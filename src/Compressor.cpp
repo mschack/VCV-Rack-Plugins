@@ -302,6 +302,7 @@ float Compressor::Compress( float *pDetectInL, float *pDetectInR )
     rat = params[ PARAM_RATIO ].value;
 
     finL = fabs( *pDetectInL );
+    finR = pDetectInR ? fabs( *pDetectInR ) : 0.0f;
 
     if( ProcessCompState( &m_CompL, ( finL > th ) ) )
         compL = 1.0f - ( rat * m_CompL.fade );
