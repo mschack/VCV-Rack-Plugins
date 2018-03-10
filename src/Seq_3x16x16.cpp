@@ -13,9 +13,9 @@
 // Module Definition
 //
 //-----------------------------------------------------
-struct Seq_3x16x16 : Module 
+struct Seq_3x16x16 : Module
 {
-	enum ParamIds 
+	enum ParamIds
     {
         PARAM_RAND,
         PARAM_CPY_NEXT          = PARAM_RAND + CHANNELS,
@@ -29,7 +29,7 @@ struct Seq_3x16x16 : Module
         nPARAMS                 = PARAM_GLOBAL_PAT + ( PATTERNS )
     };
 
-	enum InputIds 
+	enum InputIds
     {
 		INPUT_EXT_CLOCK,
 		INPUT_RESET,
@@ -38,14 +38,14 @@ struct Seq_3x16x16 : Module
         nINPUTS = INPUT_PAT_CHANGE + CHANNELS
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
 		OUT_GATES,
         OUT_CV      = OUT_GATES + CHANNELS,
         nOUTPUTS    = OUT_CV + CHANNELS
 	};
 
-	enum LightIds 
+	enum LightIds
     {
 		LIGHT_RUN,
         LIGHT_RESET,
@@ -58,7 +58,7 @@ struct Seq_3x16x16 : Module
         nLIGHTS             = LIGHT_GLOBAL_PAT + PATTERNS
 	};
 
-	enum GateMode 
+	enum GateMode
     {
 		TRIGGER,
 		RETRIGGER,
@@ -85,9 +85,9 @@ struct Seq_3x16x16 : Module
     SchmittTrigger  m_SchTrigCopyNext;
 
     // number of steps
-    int             m_nSteps = STEPS;    
+    int             m_nSteps = STEPS;
     SchmittTrigger  m_SchTrigStepNumbers[ STEPS ];
-    
+
     // Level settings
     ParamWidget     *m_pLevelToggleParam2[ CHANNELS ][ STEPS ] = {};
     SchmittTrigger  m_SchTrigLevels[ CHANNELS ][ STEPS ];
@@ -100,7 +100,7 @@ struct Seq_3x16x16 : Module
     int             m_GlobalPendingLight = 0;
 
     // Pattern Select
-    int             m_PatternSelect[ CHANNELS ] = {0};    
+    int             m_PatternSelect[ CHANNELS ] = {0};
     SchmittTrigger  m_SchTrigPatternSelects[ CHANNELS ][ PATTERNS ];
     bool            m_bPatternPending = false;
     bool            m_bPatternChangePending[ CHANNELS ] = {0};
@@ -109,13 +109,13 @@ struct Seq_3x16x16 : Module
     // Steps
     int             m_CurrentStep = 0;
     SchmittTrigger  m_SchTrigSteps[ CHANNELS ][ STEPS ];
-    bool            m_bStepStates[ PATTERNS ][ CHANNELS ][ STEPS ] = {};    
+    bool            m_bStepStates[ PATTERNS ][ CHANNELS ][ STEPS ] = {};
     float           m_fLightStepLevels[ CHANNELS ][ STEPS ] = {};
 
     // Contructor
-	Seq_3x16x16() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){} 
+	Seq_3x16x16() : Module( nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS ){}
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
@@ -138,7 +138,7 @@ struct MySquareButton_CopyNext : MySquareButton
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -161,7 +161,7 @@ struct MySquareButton_Rand : MySquareButton
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -184,7 +184,7 @@ struct MySquareButton_GlobalPattern : MySquareButton //SVGSwitch, MomentarySwitc
     Seq_3x16x16 *mymodule;
     int param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -219,7 +219,7 @@ struct MySquareButton_Pattern : MySquareButton //SVGSwitch, MomentarySwitch
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -254,12 +254,12 @@ struct MySquareButton_Pattern : MySquareButton //SVGSwitch, MomentarySwitch
 // Procedure:   MySquareButton_Step
 //
 //-----------------------------------------------------
-struct MySquareButton_Step : MySquareButton //SVGSwitch, MomentarySwitch 
+struct MySquareButton_Step : MySquareButton //SVGSwitch, MomentarySwitch
 {
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -282,12 +282,12 @@ struct MySquareButton_Step : MySquareButton //SVGSwitch, MomentarySwitch
 // Procedure:   MySquareButton_Step
 //
 //-----------------------------------------------------
-struct MySquareButton_StepNum : MySquareButton 
+struct MySquareButton_StepNum : MySquareButton
 {
     Seq_3x16x16 *mymodule;
     int stp, i;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -310,7 +310,7 @@ struct MySlider_Levels : MySlider_01
     Seq_3x16x16 *mymodule;
     int ch, stp, param;
 
-    void onChange( EventChange &e ) override 
+    void onChange( EventChange &e ) override
     {
         mymodule = (Seq_3x16x16*)module;
 
@@ -333,48 +333,41 @@ struct MySlider_Levels : MySlider_01
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-Seq_3x16x16_Widget::Seq_3x16x16_Widget() 
+struct Seq_3x16x16_Widget : ModuleWidget {
+    Seq_3x16x16_Widget(Seq_3x16x16 *module) : ModuleWidget(module)
 {
     int i, ch, stp, x, y;
-	Seq_3x16x16 *module = new Seq_3x16x16();
-	setModule(module);
-	box.size = Vec(15*23, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Seq_3x16x16.svg")));
-		addChild(panel);
-	}
+	setPanel(SVG::load(assetPlugin(plugin, "res/Seq_3x16x16.svg")));
 
     //module->lg.Open("Seq_3x16x16.txt");
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // clk/run button
-	addParam(createParam<LEDButton>(Vec( 78, 17 ), module, Seq_3x16x16::PARAM_RUN, 0.0, 1.0, 0.0 ) );
-    addChild(createLight<SmallLight<GreenLight>>( Vec( 78 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RUN ) );
-    addInput(createInput<MyPortInSmall>( Vec( 47, 17 ), module, Seq_3x16x16::INPUT_EXT_CLOCK ) );
+	addParam(ParamWidget::create<LEDButton>(Vec( 78, 17 ), module, Seq_3x16x16::PARAM_RUN, 0.0, 1.0, 0.0 ) );
+    addChild(ModuleLightWidget::create<SmallLight<GreenLight>>( Vec( 78 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RUN ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 47, 17 ), Port::INPUT, module, Seq_3x16x16::INPUT_EXT_CLOCK ) );
 
     // reset button
-	addParam(createParam<LEDButton>( Vec( 143, 17 ), module, Seq_3x16x16::PARAM_RESET, 0.0, 1.0, 0.0 ) );
-    addChild(createLight<SmallLight<GreenLight>>( Vec( 143 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RESET ) );
-    addInput(createInput<MyPortInSmall>( Vec( 117, 17 ), module, Seq_3x16x16::INPUT_RESET ) );
+	addParam(ParamWidget::create<LEDButton>( Vec( 143, 17 ), module, Seq_3x16x16::PARAM_RESET, 0.0, 1.0, 0.0 ) );
+    addChild(ModuleLightWidget::create<SmallLight<GreenLight>>( Vec( 143 + 5, 17 + 5 ), module, Seq_3x16x16::LIGHT_RESET ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 117, 17 ), Port::INPUT, module, Seq_3x16x16::INPUT_RESET ) );
 
     //----------------------------------------------------
-    // Step Select buttons 
+    // Step Select buttons
 
     y = 41;
     x = 50;
 
-	for ( stp = 0; stp < STEPS; stp++ ) 
+	for ( stp = 0; stp < STEPS; stp++ )
     {
         // step button
-		addParam(createParam<MySquareButton_StepNum>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<DarkRedValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP_NUM + stp ) );
+		addParam(ParamWidget::create<MySquareButton_StepNum>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<DarkRedValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP_NUM + stp ) );
 
         if( ( stp & 0x3 ) == 0x3 )
             x += 20;
@@ -385,27 +378,27 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     }
 
     //----------------------------------------------------
-    // All the Channel buttons    
+    // All the Channel buttons
 
     // channel
-	for ( ch = 0; ch < CHANNELS; ch++ ) 
+	for ( ch = 0; ch < CHANNELS; ch++ )
     {
         x = 50;
 
         // step
-	    for ( stp = 0; stp < STEPS; stp++ ) 
+	    for ( stp = 0; stp < STEPS; stp++ )
         {
             y = 64 + (ch * CHANNEL_OFF_H);
 
             // level button
-		    module->m_pLevelToggleParam2[ ch ][ stp ] = createParam<MySlider_Levels>( Vec( x, y ), module, Seq_3x16x16::PARAM_SLIDERS + ( ch * STEPS ) + stp , 0.0, 6.0, 0.0);
+		    module->m_pLevelToggleParam2[ ch ][ stp ] = ParamWidget::create<MySlider_Levels>( Vec( x, y ), module, Seq_3x16x16::PARAM_SLIDERS + ( ch * STEPS ) + stp , 0.0, 6.0, 0.0);
             addParam( module->m_pLevelToggleParam2[ ch ][ stp ] );
 
             y += 46;
 
             // step button
-		    addParam(createParam<MySquareButton_Step>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEPS + ( ch * STEPS ) + stp, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<DarkGreenValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ) );
+		    addParam(ParamWidget::create<MySquareButton_Step>( Vec( x, y ), module, Seq_3x16x16::PARAM_STEPS + ( ch * STEPS ) + stp, 0.0, 1.0, 0.0 ) );
+            addChild(ModuleLightWidget::create<SmallLight<DarkGreenValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_STEP + ( ch * STEPS ) + stp ) );
 
             if( ( stp & 0x3 ) == 0x3 )
                 x += 20;
@@ -416,11 +409,11 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
         x = 45;
         y = 130 + (ch * CHANNEL_OFF_H);
 
-	    for ( i = 0; i < PATTERNS; i++ ) 
+	    for ( i = 0; i < PATTERNS; i++ )
         {
             // pattern button
-		    addParam(createParam<MySquareButton_Pattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_PATTERNS + ( ch * PATTERNS ) + i, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_PAT + ( ch * PATTERNS ) + i ) );
+		    addParam(ParamWidget::create<MySquareButton_Pattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_PATTERNS + ( ch * PATTERNS ) + i, 0.0, 1.0, 0.0 ) );
+            addChild(ModuleLightWidget::create<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_PAT + ( ch * PATTERNS ) + i ) );
 
             x += 13;
         }
@@ -429,42 +422,42 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
         y = 126 + (ch * CHANNEL_OFF_H);
 
         // copy next button
-		addParam(createParam<MySquareButton_CopyNext>( Vec( x, y ), module, Seq_3x16x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_COPY + ch ) );
+		addParam(ParamWidget::create<MySquareButton_CopyNext>( Vec( x, y ), module, Seq_3x16x16::PARAM_CPY_NEXT + ch, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_COPY + ch ) );
 
         x = 290;
 
         // random button
-		addParam(createParam<MySquareButton_Rand>( Vec( x, y ), module, Seq_3x16x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_RAND + ch ) );
+		addParam(ParamWidget::create<MySquareButton_Rand>( Vec( x, y ), module, Seq_3x16x16::PARAM_RAND + ch, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<CyanValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_RAND + ch ) );
 
         // pattern change input trigger
-        addInput(createInput<MyPortInSmall>( Vec( 17, 127 + (ch * CHANNEL_OFF_H) ), module, Seq_3x16x16::INPUT_PAT_CHANGE + ch ) );
+        addChild(Port::create<MyPortInSmall>( Vec( 17, 127 + (ch * CHANNEL_OFF_H) ), Port::INPUT, module, Seq_3x16x16::INPUT_PAT_CHANGE + ch ) );
 
         x = 310;
         y = 65 + (ch * CHANNEL_OFF_H);
 
         // outputs
-        addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_3x16x16::OUT_CV + ch ) );
-        addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 42 ), module, Seq_3x16x16::OUT_GATES + ch ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x, y ), Port::OUTPUT, module, Seq_3x16x16::OUT_CV + ch ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x, y + 42 ), Port::OUTPUT, module, Seq_3x16x16::OUT_GATES + ch ) );
 	}
 
     //----------------------------------------------------
-    // Global patter select buttons  
+    // Global patter select buttons
     x = 45;
     y = 340;
 
-	for ( stp = 0; stp < PATTERNS; stp++ ) 
+	for ( stp = 0; stp < PATTERNS; stp++ )
     {
         // pattern button
-		addParam(createParam<MySquareButton_GlobalPattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_GLOBAL_PAT + stp, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_GLOBAL_PAT + stp ) );
+		addParam(ParamWidget::create<MySquareButton_GlobalPattern>( Vec( x, y ), module, Seq_3x16x16::PARAM_GLOBAL_PAT + stp, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<OrangeValueLight>>( Vec( x + 2, y + 3 ), module, Seq_3x16x16::LIGHT_GLOBAL_PAT + stp ) );
 
         x += 13;
     }
 
     // pattern change input trigger
-    addInput(createInput<MyPortInSmall>( Vec( 17, 338 ), module, Seq_3x16x16::INPUT_GLOBAL_PAT_CHANGE ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 17, 338 ), Port::INPUT, module, Seq_3x16x16::INPUT_GLOBAL_PAT_CHANGE ) );
 
     module->lights[ Seq_3x16x16::LIGHT_GLOBAL_PAT ].value = 1.0;
     module->m_GlobalSelect = 0;
@@ -473,12 +466,16 @@ Seq_3x16x16_Widget::Seq_3x16x16_Widget()
     module->ChangePattern( 1, PATTERNS, false );
     module->ChangePattern( 2, PATTERNS, false );
 }
+};
+
+Model *modelSeq_3x16x16_Widget = Model::create<Seq_3x16x16, Seq_3x16x16_Widget>( "mscHack", "Seq_3ch_16step", "SEQ 3 x 16", SEQUENCER_TAG, MULTIPLE_TAG );
+
 
 //-----------------------------------------------------
-// Procedure:   
+// Procedure:
 //
 //-----------------------------------------------------
-json_t *Seq_3x16x16::toJson() 
+json_t *Seq_3x16x16::toJson()
 {
     bool *pgateState;
     float *pfloat;
@@ -505,7 +502,7 @@ json_t *Seq_3x16x16::toJson()
 
 	json_t *gatesJ_3 = json_array();
 
-	for (int i = 0; i < ( PATTERNS * CHANNELS * STEPS ); i++) 
+	for (int i = 0; i < ( PATTERNS * CHANNELS * STEPS ); i++)
     {
 		json_t *gateJ = json_real( pfloat[ i ] );
 		json_array_append_new(gatesJ_3, gateJ);
@@ -528,7 +525,7 @@ json_t *Seq_3x16x16::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Seq_3x16x16::fromJson(json_t *rootJ) 
+void Seq_3x16x16::fromJson(json_t *rootJ)
 {
     bool *pgateState;
     float *pfloat;
@@ -544,7 +541,7 @@ void Seq_3x16x16::fromJson(json_t *rootJ)
 
 	json_t *StepsJ = json_object_get(rootJ, "steps");
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for (int i = 0; i < ( PATTERNS * CHANNELS * STEPS ); i++)
         {
@@ -560,9 +557,9 @@ void Seq_3x16x16::fromJson(json_t *rootJ)
 
 	json_t *LvlSettingsJ = json_object_get(rootJ, "levelsettings");
 
-    if (LvlSettingsJ) 
+    if (LvlSettingsJ)
     {
-		for (int i = 0; i < ( PATTERNS * CHANNELS * STEPS ); i++) 
+		for (int i = 0; i < ( PATTERNS * CHANNELS * STEPS ); i++)
         {
 			json_t *gateJ = json_array_get(LvlSettingsJ, i);
 
@@ -619,7 +616,7 @@ void Seq_3x16x16::reset()
 // Procedure:   randomize
 //
 //-----------------------------------------------------
-float stepchance[ 16 ] = { 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4 }; 
+float stepchance[ 16 ] = { 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4, 0.9, 0.5, 0.8, 0.4 };
 void Seq_3x16x16::Randomize_Channel( int ch )
 {
     int stp, pat;
@@ -627,12 +624,12 @@ void Seq_3x16x16::Randomize_Channel( int ch )
 
     pat = m_PatternSelect[ ch ];
 
-    octave = (int)( randomf() * 4.0 );
+    octave = (int)( randomUniform() * 4.0 );
 
     for( stp = 0; stp < STEPS; stp++ )
     {
-        m_fLevels[ pat ][ ch ][ stp ] = (float)octave + ( randomf() * 2.0 );
-        m_bStepStates[ pat ][ ch ][ stp ] = ( randomf() < stepchance[ stp ] ) ? true : false;
+        m_fLevels[ pat ][ ch ][ stp ] = (float)octave + ( randomUniform() * 2.0 );
+        m_bStepStates[ pat ][ ch ][ stp ] = ( randomUniform() < stepchance[ stp ] ) ? true : false;
     }
 
     ChangePattern( ch, pat, true );
@@ -642,7 +639,7 @@ void Seq_3x16x16::Randomize_Channel( int ch )
 // Procedure:   randomize
 //
 //-----------------------------------------------------
-void Seq_3x16x16::randomize() 
+void Seq_3x16x16::randomize()
 {
     int ch, stp, pat;
     int octave;
@@ -651,12 +648,12 @@ void Seq_3x16x16::randomize()
     {
         for( pat = 0; pat < PATTERNS; pat++ )
         {
-            octave = (int)( randomf() * 4.0 );
+            octave = (int)( randomUniform() * 4.0 );
 
             for( stp = 0; stp < STEPS; stp++ )
             {
-                m_fLevels[ pat ][ ch ][ stp ] = (float)octave + ( randomf() * 2.0 );
-                m_bStepStates[ pat ][ ch ][ stp ] = ( randomf() < stepchance[ stp ] ) ? true : false;
+                m_fLevels[ pat ][ ch ][ stp ] = (float)octave + ( randomUniform() * 2.0 );
+                m_bStepStates[ pat ][ ch ][ stp ] = ( randomUniform() < stepchance[ stp ] ) ? true : false;
             }
         }
     }
@@ -708,19 +705,19 @@ void Seq_3x16x16::ChangePattern( int ch, int index, bool bForceChange )
     m_PatternSelect[ ch ] = index;
 
     // update lights
-    for( stp = 0; stp < STEPS; stp++ ) 
+    for( stp = 0; stp < STEPS; stp++ )
         lights[ LIGHT_STEP + ( ch * STEPS ) + stp ].value = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 : 0.0;
 
     for( i = 0; i < PATTERNS; i++ )
     {
         if( m_PatternSelect[ ch ] == i )
-            lights[ LIGHT_PAT + ( ch * PATTERNS ) + i ].value = 1.0f; 
+            lights[ LIGHT_PAT + ( ch * PATTERNS ) + i ].value = 1.0f;
         else
             lights[ LIGHT_PAT + ( ch * PATTERNS ) + i ].value = 0.0f;
     }
 
     // step
-	for( stp = 0; stp < STEPS; stp++ ) 
+	for( stp = 0; stp < STEPS; stp++ )
     {
         // level button
 		m_pLevelToggleParam2[ ch ][ stp ]->setValue( m_fLevels[ m_PatternSelect[ ch ] ][ ch ][ stp ] );
@@ -740,11 +737,11 @@ void Seq_3x16x16::SetSteps( int nSteps )
 
     m_nSteps = nSteps;
 
-	for ( i = 0; i < STEPS; i++ ) 
+	for ( i = 0; i < STEPS; i++ )
     {
         // level button
 		if( i < nSteps )
-            lights[ LIGHT_STEP_NUM + i ].value = 1.0f; 
+            lights[ LIGHT_STEP_NUM + i ].value = 1.0f;
         else
             lights[ LIGHT_STEP_NUM + i ].value = 0.0f;
     }
@@ -756,7 +753,7 @@ void Seq_3x16x16::SetSteps( int nSteps )
 //-----------------------------------------------------
 void Seq_3x16x16::SetGlobalPattern( int step )
 {
-	for ( int i = 0; i < PATTERNS; i++ ) 
+	for ( int i = 0; i < PATTERNS; i++ )
         lights[ LIGHT_GLOBAL_PAT + i ].value = 0.0f;
 
     lights[ LIGHT_GLOBAL_PAT + step ].value = 1.0;
@@ -772,7 +769,7 @@ void Seq_3x16x16::SetGlobalPattern( int step )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Seq_3x16x16::step() 
+void Seq_3x16x16::step()
 {
     bool bNextStep = false, bPulse, bGatesOn, bChTrig;
     int ch, stp;
@@ -810,9 +807,9 @@ void Seq_3x16x16::step()
 	lights[ LIGHT_RUN ].value = m_bRunning ? 1.0f : 0.0f;
 
 	// Random and copy buttons
-	for( ch = 0; ch < CHANNELS; ch++ ) 
+	for( ch = 0; ch < CHANNELS; ch++ )
     {
-	    if( m_SchTrigRandPat.process( params[ PARAM_RAND + ch ].value ) ) 
+	    if( m_SchTrigRandPat.process( params[ PARAM_RAND + ch ].value ) )
             lights[ LIGHT_RAND + ch ].value = 1.0f;
 
 	    if( m_SchTrigCopyNext.process( params[ PARAM_CPY_NEXT + ch ].value ) )
@@ -823,12 +820,12 @@ void Seq_3x16x16::step()
         lights[ LIGHT_COPY + ch ].value -= lights[ LIGHT_COPY + ch ].value / LIGHT_LAMBDA / engineGetSampleRate();
     }
 
-	if( m_bRunning ) 
+	if( m_bRunning )
     {
-		if( inputs[ INPUT_EXT_CLOCK ].active ) 
+		if( inputs[ INPUT_EXT_CLOCK ].active )
         {
 			// External clock
-			if( m_SchTrigClock.process( inputs[ INPUT_EXT_CLOCK ].value ) ) 
+			if( m_SchTrigClock.process( inputs[ INPUT_EXT_CLOCK ].value ) )
             {
 				m_fPhase = 0.0f;
 				bNextStep = true;
@@ -858,7 +855,7 @@ void Seq_3x16x16::step()
     }
 
 	// Reset
-	if( m_SchTrigReset.process( params[ PARAM_RESET ].value + inputs[ INPUT_RESET ].value ) ) 
+	if( m_SchTrigReset.process( params[ PARAM_RESET ].value + inputs[ INPUT_RESET ].value ) )
     {
 		m_fPhase = 0.0f;
 		m_CurrentStep = m_nSteps;
@@ -866,11 +863,11 @@ void Seq_3x16x16::step()
         lights[ LIGHT_RESET ].value = 1.0f;
 	}
 
-	if( bNextStep ) 
+	if( bNextStep )
     {
 		m_CurrentStep += 1;
 
-		if( m_CurrentStep >= m_nSteps ) 
+		if( m_CurrentStep >= m_nSteps )
 			m_CurrentStep = 0;
 
         for( ch = 0; ch < CHANNELS; ch++ )
@@ -933,11 +930,11 @@ void Seq_3x16x16::step()
 	bPulse = m_PulseStep.process( 1.0 / engineGetSampleRate() );
 
 	// Step buttons
-	for( ch = 0; ch < CHANNELS; ch++ ) 
+	for( ch = 0; ch < CHANNELS; ch++ )
     {
         bChTrig = false;
 
-	    for( stp = 0; stp < STEPS; stp++ ) 
+	    for( stp = 0; stp < STEPS; stp++ )
         {
 		    bGatesOn = ( m_bRunning && stp == m_CurrentStep && m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] );
 
@@ -948,7 +945,7 @@ void Seq_3x16x16::step()
 
             if( bGatesOn )
                 bChTrig = true;
-		    
+
 		    m_fLightStepLevels[ ch ][ stp ] -= m_fLightStepLevels[ ch ][ stp ] / LIGHT_LAMBDA / engineGetSampleRate();
 
             lights[ LIGHT_STEP + (ch * STEPS) + stp ].value = m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ stp ] ? 1.0 - m_fLightStepLevels[ ch ][ stp ] : m_fLightStepLevels[ ch ][ stp ];
@@ -959,7 +956,7 @@ void Seq_3x16x16::step()
     }
 
     // outputs
-	for( ch = 0; ch < CHANNELS; ch++ ) 
+	for( ch = 0; ch < CHANNELS; ch++ )
     {
         // set CV
         if( m_bRunning && m_bStepStates[ m_PatternSelect[ ch ] ][ ch ][ m_CurrentStep ]  )
@@ -978,7 +975,7 @@ void Seq_3x16x16::step()
         for( ch = 0; ch < CHANNELS; ch++ )
         {
 	        // pat change trigger - ignore if already pending
-	        if( m_SchTrigPatChange[ ch ].process( inputs[ INPUT_PAT_CHANGE + ch ].value ) && !m_bPatternChangePending[ ch ] ) 
+	        if( m_SchTrigPatChange[ ch ].process( inputs[ INPUT_PAT_CHANGE + ch ].value ) && !m_bPatternChangePending[ ch ] )
             {
                 m_bPatternPending = true;
                 m_bPatternChangePending[ ch ] = true;
@@ -987,7 +984,7 @@ void Seq_3x16x16::step()
         }
 
 	    // global pat change trigger - ignore if already pending
-	    if( m_SchTrigGlobalPatternSelect.process( inputs[ INPUT_GLOBAL_PAT_CHANGE ].value ) && !m_bGlobalPatternChangePending ) 
+	    if( m_SchTrigGlobalPatternSelect.process( inputs[ INPUT_GLOBAL_PAT_CHANGE ].value ) && !m_bGlobalPatternChangePending )
         {
             m_bGlobalPatternChangePending = true;
             m_GlobalPendingLight = ( m_GlobalSelect + 1 ) & 0xF;

@@ -34,19 +34,19 @@ typedef struct
 // Module Definition
 //
 //-----------------------------------------------------
-struct Seq_Triad2 : Module 
+struct Seq_Triad2 : Module
 {
 
-	enum ParamIds 
+	enum ParamIds
     {
-        PARAM_PAUSE,          
+        PARAM_PAUSE,
         PARAM_OCTAVES           = PARAM_PAUSE + ( nKEYBOARDS ),
         PARAM_GLIDE             = PARAM_OCTAVES + (nOCTAVESEL * nKEYBOARDS),
         PARAM_TRIGOFF           = PARAM_GLIDE + ( nKEYBOARDS ),
         nPARAMS                 = PARAM_TRIGOFF + ( nKEYBOARDS )
     };
 
-	enum InputIds 
+	enum InputIds
     {
         IN_PATTERN_TRIG,
         IN_VOCT_OFF             = IN_PATTERN_TRIG + ( nKEYBOARDS ),
@@ -56,9 +56,9 @@ struct Seq_Triad2 : Module
         nINPUTS
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
-        OUT_TRIG,               
+        OUT_TRIG,
         OUT_VOCTS               = OUT_TRIG + nKEYBOARDS,
         nOUTPUTS                = OUT_VOCTS + nKEYBOARDS
 	};
@@ -85,12 +85,12 @@ struct Seq_Triad2 : Module
     PatternSelectStrip *m_pPhraseSelect[ nKEYBOARDS ] = {};
 
     // number of steps
-    int             m_nSteps[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};    
+    int             m_nSteps[ nKEYBOARDS ][ nPHRASE_SAVES ] = {};
 
     // pause button
     bool            m_bPause[ nKEYBOARDS ] = {};
 
-    // triggers     
+    // triggers
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
 
@@ -123,10 +123,10 @@ struct Seq_Triad2 : Module
 
         for( i = 0; i < 37; i++ )
             m_fKeyNotes[ i ] = (float)i * SEMI;
-    
+
     }
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
@@ -158,7 +158,7 @@ void Seq_Triad2_OctSelect( void *pClass, int id, int nbutton, bool bOn )
 //-----------------------------------------------------
 // Seq_Triad2_Pause
 //-----------------------------------------------------
-void Seq_Triad2_Pause( void *pClass, int id, bool bOn ) 
+void Seq_Triad2_Pause( void *pClass, int id, bool bOn )
 {
     Seq_Triad2 *mymodule;
     mymodule = (Seq_Triad2*)pClass;
@@ -168,7 +168,7 @@ void Seq_Triad2_Pause( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 // Seq_Triad2_Trig
 //-----------------------------------------------------
-void Seq_Triad2_Trig( void *pClass, int id, bool bOn ) 
+void Seq_Triad2_Trig( void *pClass, int id, bool bOn )
 {
     Seq_Triad2 *mymodule;
     mymodule = (Seq_Triad2*)pClass;
@@ -187,7 +187,7 @@ void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepresse
         return;
 
     mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
-    mymodule->SetOut( kb );    
+    mymodule->SetOut( kb );
 }
 
 //-----------------------------------------------------
@@ -224,7 +224,7 @@ void Seq_Triad2_Widget_PhraseChangeCallback ( void *pClass, int kb, int pat, int
             mymodule->SetPendingPhrase( kb, pat );
         else
             mymodule->ChangePhrase( kb, pat, false );
-            
+
     }
     else if( mymodule->m_PhrasesUsed[ kb ] != max )
         mymodule->SetPhraseSteps( kb, max );
@@ -234,24 +234,17 @@ void Seq_Triad2_Widget_PhraseChangeCallback ( void *pClass, int kb, int pat, int
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-Seq_Triad2_Widget::Seq_Triad2_Widget() 
+struct Seq_Triad2_Widget : ModuleWidget {
+    Seq_Triad2_Widget(Seq_Triad2 *module) : ModuleWidget(module)
 {
     int kb, x, x2, y, y2;
-	Seq_Triad2 *module = new Seq_Triad2();
-	setModule(module);
-	box.size = Vec( 15*25, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/TriadSequencer2.svg")));
-		addChild(panel);
-	}
+    setPanel(SVG::load(assetPlugin(plugin, "res/TriadSequencer2.svg")));
 
     module->lg.Open("TriadSequencer2.txt");
 
     //----------------------------------------------------
-    // Keyboard Keys 
+    // Keyboard Keys
     y = 21;
     x = 11;
 
@@ -266,7 +259,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
 	    addChild( module->m_pButtonTrig[ kb ] );
 
         // glide knob
-        addParam( createParam<Yellow1_Tiny>( Vec( x + 220, y + 86 ), module, Seq_Triad2::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Yellow1_Tiny>( Vec( x + 220, y + 86 ), module, Seq_Triad2::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
 
         x2 = x + 274;
 
@@ -289,36 +282,40 @@ Seq_Triad2_Widget::Seq_Triad2_Widget()
         x2 = x + 9;
         y2 = y + 4;
         // prog change trigger
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Seq_Triad2::IN_PATTERN_TRIG + kb ) ); y2 += 40;
+        addChild(Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Seq_Triad2::IN_PATTERN_TRIG + kb ) ); y2 += 40;
 
         // VOCT offset input
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Seq_Triad2::IN_VOCT_OFF + kb ) ); y2 += 40;
+        addChild(Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Seq_Triad2::IN_VOCT_OFF + kb ) ); y2 += 40;
 
         // prog change trigger
-        addInput(createInput<MyPortInSmall>( Vec( x2, y2 ), module, Seq_Triad2::IN_PROG_CHANGE + kb ) );
+        addChild(Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Seq_Triad2::IN_PROG_CHANGE + kb ) );
 
         // outputs
         x2 = x + 330;
-        addOutput(createOutput<MyPortOutSmall>( Vec( x2, y + 27 ), module, Seq_Triad2::OUT_VOCTS + kb ) );
-        addOutput(createOutput<MyPortOutSmall>( Vec( x2, y + 68 ), module, Seq_Triad2::OUT_TRIG + kb ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x2, y + 27 ), Port::OUTPUT, module, Seq_Triad2::OUT_VOCTS + kb ) );
+        addChild(Port::create<MyPortOutSmall>( Vec( x2, y + 68 ), Port::OUTPUT, module, Seq_Triad2::OUT_TRIG + kb ) );
 
         y += 111;
     }
 
     // reset inputs
-    y2 = 357; 
-    addInput(createInput<MyPortInSmall>( Vec( x + 89, y2 ), module, Seq_Triad2::IN_CLOCK_RESET ) );
-    addInput(createInput<MyPortInSmall>( Vec( x + 166, y2 ), module, Seq_Triad2::IN_GLOBAL_PAT_CLK ) );
+    y2 = 357;
+    addChild(Port::create<MyPortInSmall>( Vec( x + 89, y2 ), Port::INPUT, module, Seq_Triad2::IN_CLOCK_RESET ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x + 166, y2 ), Port::INPUT, module, Seq_Triad2::IN_GLOBAL_PAT_CLK ) );
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     module->m_bInitialized = true;
 
     reset();
 }
+};
+
+Model *modelSeq_Triad2_Widget = Model::create<Seq_Triad2, Seq_Triad2_Widget>( "mscHack", "TriadSeq2", "SEQ Triad 2", SEQUENCER_TAG, MULTIPLE_TAG );
+
 
 //-----------------------------------------------------
 // Procedure:   reset
@@ -335,7 +332,7 @@ void Seq_Triad2::reset()
     memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
-    
+
     for( int kb = 0; kb < nKEYBOARDS; kb++ )
     {
         for( int pat = 0; pat < nPHRASE_SAVES; pat++ )
@@ -364,23 +361,23 @@ void Seq_Triad2::randomize()
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
 
-    basekey = (int)(randomf() * 24.4);
+    basekey = (int)(randomUniform() * 24.4);
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
-        m_Octave[ kb ] = (int)( randomf() * 3.4 );
+        m_Octave[ kb ] = (int)( randomUniform() * 3.4 );
 
         for( pat = 0; pat < nPATTERNS; pat++ )
         {
             for( phrase = 0; phrase < nPHRASE_SAVES; phrase++ )
             {
-                if( randomf() > 0.7 )
-                    note = keyscalenotes_minor[ (int)(randomf() * 7.4 ) ];
+                if( randomUniform() > 0.7 )
+                    note = keyscalenotes_minor[ (int)(randomUniform() * 7.4 ) ];
                 else
-                    note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
+                    note = keyscalenotes[ (int)(randomUniform() * 7.4 ) ];
 
-                m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomf() < 0.10 );
-                m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note; 
+                m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomUniform() < 0.10 );
+                m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note;
             }
         }
 
@@ -561,10 +558,10 @@ void Seq_Triad2::ChangePattern( int kb, int index, bool bForce )
 }
 
 //-----------------------------------------------------
-// Procedure:   
+// Procedure:
 //
 //-----------------------------------------------------
-json_t *Seq_Triad2::toJson() 
+json_t *Seq_Triad2::toJson()
 {
     int *pint;
     bool *pbool;
@@ -670,7 +667,7 @@ json_t *Seq_Triad2::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Seq_Triad2::fromJson(json_t *rootJ) 
+void Seq_Triad2::fromJson(json_t *rootJ)
 {
     bool *pbool;
     int *pint;
@@ -681,7 +678,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
     pbool = &m_bPause[ 0 ];
 	StepsJ = json_object_get( rootJ, "m_bPause" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -696,7 +693,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
     pint = (int*)&m_nSteps[ 0 ][ 0 ];
 	StepsJ = json_object_get( rootJ, "m_nSteps" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS * nPHRASE_SAVES; i++)
         {
@@ -711,7 +708,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
     pint = (int*)&m_Octave[ 0 ];
 	StepsJ = json_object_get( rootJ, "m_Octave" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -726,7 +723,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
     pint = (int*)&m_CurrentPhrase[ 0 ];
 	StepsJ = json_object_get( rootJ, "m_CurrentPhrase" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -736,13 +733,13 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 				pint[ i ] = json_integer_value( gateJ );
 		}
 	}
-    
+
     // all patterns and phrases
     pint = (int*)&m_PatternNotes[ 0 ][ 0 ][ 0 ];
 
 	StepsJ = json_object_get( rootJ, "m_PatternNotes" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < (nPHRASE_SAVES * nPATTERNS * nKEYBOARDS * 8); i++)
         {
@@ -758,7 +755,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get( rootJ, "m_PhrasesUsed" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -774,7 +771,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get( rootJ, "m_CurrentPattern" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -806,7 +803,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 //
 //-----------------------------------------------------
 #define LIGHT_LAMBDA ( 0.065f )
-void Seq_Triad2::step() 
+void Seq_Triad2::step()
 {
     int kb;
     bool bGlobalPatChange = false, bGlobalClkTriggered = false;
@@ -845,7 +842,7 @@ void Seq_Triad2::step()
 	    // pat change trigger - ignore if already pending
         if( inputs[ IN_PATTERN_TRIG + kb ].active && !m_bPause[ kb ] )
         {
-            if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) ) 
+            if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) )
             {
                 if( m_GlobalClkResetPending )
                 {

@@ -40,12 +40,12 @@ typedef struct
 // Module Definition
 //
 //-----------------------------------------------------
-struct Seq_Triad : Module 
+struct Seq_Triad : Module
 {
-	enum ParamIds 
+	enum ParamIds
     {
         PARAM_COPY_NEXT,
-        PARAM_PAUSE,            
+        PARAM_PAUSE,
         PARAM_STEP_NUM,
         PARAM_OCTAVES           = PARAM_STEP_NUM + (nPATTERNS),
         PARAM_PATTERNS          = PARAM_OCTAVES + (nOCTAVESEL * nKEYBOARDS),
@@ -56,7 +56,7 @@ struct Seq_Triad : Module
         nPARAMS                 = PARAM_PHRASE_USED + ( nKEYBOARDS * nPHRASE_SAVES )
     };
 
-	enum InputIds 
+	enum InputIds
     {
         IN_PATTERN_TRIG,
         IN_VOCT_OFF,
@@ -64,14 +64,14 @@ struct Seq_Triad : Module
         nINPUTS                 = IN_PROG_CHANGE + ( nKEYBOARDS ),
 	};
 
-	enum OutputIds 
+	enum OutputIds
     {
-        OUT_TRIG,               
+        OUT_TRIG,
         OUT_VOCTS               = OUT_TRIG + nKEYBOARDS,
         nOUTPUTS                = OUT_VOCTS + nKEYBOARDS
 	};
 
-	enum LightIds 
+	enum LightIds
     {
         LIGHT_COPY_NEXT,
         LIGHT_STEP_NUM,
@@ -107,13 +107,13 @@ struct Seq_Triad : Module
     int             m_PhrasesUsed[ nKEYBOARDS ] = {0};
 
     // number of steps
-    int             m_nSteps = nPATTERNS;    
+    int             m_nSteps = nPATTERNS;
     SchmittTrigger  m_SchTrigStepNumbers[ nPATTERNS ];
 
     // pause button
     bool            m_bPause = false;
 
-    // triggers     
+    // triggers
     bool            m_bTrig[ nKEYBOARDS ] = {};
     PulseGenerator  m_gatePulse[ nKEYBOARDS ];
 
@@ -139,10 +139,10 @@ struct Seq_Triad : Module
 
         for( i = 0; i < 37; i++ )
             m_fKeyNotes[ i ] = (float)i * SEMI;
-    
+
     }
 
-    // Overrides 
+    // Overrides
 	void    step() override;
     json_t* toJson() override;
     void    fromJson(json_t *rootJ) override;
@@ -160,12 +160,12 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     // MySquareButton_Phrase
     //-----------------------------------------------------
-    struct MySquareButton_Used : MySquareButtonSmall 
+    struct MySquareButton_Used : MySquareButtonSmall
     {
         Seq_Triad *mymodule;
         int i, kb, param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -185,12 +185,12 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     // MySquareButton_Phrase
     //-----------------------------------------------------
-    struct MySquareButton_Phrase : MySquareButtonSmall 
+    struct MySquareButton_Phrase : MySquareButtonSmall
     {
         Seq_Triad *mymodule;
         int i, kb, param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -224,7 +224,7 @@ struct Seq_Triad : Module
 
         Seq_Triad *mymodule;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -247,7 +247,7 @@ struct Seq_Triad : Module
     {
         Seq_Triad *mymodule;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -263,12 +263,12 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     // MySquareButton_Step
     //-----------------------------------------------------
-    struct MySquareButton_Pause : MySquareButton 
+    struct MySquareButton_Pause : MySquareButton
     {
         Seq_Triad *mymodule;
         int stp, i;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -285,12 +285,12 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     // MySquareButton_Step
     //-----------------------------------------------------
-    struct MySquareButton_Stp : MySquareButton 
+    struct MySquareButton_Stp : MySquareButton
     {
         Seq_Triad *mymodule;
         int stp, i;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -307,12 +307,12 @@ struct Seq_Triad : Module
     //-----------------------------------------------------
     // MySquareButton_Pat
     //-----------------------------------------------------
-    struct MySquareButton_Pat : MySquareButton 
+    struct MySquareButton_Pat : MySquareButton
     {
         Seq_Triad *mymodule;
         int stp, i;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -335,7 +335,7 @@ struct Seq_Triad : Module
         Seq_Triad *mymodule;
         int param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( EventChange &e ) override
         {
             mymodule = (Seq_Triad*)module;
 
@@ -395,91 +395,84 @@ void NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bo
         mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern ].note = notepressed;
     }
 
-    mymodule->SetOut( kb );    
+    mymodule->SetOut( kb );
 }
 
 //-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-Seq_Triad_Widget::Seq_Triad_Widget() 
+struct Seq_Triad_Widget : ModuleWidget {
+    Seq_Triad_Widget(Seq_Triad *module) : ModuleWidget(module)
 {
     int kb, oct, x, y, pat, stp;
-	Seq_Triad *module = new Seq_Triad();
-	setModule(module);
-	box.size = Vec( 15*22, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/TriadSequencer.svg")));
-		addChild(panel);
-	}
+    setPanel(SVG::load(assetPlugin(plugin, "res/TriadSequencer.svg")));
 
     //module->lg.Open("StickyKeysLog.txt");
 
     //----------------------------------------------------
-    // Step Select buttons 
+    // Step Select buttons
 
     y = 10;
     x = 45;
 
-	for ( stp = 0; stp < nPATTERNS; stp++ ) 
+	for ( stp = 0; stp < nPATTERNS; stp++ )
     {
         // step button
-		addParam(createParam<Seq_Triad::MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), module, Seq_Triad::LIGHT_STEP_NUM + stp ) );
+		addParam(ParamWidget::create<Seq_Triad::MySquareButton_Stp>( Vec( x, y ), module, Seq_Triad::PARAM_STEP_NUM + stp, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<DarkRedValueLight>>( Vec( x + 1, y + 2 ), module, Seq_Triad::LIGHT_STEP_NUM + stp ) );
 
         x += 15;
-        module->lights[ Seq_Triad::LIGHT_STEP_NUM + stp ].value = 1.0f; 
+        module->lights[ Seq_Triad::LIGHT_STEP_NUM + stp ].value = 1.0f;
     }
 
     // pause button
-	addParam(createParam<Seq_Triad::MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
-    addChild(createLight<SmallLight<RedLight>>( Vec( 45 + 1, 48 + 2 ), module, Seq_Triad::LIGHT_PAUSE ) );
+	addParam(ParamWidget::create<Seq_Triad::MySquareButton_Pause>(Vec( 45, 48 ), module, Seq_Triad::PARAM_PAUSE, 0.0, 1.0, 0.0 ) );
+    addChild(ModuleLightWidget::create<SmallLight<RedLight>>( Vec( 45 + 1, 48 + 2 ), module, Seq_Triad::LIGHT_PAUSE ) );
 
     //----------------------------------------------------
-    // Pattern Select buttons 
+    // Pattern Select buttons
     y = 32;
     x = 45;
 
-    addInput(createInput<MyPortInSmall>( Vec( x - 30, y - 3 ), module, Seq_Triad::IN_PATTERN_TRIG ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x - 30, y - 3 ), Port::INPUT, module, Seq_Triad::IN_PATTERN_TRIG ) );
 
-	for ( pat = 0; pat < nPATTERNS; pat++ ) 
+	for ( pat = 0; pat < nPATTERNS; pat++ )
     {
         // pattern button
-		addParam(createParam<Seq_Triad::MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_Triad::LIGHT_PAT + pat ) );
+		addParam(ParamWidget::create<Seq_Triad::MySquareButton_Pat>( Vec( x, y ), module, Seq_Triad::PARAM_PATTERNS + pat, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<OrangeValueLight>>( Vec( x + 1, y + 2 ), module, Seq_Triad::LIGHT_PAT + pat ) );
 
         x += 15;
     }
 
     // copy next button
-	//addParam(createParam<Seq_Triad::MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
+	//addParam(ParamWidget::create<Seq_Triad::MySquareButton_Cpy>(Vec( 290, 32 ), module, Seq_Triad::PARAM_COPY_NEXT, 0.0, 1.0, 0.0 ) );
     //addChild(createLight<SmallLight<CyanValueLight>>( Vec( 290 + 1, 32 + 2 ), module, Seq_Triad::LIGHT_COPY_NEXT ) );
 
 
     //----------------------------------------------------
-    // Keyboard Keys 
+    // Keyboard Keys
     y = CHANNEL_Y;
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
-        x = 45; 
+        x = 45;
 
         // trig button
-        addParam(createParam<Seq_Triad::MySquareButton_Trig>( Vec( x, y - 15 ), module, Seq_Triad::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
-        addChild(createLight<SmallLight<RedLight>>( Vec( x + 1, y - 13 ), module, Seq_Triad::LIGHT_TRIG + kb ) );
+        addParam(ParamWidget::create<Seq_Triad::MySquareButton_Trig>( Vec( x, y - 15 ), module, Seq_Triad::PARAM_TRIGOFF + kb, 0.0, 1.0, 0.0 ) );
+        addChild(ModuleLightWidget::create<SmallLight<RedLight>>( Vec( x + 1, y - 13 ), module, Seq_Triad::LIGHT_TRIG + kb ) );
 
         // glide knob
-        addParam( createParam<Yellow1_Tiny>( Vec( 120, y - 17 ), module, Seq_Triad::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Yellow1_Tiny>( Vec( 120, y - 17 ), module, Seq_Triad::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
 
         x = 230;
 
         for( oct = 0; oct < nOCTAVESEL; oct++ )
         {
-            addParam(createParam<Seq_Triad::MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 1, y -15 ), module, Seq_Triad::LIGHT_OCT + (kb * nOCTAVESEL ) + oct ) );
+            addParam(ParamWidget::create<Seq_Triad::MyOCTButton>( Vec( x, y - 17), module, Seq_Triad::PARAM_OCTAVES + ( kb * nOCTAVESEL) + oct, 0.0, 1.0, 0.0 ) );
+            addChild(ModuleLightWidget::create<SmallLight<CyanValueLight>>( Vec( x + 1, y -15 ), module, Seq_Triad::LIGHT_OCT + (kb * nOCTAVESEL ) + oct ) );
             x += 18;
         }
 
@@ -493,8 +486,8 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
         for( pat = 0; pat < nPHRASE_SAVES; pat++ )
         {
-            addParam(createParam<Seq_Triad::MySquareButton_Phrase>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_SAVES + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<YellowLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE + ( kb * nPHRASE_SAVES ) + pat ) );
+            addParam(ParamWidget::create<Seq_Triad::MySquareButton_Phrase>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_SAVES + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
+            addChild(ModuleLightWidget::create<SmallLight<YellowLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE + ( kb * nPHRASE_SAVES ) + pat ) );
             x += 12;
         }
 
@@ -502,40 +495,40 @@ Seq_Triad_Widget::Seq_Triad_Widget()
 
         for( pat = 0; pat < nPHRASE_SAVES; pat++ )
         {
-            addParam(createParam<Seq_Triad::MySquareButton_Used>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_USED + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
-            addChild(createLight<SmallLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE_USED + ( kb * nPHRASE_SAVES ) + pat ) );
+            addParam(ParamWidget::create<Seq_Triad::MySquareButton_Used>( Vec( x, y + 69), module, Seq_Triad::PARAM_PHRASE_USED + ( kb * nPHRASE_SAVES) + pat, 0.0, 1.0, 0.0 ) );
+            addChild(ModuleLightWidget::create<SmallLight<CyanValueLight>>( Vec( x + 2, y + 69 + 2 ), module, Seq_Triad::LIGHT_PHRASE_USED + ( kb * nPHRASE_SAVES ) + pat ) );
             x += 12;
         }
 
         y += CHANNEL_OFF_Y;
     }
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // prog change input triggers
     x = 200;
     y = 360;
-    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE ) ); x += 32;
-    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE + 1 ) ); x += 32;
-    addInput(createInput<MyPortInSmall>( Vec( x, y ), module, Seq_Triad::IN_PROG_CHANGE + 2 ) );
+    addChild(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, Seq_Triad::IN_PROG_CHANGE ) ); x += 32;
+    addChild(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, Seq_Triad::IN_PROG_CHANGE + 1 ) ); x += 32;
+    addChild(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, Seq_Triad::IN_PROG_CHANGE + 2 ) );
 
     // VOCT offset input
-    addInput(createInput<MyPortInSmall>( Vec( 40, 360 ), module, Seq_Triad::IN_VOCT_OFF ) );
+    addChild(Port::create<MyPortInSmall>( Vec( 40, 360 ), Port::INPUT, module, Seq_Triad::IN_VOCT_OFF ) );
 
     // outputs
     x = 307;
     y = CHANNEL_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y ), Port::OUTPUT, module, Seq_Triad::OUT_VOCTS ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y + 50 ), Port::OUTPUT, module, Seq_Triad::OUT_TRIG ) );
     y += CHANNEL_OFF_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 1 ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 1 ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y ), Port::OUTPUT, module, Seq_Triad::OUT_VOCTS + 1 ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y + 50 ), Port::OUTPUT, module, Seq_Triad::OUT_TRIG + 1 ) );
     y += CHANNEL_OFF_Y;
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, Seq_Triad::OUT_VOCTS + 2 ) );
-    addOutput(createOutput<MyPortOutSmall>( Vec( x, y + 50 ), module, Seq_Triad::OUT_TRIG + 2 ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y ), Port::OUTPUT, module, Seq_Triad::OUT_VOCTS + 2 ) );
+    addChild(Port::create<MyPortOutSmall>( Vec( x, y + 50 ), Port::OUTPUT, module, Seq_Triad::OUT_TRIG + 2 ) );
 
     module->SetPhraseSteps( 0, 3 );
     module->SetPhraseSteps( 1, 3 );
@@ -545,6 +538,10 @@ Seq_Triad_Widget::Seq_Triad_Widget()
     module->ChangePhrase( 1, 0, true );
     module->ChangePhrase( 2, 0, true );
 }
+};
+
+Model *modelSeq_Triad_Widget = Model::create<Seq_Triad, Seq_Triad_Widget>( "mscHack", "TriadSeq", "SEQ Triad OBSOLETE!", SEQUENCER_TAG, MULTIPLE_TAG );
+
 
 //-----------------------------------------------------
 // Procedure:   reset
@@ -563,7 +560,7 @@ void Seq_Triad::reset()
     memset( m_fCvStartOut, 0, sizeof(m_fCvStartOut) );
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
-    
+
     SetPhraseSteps( 0, 3 );
     SetPhraseSteps( 1, 3 );
     SetPhraseSteps( 2, 3 );
@@ -595,8 +592,8 @@ void Seq_Triad::randomize()
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
 
-    basekey = (int)(randomf() * 24.4);
-    oct = (int)( randomf() * 3.4 );
+    basekey = (int)(randomUniform() * 24.4);
+    oct = (int)( randomUniform() * 3.4 );
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
@@ -604,13 +601,13 @@ void Seq_Triad::randomize()
         {
             for( phrase = 0; phrase < nPHRASE_SAVES; phrase++ )
             {
-                if( randomf() > 0.7 )
-                    note = keyscalenotes_minor[ (int)(randomf() * 7.4 ) ];
+                if( randomUniform() > 0.7 )
+                    note = keyscalenotes_minor[ (int)(randomUniform() * 7.4 ) ];
                 else
-                    note = keyscalenotes[ (int)(randomf() * 7.4 ) ];
+                    note = keyscalenotes[ (int)(randomUniform() * 7.4 ) ];
 
-                m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomf() < 0.10 );
-                m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note; 
+                m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomUniform() < 0.10 );
+                m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note;
                 m_PatternNotes[ kb ][ phrase ][ pat ].oct = oct;
             }
         }
@@ -650,7 +647,7 @@ void Seq_Triad::SetPhraseSteps( int kb, int nSteps )
         nSteps = 0;
 
     m_PhrasesUsed[ kb ] = nSteps;
-                
+
     for( i = 0; i < nPHRASE_SAVES; i++ )
     {
         if( i < (nSteps+1) )
@@ -673,7 +670,7 @@ void Seq_Triad::SetSteps( int nSteps )
 
     m_nSteps = nSteps;
 
-	for ( i = 0; i < nPATTERNS; i++ ) 
+	for ( i = 0; i < nPATTERNS; i++ )
     {
         // level button
 		if( i < nSteps )
@@ -814,10 +811,10 @@ void Seq_Triad::ChangePattern( int index, bool bForce )
 }
 
 //-----------------------------------------------------
-// Procedure:   
+// Procedure:
 //
 //-----------------------------------------------------
-json_t *Seq_Triad::toJson() 
+json_t *Seq_Triad::toJson()
 {
     int *pint;
     json_t *gatesJ;
@@ -881,7 +878,7 @@ json_t *Seq_Triad::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Seq_Triad::fromJson(json_t *rootJ) 
+void Seq_Triad::fromJson(json_t *rootJ)
 {
     int *pint;
     int i;
@@ -900,13 +897,13 @@ void Seq_Triad::fromJson(json_t *rootJ)
     revJ = json_object_get(rootJ, "m_bChangeAllPatternNotes");
 
  	if (revJ)
-		m_bChangeAllPatternNotes = json_is_true( revJ );   
+		m_bChangeAllPatternNotes = json_is_true( revJ );
 
     // phrase select
     pint = (int*)&m_CurrentPhrase[ 0 ];
 	StepsJ = json_object_get( rootJ, "m_CurrentPhrase" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -927,7 +924,7 @@ void Seq_Triad::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get( rootJ, "m_PatternNotes" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < (nPHRASE_SAVES * nPATTERNS * nKEYBOARDS * 8); i++)
         {
@@ -943,7 +940,7 @@ void Seq_Triad::fromJson(json_t *rootJ)
 
 	StepsJ = json_object_get( rootJ, "m_PhrasesUsed" );
 
-	if (StepsJ) 
+	if (StepsJ)
     {
 		for ( i = 0; i < nKEYBOARDS; i++)
         {
@@ -973,7 +970,7 @@ void Seq_Triad::fromJson(json_t *rootJ)
 //
 //-----------------------------------------------------
 #define LIGHT_LAMBDA ( 0.065f )
-void Seq_Triad::step() 
+void Seq_Triad::step()
 {
     int i, phrase;
 
@@ -1013,7 +1010,7 @@ void Seq_Triad::step()
             m_CurrentPattern = (nPATTERNS - 1);
         }
 
-	    if( m_SchTrigPatternSelectInput.process( inputs[ IN_PATTERN_TRIG ].value ) ) 
+	    if( m_SchTrigPatternSelectInput.process( inputs[ IN_PATTERN_TRIG ].value ) )
         {
             ChangePattern( m_CurrentPattern + 1, true );
 

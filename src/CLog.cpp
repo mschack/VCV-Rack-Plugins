@@ -28,7 +28,7 @@ char Months[12][4]=
 };
 
 //-----------------------------------------------------
-// Function:				
+// Function:
 //
 //-----------------------------------------------------
 CLog::CLog()
@@ -39,7 +39,7 @@ CLog::CLog()
 }
 
 //-----------------------------------------------------
-// Function:				
+// Function:
 //
 //-----------------------------------------------------
 CLog::~CLog()
@@ -48,7 +48,7 @@ CLog::~CLog()
 }
 
 //-----------------------------------------------------
-// Function:				
+// Function:
 //
 //-----------------------------------------------------
 int CLog::Open( std::string strFileName )
@@ -59,10 +59,10 @@ int CLog::Open( std::string strFileName )
 
 	// return success
 	return 1;
-} 
+}
 
 //-----------------------------------------------------
-// Function:				
+// Function:
 //
 //-----------------------------------------------------
 void CLog::Close(void)
@@ -77,7 +77,7 @@ void CLog::Close(void)
 }
 
 //-----------------------------------------------------
-// Function:	SetLogLvl			
+// Function:	SetLogLvl
 //
 //-----------------------------------------------------
 void CLog::SetLogLvl( int level )
@@ -86,7 +86,7 @@ void CLog::SetLogLvl( int level )
 }
 
 //-----------------------------------------------------
-// Function:	SetCallback			
+// Function:	SetCallback
 //
 //-----------------------------------------------------
 void CLog::SetCallback ( LOGCALLBACK *func, void *pClass )
@@ -121,12 +121,12 @@ void CLog::f( std::string string, ... )
 }
 
 //-----------------------------------------------------
-// Function:    no timestamp	
+// Function:    no timestamp
 //
 //-----------------------------------------------------
 void CLog::fnr( std::string string, ...)
 {
-	
+
 	va_list arglist; // variable argument list
 
 	// if file not open then bail
@@ -149,7 +149,7 @@ void CLog::fnr( std::string string, ...)
 }
 
 //-----------------------------------------------------
-// Function: mem - memory dump			
+// Function: mem - memory dump
 //
 //-----------------------------------------------------
 void CLog::mem( unsigned char *pBuff, unsigned int dwSize, unsigned int dwOff )
@@ -164,10 +164,10 @@ void CLog::mem( unsigned char *pBuff, unsigned int dwSize, unsigned int dwOff )
 
 	do{
 		f("0x%.4x: ", dwOff);
-		
+
 		Offset+=16;
 		dwOff+=16;
-		
+
 		for(i=0; i<16; i++)
 		{
 			// extra space every four
