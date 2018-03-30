@@ -1,5 +1,7 @@
-#include "rack.hpp"
-#include "CLog.h"
+#pragma once
+//#include "mscHack.hpp"
+//#include "rack.hpp"
+//#include "CLog.h"
 
 #define RESOURCE_LOCATION "res/"
 //#define RESOURCE_LOCATION "plugins/mschack/res/"
@@ -83,6 +85,175 @@ typedef struct
     int nUsed;
     POINT_STRUCT p[ 8 ];
 }DRAW_VECT_STRUCT;
+
+//-----------------------------------------------------
+// MySimpleKnob
+//-----------------------------------------------------
+
+#define MAX_ANGLE 140.0f
+#define MIN_ANGLE ( 360.0f - MAX_ANGLE )
+#define RANGE_ANGLE (( MAX_ANGLE * 2.0f ) + 1.0f )
+
+struct MySimpleKnob : OpaqueWidget, FramebufferWidget 
+{
+    bool            m_bInitialized;
+    Vec             m_Loc;
+    RGB_STRUCT      m_Colour;
+    float           m_width;
+    int             m_id;
+    float           m_fVal;
+    float           m_fangle;
+    Vec             m_Vecpos;
+    float           m_max, m_min, m_default;
+    int             m_nSteps;
+    void            *m_pClass;
+
+    typedef void MySimpleKnobCALLBACK ( void *pClass, int id, float fval );
+
+    MySimpleKnobCALLBACK *m_pCallback;
+
+    //-----------------------------------------------------
+    // Procedure:   constructor
+    //-----------------------------------------------------
+    MySimpleKnob( void *pClass, float x, float y, float width, unsigned int dwCol, int id, int nsteps, MySimpleKnobCALLBACK *pCallback, float min, float max, float def )
+    {
+        m_Loc.x         = x;
+        m_Loc.y         = y;
+        m_id            = id;
+        m_pClass        = pClass;
+        m_pCallback     = pCallback;
+        m_width         = width;
+        m_Colour.dwCol  = dwCol;
+        m_nSteps        = nsteps;
+        m_max           = max;
+        m_min           = min;
+        m_default       = def;
+        m_fVal          = def;
+        m_fangle        = val2a( def );
+        m_bInitialized  = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   val2a
+    //-----------------------------------------------------
+    float val2a( float val )
+    {
+        float a = 0.0f;
+
+        if( m_nSteps )
+        {
+
+        }
+        else
+        {
+            a = RANGE_ANGLE * val;
+            a -= MAX_ANGLE;
+        }
+
+        return a;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   a2val
+    //-----------------------------------------------------
+    float a2val( float a )
+    {
+        float val = 0.0f;
+
+        if( m_nSteps )
+        {
+
+        }
+        else
+        {
+            a += MAX_ANGLE;
+            val = a / RANGE_ANGLE;
+        }
+
+        return val;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   draw
+    //-----------------------------------------------------
+    void draw( NVGcontext *vg ) override
+    {
+        if( !m_bInitialized )
+            return;
+
+        nvgBeginPath(vg);
+        nvgRect(vg, 100,100, 120,30);
+        nvgCircle(vg, 120,120, 5);
+        nvgPathWinding(vg, NVG_HOLE);	// Mark circle as a hole.
+        nvgFillColor(vg, nvgRGBA(255,192,0,255));
+        nvgFill(vg);
+
+        
+        //void nvgArc(NVGcontext* ctx, float cx, float cy, float r, float a0, float a1, int dir);
+
+        dirty = false;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   setPos
+    //-----------------------------------------------------
+    void setVal( float val )
+    {
+        if( !m_bInitialized )
+            return;
+
+        if( val < m_min )
+            val = m_min;
+        else if( val > m_max )
+            val = m_max;
+
+        m_fVal = val;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   setPos
+    //-----------------------------------------------------
+    void setCol( unsigned int dwCol )
+    {
+        if( !m_bInitialized )
+            return;
+
+        m_Colour.dwCol = dwCol;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onDragStart
+    //-----------------------------------------------------
+	void onDragStart(EventDragStart &e) override
+    {
+        e.consumed = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onDragEnd
+    //-----------------------------------------------------
+	void onDragEnd(EventDragEnd &e) override
+    {
+        e.consumed = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   onDragMove
+    //-----------------------------------------------------
+	void onDragMove(EventDragMove &e) override
+    {
+        m_Vecpos.x = e.mouseRel.x;
+        m_Vecpos.y = e.mouseRel.y;
+
+        if( m_pCallback )
+            m_pCallback( m_pClass, m_id, m_fVal );
+
+        e.consumed = true;
+        dirty = true;
+    }
+};
 
 //-----------------------------------------------------
 // MyLED7DigitDisplay
@@ -1825,20 +1996,6 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
 // Procedure:   MySquareButton
 //
 //-----------------------------------------------------
-struct MySquareButtonSmall : SVGSwitch, MomentarySwitch 
-{
-	MySquareButtonSmall() 
-    {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_square_button.svg")));
-		sw->wrap();
-		box.size = Vec(9, 9);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   MySquareButton
-//
-//-----------------------------------------------------
 struct MySquareButton : SVGSwitch, MomentarySwitch 
 {
 	MySquareButton() 
@@ -1933,7 +2090,7 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 // Procedure:   MySlider_01
 //
 //-----------------------------------------------------
-struct MySlider_01 : SVGSlider 
+struct MySlider_01 : SVGFader 
 {
 	MySlider_01() 
     {
@@ -1981,253 +2138,220 @@ struct MyPortOutSmall : SVGPort
 };
 
 //-----------------------------------------------------
-// Procedure:   Red1_Med
+// Red1
 //
 //-----------------------------------------------------
-struct Red1_Med : RoundKnob 
+struct Knob_Red1_20 : RoundKnob 
 {
-	Red1_Med() 
+	Knob_Red1_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobRed1.svg" )));
-		box.size = Vec(20, 20);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Red1_20.svg" )));
+		//box.size = Vec(20, 20);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Blue3_Med
+// Purp1
 //
 //-----------------------------------------------------
-struct Blue3_Med : RoundKnob 
+struct Knob_Purp1_20 : RoundKnob 
 {
-	Blue3_Med() 
+	Knob_Purp1_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobBlue3.svg" )));
-		box.size = Vec(20, 20);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Purp1_20.svg" )));
+		//box.size = Vec(20, 20);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Yellow3_Med
+// Green1
 //
 //-----------------------------------------------------
-struct Yellow3_Med : RoundKnob 
+struct Knob_Green1_15 : RoundKnob 
 {
-	Yellow3_Med() 
+	Knob_Green1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobYellow3.svg" )));
-		box.size = Vec(20, 20);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_15.svg" )));
+		//box.size = Vec(15, 15);
+	}
+};
+
+struct Knob_Green1_40 : RoundKnob 
+{
+	Knob_Green1_40() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_40.svg" )));
+		//box.size = Vec(40, 40);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Yellow3_Med_Snap
+// Blue1
 //
 //-----------------------------------------------------
-struct Yellow3_Med_Snap : RoundKnob 
+struct Knob_Blue1_26 : RoundKnob 
 {
-	Yellow3_Med_Snap() 
+	Knob_Blue1_26() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue1_26.svg" )));
+		//box.size = Vec(26, 26);
+	}
+};
+
+//-----------------------------------------------------
+// Blue2
+//
+//-----------------------------------------------------
+struct Knob_Blue2_26 : RoundKnob 
+{
+	Knob_Blue2_26() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
+		//box.size = Vec(26, 26);
+	}
+};
+
+struct Knob_Blue2_26_Snap : RoundKnob 
+{
+	Knob_Blue2_26_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobYellow3.svg" )));
-		box.size = Vec(20, 20);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
+		//box.size = Vec(26, 26);
 	}
 };
 
-
-//-----------------------------------------------------
-// Procedure:   Purp1_Med
-//
-//-----------------------------------------------------
-struct Purp1_Med : RoundKnob 
+struct Knob_Blue2_15 : RoundKnob 
 {
-	Purp1_Med() 
+	Knob_Blue2_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_KnobPurp1.svg" )));
-		box.size = Vec(20, 20);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_15.svg" )));
+		//box.size = Vec(15, 15);
 	}
 };
 
-//-----------------------------------------------------
-// Procedure:   Green1_Tiny
-//
-//-----------------------------------------------------
-struct Green1_Tiny : RoundKnob 
+struct Knob_Blue2_40 : RoundKnob 
 {
-	Green1_Tiny() 
+	Knob_Blue2_40() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Green1_small.svg" )));
-		box.size = Vec(15, 15);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_40.svg" )));
+		//box.size = Vec(40, 40);
 	}
 };
 
-//-----------------------------------------------------
-// Procedure:   Green1_Big
-//
-//-----------------------------------------------------
-struct Green1_Big : RoundKnob 
+struct Knob_Blue2_56 : RoundKnob 
 {
-	Green1_Big() 
+	Knob_Blue2_56() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Green1_small.svg" )));
-		box.size = Vec(40, 40);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_56.svg" )));
+		//box.size = Vec(56, 56);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Blue1_Small
+// Blue3
 //
 //-----------------------------------------------------
-struct Blue1_Small : RoundKnob 
+struct Knob_Blue3_20 : RoundKnob 
 {
-	Blue1_Small() 
+	Knob_Blue3_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue1_small.svg" )));
-		box.size = Vec(26, 26);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue3_20.svg" )));
+		//box.size = Vec(20, 20);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Blue2_Small
+// Yellow1
 //
 //-----------------------------------------------------
-struct Blue2_Small : RoundKnob 
+struct Knob_Yellow1_26 : RoundKnob 
 {
-	Blue2_Small() 
+	Knob_Yellow1_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_small.svg" )));
-		box.size = Vec(26, 26);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_26.svg" )));
+		//box.size = Vec(26, 26);
 	}
 };
 
-//-----------------------------------------------------
-// Procedure:   Blue2_Tiny
-//
-//-----------------------------------------------------
-struct Blue2_Tiny : RoundKnob 
+struct Knob_Yellow1_15 : RoundKnob 
 {
-	Blue2_Tiny() 
+	Knob_Yellow1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_small.svg" )));
-		box.size = Vec(15, 15);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_15.svg" )));
+		//box.size = Vec(15, 15);
 	}
 };
 
 //-----------------------------------------------------
-// Procedure:   Blue2_Med
+// Yellow2
 //
 //-----------------------------------------------------
-struct Blue2_Med : RoundKnob 
+struct Knob_Yellow2_26 : RoundKnob 
 {
-	Blue2_Med() 
+	Knob_Yellow2_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_big.svg" )));
-		box.size = Vec(40, 40);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
+		//box.size = Vec(26, 26);
 	}
 };
 
-//-----------------------------------------------------
-// Procedure:   Blue2_Big
-//
-//-----------------------------------------------------
-struct Blue2_Big : RoundKnob 
+struct Knob_Yellow2_26_Snap : RoundKnob 
 {
-	Blue2_Big() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Blue2_big.svg" )));
-		box.size = Vec(56, 56);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   Yellow1_Small
-//
-//-----------------------------------------------------
-struct Yellow1_Small : RoundKnob 
-{
-	Yellow1_Small() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow1_small.svg" )));
-		box.size = Vec(26, 26);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   Yellow1_Tiny
-//
-//-----------------------------------------------------
-struct Yellow1_Tiny : RoundKnob 
-{
-	Yellow1_Tiny() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow1_small.svg" )));
-		box.size = Vec(15, 15);
-	}
-};
-
-
-//-----------------------------------------------------
-// Procedure:   Yellow2_Small
-//
-//-----------------------------------------------------
-struct Yellow2_Small : RoundKnob 
-{
-	Yellow2_Small() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
-		box.size = Vec(26, 26);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   Yellow2_Big
-//
-//-----------------------------------------------------
-struct Yellow2_Big : RoundKnob 
-{
-	Yellow2_Big() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
-		box.size = Vec(40, 40);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   Yellow2_Huge
-//
-//-----------------------------------------------------
-struct Yellow2_Huge : RoundKnob 
-{
-	Yellow2_Huge() 
-    {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
-		box.size = Vec(56, 56);
-	}
-};
-
-//-----------------------------------------------------
-// Procedure:   Yellow2_Huge_Snap
-//
-//-----------------------------------------------------
-struct Yellow2_Huge_Snap : RoundKnob 
-{
-	Yellow2_Huge_Snap() 
+	Knob_Yellow2_26_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
-		box.size = Vec(56, 56);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
+		//box.size = Vec(26, 26);
 	}
 };
 
-//-----------------------------------------------------
-// Procedure:   Yellow2_Huge
-//
-//-----------------------------------------------------
-struct Yellow2_Snap : RoundKnob 
+struct Knob_Yellow2_40 : RoundKnob 
 {
-	Yellow2_Snap() 
+	Knob_Yellow2_40() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_40.svg" )));
+		//box.size = Vec(40, 40);
+	}
+};
+
+struct Knob_Yellow2_56 : RoundKnob 
+{
+	Knob_Yellow2_56() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
+		//box.size = Vec(56, 56);
+	}
+};
+
+struct Knob_Yellow2_56_Snap : RoundKnob 
+{
+	Knob_Yellow2_56_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_yellow2_small.svg" )));
-		box.size = Vec(26, 26);
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
+		//box.size = Vec(56, 56);
+	}
+};
+//-----------------------------------------------------
+// Yellow3
+//
+//-----------------------------------------------------
+struct Knob_Yellow3_20 : RoundKnob 
+{
+	Knob_Yellow3_20() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
+		//box.size = Vec(20, 20);
+	}
+};
+
+struct Knob_Yellow3_20_Snap : RoundKnob 
+{
+	Knob_Yellow3_20_Snap() 
+    {
+        snap = true;
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
+		//box.size = Vec(20, 20);
 	}
 };

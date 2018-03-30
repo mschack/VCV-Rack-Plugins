@@ -1,3 +1,4 @@
+#include "rack.hpp"
 #include "CLog.h"
 
 char Days[7][4]=

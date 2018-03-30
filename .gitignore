@@ -1,6 +1,7 @@
 /backup
 /build
 /mschack
+/dep
 plugin.dll
 WaveShaper1.svg
 WaveShaper.cpp

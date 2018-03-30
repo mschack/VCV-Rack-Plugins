@@ -1,7 +1,7 @@
 #include "mscHack.hpp"
-#include "mscHack_Controls.hpp"
+//#include "mscHack_Controls.hpp"
 #include "dsp/digital.hpp"
-#include "CLog.h"
+//#include "CLog.h"
 
 #define CHANNELS 3
 
@@ -44,20 +44,23 @@ struct XFade : Module
 	void    step() override;
     //json_t* toJson() override;
     //void    fromJson(json_t *rootJ) override;
-    void    randomize() override;
-    void    reset() override;
+    void    onRandomize() override;
+    void    onReset() override;
 };
 
 //-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-XFade_Widget::XFade_Widget() 
+
+struct XFade_Widget : ModuleWidget {
+	XFade_Widget( XFade *module );
+};
+
+XFade_Widget::XFade_Widget( XFade *module ) : ModuleWidget(module) 
 {
     int i, x, y;
 
-	XFade *module = new XFade();
-	setModule(module);
 	box.size = Vec( 15*8, 380);
 
 	{
@@ -69,10 +72,10 @@ XFade_Widget::XFade_Widget()
 
     //module->lg.Open("XFade.txt");
 
-	addChild(createScrew<ScrewSilver>(Vec(15, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(createScrew<ScrewSilver>(Vec(15, 365))); 
-	addChild(createScrew<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
+	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     x = 10;
     y = 47;
@@ -80,33 +83,33 @@ XFade_Widget::XFade_Widget()
     for( i = 0; i < CHANNELS; i++ )
     {
         // audio A
-        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, XFade::IN_AL + i ) );
-        addInput(createInput<MyPortInSmall>( Vec( x + 28, y ), module, XFade::IN_AR + i ) );
+        addInput(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, XFade::IN_AL + i ) );
+        addInput(Port::create<MyPortInSmall>( Vec( x + 28, y ), Port::INPUT, module, XFade::IN_AR + i ) );
 
         // audio B
-        addInput(createInput<MyPortInSmall>( Vec( x, y + 32 ), module, XFade::IN_BL + i ) );
-        addInput(createInput<MyPortInSmall>( Vec( x + 28, y + 32 ), module, XFade::IN_BR + i ) );
+        addInput(Port::create<MyPortInSmall>( Vec( x, y + 32 ), Port::INPUT, module, XFade::IN_BL + i ) );
+        addInput(Port::create<MyPortInSmall>( Vec( x + 28, y + 32 ), Port::INPUT, module, XFade::IN_BR + i ) );
 
         // audio  outputs
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 83, y ), module, XFade::OUT_L + i ) );
-        addOutput(createOutput<MyPortOutSmall>( Vec( x + 83, y + 32 ), module, XFade::OUT_R + i ) );
+        addOutput(Port::create<MyPortOutSmall>( Vec( x + 83, y ), Port::OUTPUT, module, XFade::OUT_L + i ) );
+        addOutput(Port::create<MyPortOutSmall>( Vec( x + 83, y + 32 ), Port::OUTPUT, module, XFade::OUT_R + i ) );
 
         y += 67;
     }
 
     // mix CV
-    addInput(createInput<MyPortInSmall>( Vec( 4, 263 ), module, XFade::IN_MIXCV) );
+    addInput(Port::create<MyPortInSmall>( Vec( 4, 263 ), Port::INPUT, module, XFade::IN_MIXCV) );
 
     // mix knobs
-    addParam(createParam<Yellow2_Huge>( Vec( 30, 243 ), module, XFade::PARAM_MIX, -1.0, 1.0, 0.0 ) );
-    addParam(createParam<Yellow2_Huge>( Vec( 30, 313 ), module, XFade::PARAM_LEVEL, 0.0, 2.0, 1.0 ) );
+    addParam(ParamWidget::create<Knob_Yellow2_56>( Vec( 30, 243 ), module, XFade::PARAM_MIX, -1.0, 1.0, 0.0 ) );
+    addParam(ParamWidget::create<Knob_Yellow2_56>( Vec( 30, 313 ), module, XFade::PARAM_LEVEL, 0.0, 2.0, 1.0 ) );
 }
 
 //-----------------------------------------------------
 // Procedure:   reset
 //
 //-----------------------------------------------------
-void XFade::reset()
+void XFade::onReset()
 {
 }
 
@@ -114,7 +117,7 @@ void XFade::reset()
 // Procedure:   randomize
 //
 //-----------------------------------------------------
-void XFade::randomize()
+void XFade::onRandomize()
 {
 }
 
@@ -149,3 +152,5 @@ void XFade::step()
         outputs[ OUT_R + i ].value = ( ( inputs[ IN_AR + i ].value * mixa ) + ( inputs[ IN_BR + i ].value * mixb ) ) * params[ PARAM_LEVEL ].value;
     }
 }
+
+Model *modelXFade = Model::create<XFade, XFade_Widget>( "mscHack", "XFade", "MIXER Cross Fader 3 Channel", MIXER_TAG, MULTIPLE_TAG );
