@@ -499,7 +499,7 @@ Mix_2x4_Stereo_Widget::Mix_2x4_Stereo_Widget( Mix_2x4_Stereo *module ) : ModuleW
 	    - (fx7 * 0.0001984126984126984126984126984127));
 
     module->m_bInitialized = true;
-    module->reset();
+    module->onReset();
 }
 
 //-----------------------------------------------------

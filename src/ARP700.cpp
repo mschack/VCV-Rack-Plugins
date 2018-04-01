@@ -434,7 +434,7 @@ ARP700_Widget::ARP700_Widget( ARP700 *module ) : ModuleWidget(module)
     module->m_Clock.IgnoreClockCount = 2;
     module->m_bInitialized = true;
 
-    module->reset();
+    module->onReset();
 }
 
 //-----------------------------------------------------

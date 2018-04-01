@@ -124,6 +124,9 @@ struct MasterClockx4 : Module
 
             if( mymodule )
             {
+                //if( !mymodule->m_bInitialized )
+                    //return;
+
                 param = paramId - MasterClockx4::PARAM_MULT;
 
                 if( mymodule->m_ChannelMultSelect[ param ] != (int)value )
@@ -348,7 +351,8 @@ void MasterClockx4::fromJson(json_t *rootJ)
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
         m_pButtonStop[ ch ]->Set( m_bStopState[ ch ] );
-        SetDisplayLED( ch, (int)params[ PARAM_MULT + ch ].value );
+        //lg.f( "value = %d\n", (int)params[ PARAM_MULT + ch ].value );
+        //SetDisplayLED( ch, (int)params[ PARAM_MULT + ch ].value );
     }
 
     m_fMainClockCount = 0;
@@ -377,9 +381,10 @@ void MasterClockx4::onReset()
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
+        
         m_bStopState[ ch ] = false;
         m_pButtonStop[ ch ]->Set( m_bStopState[ ch ] );
-        SetDisplayLED( ch, (int)params[ PARAM_MULT + ch ].value );
+        SetDisplayLED( ch, 12 );
     }
 
     BPMChange( m_fBPM, true );

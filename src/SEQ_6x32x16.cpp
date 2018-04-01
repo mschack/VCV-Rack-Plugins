@@ -302,7 +302,7 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
 
     module->m_bInitialized = true;
 
-    reset();
+    module->onReset();
 }
 
 //-----------------------------------------------------

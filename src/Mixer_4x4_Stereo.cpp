@@ -502,7 +502,7 @@ Mix_4x4_Stereo_Widget::Mix_4x4_Stereo_Widget( Mix_4x4_Stereo *module ) : ModuleW
 	    - (fx7 * 0.0001984126984126984126984126984127));
 
     module->m_bInitialized = true;
-    module->reset();
+    module->onReset();
 }
 
 //-----------------------------------------------------
@@ -740,6 +740,8 @@ void Mix_4x4_Stereo::fromJson(json_t *rootJ)
 
         m_pButtonChannelMute[ ch ]->Set( m_bMuteStates[ ch ] );
         m_pButtonChannelSolo[ ch ]->Set( m_bSoloStates[ ch ] );
+
+        //lg.f("channel mute fade = %.3f\n", m_fMuteFade[ ch ] );
     }
 
     // anybody group soloing?
@@ -773,6 +775,8 @@ void Mix_4x4_Stereo::fromJson(json_t *rootJ)
 
         m_pButtonGroupMute[ i ]->Set( m_bGroupMuteStates[ i ] );
         m_pButtonGroupSolo[ i ]->Set( m_bGroupSoloStates[ i ] );
+
+        //lg.f("group mute fade = %.3f\n", m_fGroupMuteFade[ i ] );
     }
 }
 

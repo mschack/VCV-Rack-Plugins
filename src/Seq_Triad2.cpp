@@ -252,7 +252,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget( Seq_Triad2 *module ) : ModuleWidget(module
 		addChild(panel);
 	}
 
-    module->lg.Open("TriadSequencer2.txt");
+    //module->lg.Open("TriadSequencer2.txt");
 
     //----------------------------------------------------
     // Keyboard Keys 
@@ -321,7 +321,7 @@ Seq_Triad2_Widget::Seq_Triad2_Widget( Seq_Triad2 *module ) : ModuleWidget(module
 
     module->m_bInitialized = true;
 
-    reset();
+    module->onReset();
 }
 
 //-----------------------------------------------------
