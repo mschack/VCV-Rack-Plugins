@@ -336,7 +336,7 @@ void SynthDrums::SetWaveLights( void )
 // Procedure:   initialize
 //
 //-----------------------------------------------------
-#define DEG2RAD( x ) ( ( x ) * ( 3.14159f / 180.0f ) )
+//#define DEG2RAD( x ) ( ( x ) * ( 3.14159f / 180.0f ) )
 void SynthDrums::BuildWaves( void )
 {
     int i;

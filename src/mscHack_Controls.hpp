@@ -1,10 +1,8 @@
 #pragma once
-//#include "mscHack.hpp"
-//#include "rack.hpp"
-//#include "CLog.h"
 
-#define RESOURCE_LOCATION "res/"
-//#define RESOURCE_LOCATION "plugins/mschack/res/"
+#define PI 3.14159f
+#define DEG2RAD( x ) ( ( x ) * ( PI / 180.0f ) )
+#define RAD2DEG( x ) ( ( x ) * ( 180.0f / PI ) )
 
 struct CyanValueLight : ModuleLightWidget 
 {
@@ -57,8 +55,6 @@ struct DarkYellow2ValueLight : ModuleLightWidget
 #define lvl_to_db( x ) ( 20.0 * log10( x ) )
 #define db_to_lvl( x ) ( 1.0 / pow( 10, x / 20.0 ) )
 
-
-
 typedef struct
 {
     union
@@ -98,9 +94,10 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
 {
     bool            m_bInitialized;
     Vec             m_Loc;
-    RGB_STRUCT      m_Colour;
-    float           m_width;
-    int             m_id;
+    RGB_STRUCT      m_Colour, m_BgColour;
+    bool            m_bNegMode;
+    float           m_radius;
+    int             m_id, m_ch;
     float           m_fVal;
     float           m_fangle;
     Vec             m_Vecpos;
@@ -108,28 +105,34 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
     int             m_nSteps;
     void            *m_pClass;
 
-    typedef void MySimpleKnobCALLBACK ( void *pClass, int id, float fval );
+    typedef void MySimpleKnobCALLBACK ( void *pClass, int ch, int id, float fval );
 
     MySimpleKnobCALLBACK *m_pCallback;
 
     //-----------------------------------------------------
     // Procedure:   constructor
     //-----------------------------------------------------
-    MySimpleKnob( void *pClass, float x, float y, float width, unsigned int dwCol, int id, int nsteps, MySimpleKnobCALLBACK *pCallback, float min, float max, float def )
+    MySimpleKnob( void *pClass, float x, float y, float width, unsigned int dwCol, unsigned int dwBgCol, int ch, int id, int nsteps, MySimpleKnobCALLBACK *pCallback, float min, float max, float def )
     {
-        m_Loc.x         = x;
-        m_Loc.y         = y;
+        m_radius        = width / 2.0;
+        m_Loc.x         = x + m_radius;
+        m_Loc.y         = y + m_radius;
         m_id            = id;
+        m_ch            = ch;
         m_pClass        = pClass;
         m_pCallback     = pCallback;
-        m_width         = width;
         m_Colour.dwCol  = dwCol;
+        m_BgColour.dwCol= dwBgCol;
         m_nSteps        = nsteps;
         m_max           = max;
         m_min           = min;
         m_default       = def;
         m_fVal          = def;
         m_fangle        = val2a( def );
+
+		box.pos = Vec( x, y );
+        box.size = Vec( width, width );
+
         m_bInitialized  = true;
     }
 
@@ -178,18 +181,41 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     void draw( NVGcontext *vg ) override
     {
+        float a1, a2;
+        float linewidth = m_radius * 0.15f;
+
         if( !m_bInitialized )
             return;
 
-        nvgBeginPath(vg);
-        nvgRect(vg, 100,100, 120,30);
-        nvgCircle(vg, 120,120, 5);
-        nvgPathWinding(vg, NVG_HOLE);	// Mark circle as a hole.
-        nvgFillColor(vg, nvgRGBA(255,192,0,255));
-        nvgFill(vg);
+        a1 = DEG2RAD( 135.0f );
+        a2 = DEG2RAD( 45.0f );
 
-        
-        //void nvgArc(NVGcontext* ctx, float cx, float cy, float r, float a0, float a1, int dir);
+        nvgBeginPath( vg );
+        nvgCircle( vg, m_radius, m_radius, m_radius );
+        nvgFillColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
+        nvgFill( vg );
+
+        nvgStrokeWidth( vg, linewidth );
+
+        /*nvgBeginPath( vg );
+        nvgStrokeColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 100 ) );
+        nvgArc( vg, m_radius, m_radius, m_radius - ( linewidth / 2.0f ), a1, a2, NVG_CW );
+        nvgStroke( vg );*/
+
+        a1 = DEG2RAD( 20.0f );
+        a2 = DEG2RAD( 20.0f );
+
+        nvgBeginPath( vg );
+        nvgStrokeColor( vg, nvgRGBA( m_BgColour.Col[ 2 ], m_BgColour.Col[ 1 ], m_BgColour.Col[ 0 ], 255 ) );
+        //nvgStrokeColor( vg, nvgRGBA( 255, 255, 255, 160 ) );
+        nvgArc( vg, m_radius, m_radius, m_radius, a1, a2, NVG_CW );
+        nvgLineTo( vg, m_radius, m_radius );
+        nvgStroke( vg );
+
+        nvgBeginPath( vg );
+        nvgCircle( vg, m_radius, m_radius, m_radius * 0.2f );
+        nvgFillColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
+        nvgFill( vg );
 
         dirty = false;
     }
@@ -212,7 +238,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
     }
 
     //-----------------------------------------------------
-    // Procedure:   setPos
+    // Procedure:   setCol
     //-----------------------------------------------------
     void setCol( unsigned int dwCol )
     {
@@ -220,6 +246,18 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
             return;
 
         m_Colour.dwCol = dwCol;
+        dirty = true;
+    }
+
+    //-----------------------------------------------------
+    // Procedure:   setBgCol
+    //-----------------------------------------------------
+    void setBgCol( unsigned int dwCol )
+    {
+        if( !m_bInitialized )
+            return;
+
+        m_BgColour.dwCol = dwCol;
         dirty = true;
     }
 
@@ -248,7 +286,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
         m_Vecpos.y = e.mouseRel.y;
 
         if( m_pCallback )
-            m_pCallback( m_pClass, m_id, m_fVal );
+            m_pCallback( m_pClass, m_ch, m_id, m_fVal );
 
         e.consumed = true;
         dirty = true;

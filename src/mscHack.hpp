@@ -31,6 +31,7 @@ extern Model *modelXFade;
 extern Model *modelMix_1x4_Stereo;
 extern Model *modelMix_2x4_Stereo;
 extern Model *modelMix_4x4_Stereo;
+extern Model *modelMix_24_4_4;
 extern Model *modelStepDelay;
 extern Model *modelPingPong;
 extern Model *modelOsc_3Ch;

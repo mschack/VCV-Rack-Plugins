@@ -21,6 +21,7 @@ void init(rack::Plugin *p)
     p->addModel( modelMix_1x4_Stereo );
     p->addModel( modelMix_2x4_Stereo );
     p->addModel( modelMix_4x4_Stereo );
+    p->addModel( modelMix_24_4_4 );
     p->addModel( modelStepDelay );
     p->addModel( modelPingPong );
     p->addModel( modelOsc_3Ch );
