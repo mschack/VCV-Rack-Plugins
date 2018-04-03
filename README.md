@@ -1,7 +1,5 @@
 # mscHack Plugins for VCV Rack 0.6.0
 
-(Note the release folder is in the mscHack.zip Windows Only at the moment)
-
 ![screenshot](modules.PNG)
 
 # Updates
