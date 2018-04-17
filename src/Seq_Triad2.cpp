@@ -368,20 +368,20 @@ void Seq_Triad2::onRandomize()
     memset( m_fCvEndOut, 0, sizeof(m_fCvEndOut) );
     memset( m_PatternNotes, 0, sizeof(m_PatternNotes) );
 
-    basekey = (int)(randomUniform() * 24.4);
+    basekey = (int)(randomUniform() * 24.0);
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
-        m_Octave[ kb ] = (int)( randomUniform() * 3.4 );
+        m_Octave[ kb ] = (int)( randomUniform() * 3.0 );
 
         for( pat = 0; pat < nPATTERNS; pat++ )
         {
             for( phrase = 0; phrase < nPHRASE_SAVES; phrase++ )
             {
                 if( randomUniform() > 0.7 )
-                    note = keyscalenotes_minor[ (int)(randomUniform() * 7.4 ) ];
+                    note = keyscalenotes_minor[ (int)(randomUniform() * 7.0 ) ];
                 else
-                    note = keyscalenotes[ (int)(randomUniform() * 7.4 ) ];
+                    note = keyscalenotes[ (int)(randomUniform() * 7.0 ) ];
 
                 m_PatternNotes[ kb ][ phrase ][ pat ].bTrigOff = ( randomUniform() < 0.10 );
                 m_PatternNotes[ kb ][ phrase ][ pat ].note = basekey + note; 

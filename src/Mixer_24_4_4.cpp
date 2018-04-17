@@ -806,4 +806,4 @@ void Mixer_24_4_4::step()
     outputs[ OUT_MAINR ].value = fMixOutR;
 }
 
-Model *modelMix_24_4_4 = Model::create<Mixer_24_4_4, Mixer_24_4_4_Widget>( "mscHack", "Mix_24_4_4", "MIXER 24ch 4 group 4 AUX", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );
+Model *modelMix_24_4_4 = Model::create<Mixer_24_4_4, Mixer_24_4_4_Widget>( "mscHack", "Mix_24_4_4", "MIXER 24ch (In Development)", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );

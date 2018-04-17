@@ -94,7 +94,7 @@ struct MasterClockx4 : Module
     //-----------------------------------------------------
     // MyBPM_Knob
     //-----------------------------------------------------
-    struct MyBPM_Knob : Knob_Yellow2_40
+    struct MyBPM_Knob : Knob_Yellow2_56
     {
         MasterClockx4 *mymodule;
 
