@@ -265,8 +265,6 @@ void Mix_2x4_Stereo_MyLEDButton_GroupSolo( void *pClass, int id, bool bOn )
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-#define AMP_MAX 2.0
-
 struct Mix_2x4_Stereo_Widget : ModuleWidget {
 	Mix_2x4_Stereo_Widget( Mix_2x4_Stereo *module );
 };

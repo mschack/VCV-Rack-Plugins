@@ -254,8 +254,6 @@ void MyLEDButton_GroupMute( void *pClass, int id, bool bOn )
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-#define AMP_MAX (2.0f)
-
 struct Mix_1x4_Stereo_Widget : ModuleWidget {
 	Mix_1x4_Stereo_Widget( Mix_1x4_Stereo *module );
 };

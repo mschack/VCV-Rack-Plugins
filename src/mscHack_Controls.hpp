@@ -677,7 +677,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
                 if( i == ( m_ExclusiveOn - 1 ) )
                     nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
-            else if( m_Type == TYPE_EXCLUSIVE || m_Type == TYPE_EXCLUSIVE_WOFF )
+            else if( m_Type == TYPE_EXCLUSIVE )
             {
                 if( i == m_ExclusiveOn )
                     nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
@@ -2125,7 +2125,7 @@ struct FilterSelectToggle : SVGSwitch, ToggleSwitch
 };
 
 //-----------------------------------------------------
-// Procedure:   MySlider_01
+// Sliders
 //
 //-----------------------------------------------------
 struct MySlider_01 : SVGFader 
@@ -2143,6 +2143,25 @@ struct MySlider_01 : SVGFader
 		box.size = background->box.size.plus(margin.mult(2));
 
         handle->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderKNOB_01.svg"));
+		handle->wrap();
+	}
+};
+
+struct Slider02_10x15 : SVGFader 
+{
+	Slider02_10x15() 
+    {
+
+		Vec margin = Vec(4, 0);
+		maxHandlePos = Vec(-3, 0).plus(margin);
+		minHandlePos = Vec(-3, 60).plus(margin);
+
+        background->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderBG_02.svg"));
+		background->wrap();
+		background->box.pos = margin;
+		box.size = background->box.size.plus(margin.mult(2));
+
+        handle->svg = SVG::load(assetPlugin(plugin,"res/mschack_Slider02_10x15.svg"));
 		handle->wrap();
 	}
 };
@@ -2184,7 +2203,14 @@ struct Knob_Red1_20 : RoundKnob
 	Knob_Red1_20() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Red1_20.svg" )));
-		//box.size = Vec(20, 20);
+	}
+};
+
+struct Knob_Red1_15 : RoundKnob 
+{
+	Knob_Red1_15() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Red1_15.svg" )));
 	}
 };
 
@@ -2197,9 +2223,17 @@ struct Knob_Purp1_20 : RoundKnob
 	Knob_Purp1_20() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Purp1_20.svg" )));
-		//box.size = Vec(20, 20);
 	}
 };
+
+struct Knob_Purp1_15 : RoundKnob 
+{
+	Knob_Purp1_15() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Purp1_15.svg" )));
+	}
+};
+
 
 //-----------------------------------------------------
 // Green1
@@ -2210,7 +2244,6 @@ struct Knob_Green1_15 : RoundKnob
 	Knob_Green1_15() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_15.svg" )));
-		//box.size = Vec(15, 15);
 	}
 };
 
@@ -2219,7 +2252,6 @@ struct Knob_Green1_40 : RoundKnob
 	Knob_Green1_40() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_40.svg" )));
-		//box.size = Vec(40, 40);
 	}
 };
 
@@ -2232,7 +2264,6 @@ struct Knob_Blue1_26 : RoundKnob
 	Knob_Blue1_26() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue1_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2245,7 +2276,6 @@ struct Knob_Blue2_26 : RoundKnob
 	Knob_Blue2_26() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2255,7 +2285,6 @@ struct Knob_Blue2_26_Snap : RoundKnob
     {
         snap = true;
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2264,7 +2293,6 @@ struct Knob_Blue2_15 : RoundKnob
 	Knob_Blue2_15() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_15.svg" )));
-		//box.size = Vec(15, 15);
 	}
 };
 
@@ -2273,7 +2301,6 @@ struct Knob_Blue2_40 : RoundKnob
 	Knob_Blue2_40() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_40.svg" )));
-		//box.size = Vec(40, 40);
 	}
 };
 
@@ -2295,7 +2322,14 @@ struct Knob_Blue3_20 : RoundKnob
 	Knob_Blue3_20() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue3_20.svg" )));
-		//box.size = Vec(20, 20);
+	}
+};
+
+struct Knob_Blue3_15 : RoundKnob 
+{
+	Knob_Blue3_15() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue3_15.svg" )));
 	}
 };
 
@@ -2308,7 +2342,6 @@ struct Knob_Yellow1_26 : RoundKnob
 	Knob_Yellow1_26() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2317,7 +2350,6 @@ struct Knob_Yellow1_15 : RoundKnob
 	Knob_Yellow1_15() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_15.svg" )));
-		//box.size = Vec(15, 15);
 	}
 };
 
@@ -2330,7 +2362,6 @@ struct Knob_Yellow2_26 : RoundKnob
 	Knob_Yellow2_26() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2340,7 +2371,6 @@ struct Knob_Yellow2_26_Snap : RoundKnob
     {
         snap = true;
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
-		//box.size = Vec(26, 26);
 	}
 };
 
@@ -2349,7 +2379,6 @@ struct Knob_Yellow2_40 : RoundKnob
 	Knob_Yellow2_40() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_40.svg" )));
-		//box.size = Vec(40, 40);
 	}
 };
 
@@ -2358,7 +2387,6 @@ struct Knob_Yellow2_56 : RoundKnob
 	Knob_Yellow2_56() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
-		//box.size = Vec(56, 56);
 	}
 };
 
@@ -2368,19 +2396,25 @@ struct Knob_Yellow2_56_Snap : RoundKnob
     {
         snap = true;
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
-		//box.size = Vec(56, 56);
 	}
 };
 //-----------------------------------------------------
 // Yellow3
 //
 //-----------------------------------------------------
+struct Knob_Yellow3_15 : RoundKnob 
+{
+	Knob_Yellow3_15() 
+    {
+        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_15.svg" )));
+	}
+};
+
 struct Knob_Yellow3_20 : RoundKnob 
 {
 	Knob_Yellow3_20() 
     {
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
-		//box.size = Vec(20, 20);
 	}
 };
 
@@ -2390,6 +2424,5 @@ struct Knob_Yellow3_20_Snap : RoundKnob
     {
         snap = true;
         setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
-		//box.size = Vec(20, 20);
 	}
 };

@@ -3,6 +3,12 @@
 ![screenshot](modules.PNG)
 
 # Updates
+- 19 Apr 18
+	- Added 24ch mixer
+	- Added Copy to Triad sequencer
+		-(while paused) Select pattern to copy, press copy button, press pattern to copy to
+	- Added another octave select to Triad
+
 - 26 Mar 18:
 	- Updated to VCV Rack 0.6.0
 	- Added "Maude 221" module for wave combining

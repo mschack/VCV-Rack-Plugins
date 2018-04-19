@@ -9,6 +9,7 @@ extern Plugin *plugin;
 #define CV_MAX (15.0f)
 #define AUDIO_MAX (6.0f)
 #define VOCT_MAX (6.0f)
+#define AMP_MAX (2.0f)
 
 #define TOJSON true
 #define FROMJSON false

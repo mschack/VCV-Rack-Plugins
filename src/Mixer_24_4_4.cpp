@@ -24,14 +24,24 @@ struct Mixer_24_4_4 : Module
 {
 	enum ParamIds 
     {
-        nPARAMS
+        PARAM_LEVEL_OUT,
+        PARAM_CHLVL,
+        PARAM_CHPAN             = PARAM_CHLVL + nINCHANNELS + 4,
+        PARAM_CHEQHI            = PARAM_CHPAN + nCHANNELS,
+        PARAM_CHEQMD            = PARAM_CHEQHI + nCHANNELS,
+        PARAM_CHEQLO            = PARAM_CHEQMD + nCHANNELS,
+        PARAM_CHAUX             = PARAM_CHEQLO + nCHANNELS,
+        PARAM_AUXLVL            = PARAM_CHAUX + ( (nCHANNELS - 4) * nAUX ),
+        nPARAMS                 = PARAM_AUXLVL + nAUX,
     };
 
 	enum InputIds 
     {
         IN_LEFT,
         IN_RIGHT                = IN_LEFT + nCHANNELS,
-        nINPUTS                 = IN_RIGHT + nCHANNELS
+        IN_LEVELCV              = IN_RIGHT + nCHANNELS,
+        IN_PANCV                = IN_LEVELCV + nINCHANNELS,
+        nINPUTS                 = IN_PANCV + nINCHANNELS
 	};
 
 	enum OutputIds 
@@ -41,7 +51,6 @@ struct Mixer_24_4_4 : Module
 
         OUT_AUXL,
         OUT_AUXR              = OUT_AUXL + nAUX,
-
         nOUTPUTS              = OUT_AUXR + nAUX
 	};
 
@@ -56,13 +65,6 @@ struct Mixer_24_4_4 : Module
     // Contructor
 	Mixer_24_4_4() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
 
-    // knobs
-    int             m_iKnobLvl[ nCHANNELS ] = {};
-    int             m_iKnobPan[ nCHANNELS ] = {};
-    int             m_iKnobEq[ nCHANNELS ][ nEQ ] = {};
-    int             m_iKnobAux[ nCHANNELS ][ nAUX ] = {};
-    int             m_iKnobOut = 0;
-
     // mute/solo
     bool            m_bMuteStates[ nCHANNELS ] = {};
     float           m_fMuteFade[ nCHANNELS ] = {};
@@ -71,10 +73,6 @@ struct Mixer_24_4_4 : Module
 
     // processing
     bool            m_bMono[ nCHANNELS ];
-    float           m_fSubMix[ nGROUPS ][ 3 ] = {};
-
-    // routing
-    int             m_iRouteGroup[ nCHANNELS ] = {nGROUPS};
 
     // LED Meters
     LEDMeterWidget  *m_pLEDMeterChannel[ nCHANNELS ][ 2 ] ={};
@@ -85,21 +83,15 @@ struct Mixer_24_4_4 : Module
     float           m_hpIn[ nCHANNELS ];
     float           m_lpIn[ nCHANNELS ];
     float           m_mpIn[ nCHANNELS ];
-    float           m_rezIn[ nCHANNELS ] = {0};
     float           m_Freq;
 
     // buttons
     MyLEDButton            *m_pButtonChannelMute[ nCHANNELS ] = {};
     MyLEDButton            *m_pButtonChannelSolo[ nCHANNELS ] = {};
 
+    // routing
+    int                     m_iRouteGroup[ nINCHANNELS ] = {nGROUPS};
     MyLEDButtonStrip       *m_pMultiButtonRoute[ nINCHANNELS ] = {0};
-
-    // knobs
-    MySimpleKnob           *m_pKnobLvl[ nCHANNELS ] = {};
-    MySimpleKnob           *m_pKnobPan[ nCHANNELS ] = {};
-    MySimpleKnob           *m_pKnobEq[ nCHANNELS ][ nEQ ] = {};
-    MySimpleKnob           *m_pKnobAux[ nCHANNELS ][ nAUX ] = {};
-    MySimpleKnob           *m_pKnobOut = NULL;
 
     // Overrides 
 	void    step() override;
@@ -114,61 +106,74 @@ struct Mixer_24_4_4 : Module
     void ProcessMuteSolo( int channel, bool bMute, bool bGroup );
     void ProcessEQ( int ch, float *pL, float *pR );
     void SetControls( int ch );
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQHi_Knob : Knob_Green1_15
+    {
+        Mixer_24_4_4 *mymodule;
+        int param;
+
+        void onChange( EventChange &e ) override 
+        {
+            mymodule = (Mixer_24_4_4*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mixer_24_4_4::PARAM_CHEQHI;
+
+                mymodule->m_hpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange( e );
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQMid_Knob : Knob_Green1_15
+    {
+        Mixer_24_4_4 *mymodule;
+        int param;
+
+        void onChange( EventChange &e ) override 
+        {
+            mymodule = (Mixer_24_4_4*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mixer_24_4_4::PARAM_CHEQMD;
+                mymodule->m_mpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange( e );
+	    }
+    };
+
+    //-----------------------------------------------------
+    // MyEQHi_Knob
+    //-----------------------------------------------------
+    struct MyEQLo_Knob : Knob_Green1_15
+    {
+        Mixer_24_4_4 *mymodule;
+        int param;
+
+        void onChange( EventChange &e ) override 
+        {
+            mymodule = (Mixer_24_4_4*)module;
+
+            if( mymodule )
+            {
+                param = paramId - Mixer_24_4_4::PARAM_CHEQLO;
+                mymodule->m_lpIn[ param ] = value; 
+            }
+
+		    RoundKnob::onChange( e );
+	    }
+    };
 };
-
-//-----------------------------------------------------
-// Procedure: Knob callbacks  
-//
-//-----------------------------------------------------
-void Knob_Level_Callback( void *pClass, int ch, int id, float fval )
-{
-    Mixer_24_4_4 *module = (Mixer_24_4_4*)pClass;
-
-    if( !module )
-        return;
-
-    module->m_iKnobLvl[ ch ] = (int)( fval * 100.0f );
-}
-
-void Knob_Pan_Callback( void *pClass, int ch, int id, float fval )
-{
-    Mixer_24_4_4 *module = (Mixer_24_4_4*)pClass;
-
-    if( !module )
-        return;
-
-    module->m_iKnobPan[ ch ] = (int)( fval * 100.0f );
-}
-
-void Knob_Eq_Callback( void *pClass, int ch, int id, float fval )
-{
-    Mixer_24_4_4 *module = (Mixer_24_4_4*)pClass;
-
-    if( !module )
-        return;
-
-    module->m_iKnobEq[ ch ][ id ] = (int)( fval * 100.0f );
-}
-
-void Knob_Aux_Callback( void *pClass, int ch, int id, float fval )
-{
-    Mixer_24_4_4 *module = (Mixer_24_4_4*)pClass;
-
-    if( !module )
-        return;
-
-    module->m_iKnobAux[ ch ][ id ] = (int)( fval * 100.0f );
-}
-
-void Knob_MainLvl_Callback( void *pClass, int ch, int id, float fval )
-{
-    Mixer_24_4_4 *module = (Mixer_24_4_4*)pClass;
-
-    if( !module )
-        return;
-
-    module->m_iKnobOut = (int)( fval * 100.0f );
-}
 
 //-----------------------------------------------------
 // MyLEDButton_ChSolo
@@ -215,8 +220,9 @@ struct Mixer_24_4_4_Widget : ModuleWidget {
 
 Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(module) 
 {
+    Port *pPort;
     float fx, fx2, fx3, fx5, fx7;
-    int ch, eq, aux, x, y, x2, y2;
+    int ch, x, y, x2, y2;
     bool bGroup, bAux, bNormal;
 
 	box.size = Vec( 15*54, 380);
@@ -251,54 +257,87 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         y2 = y + 8;
 
         // inputs
-        if( !bGroup )
-        {
-            addInput( Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_LEFT + ch ) ); y2 += 25;
-            addInput( Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_RIGHT + ch ) );
-        }
-        else
-            y2 += 25;
+        //if( !bGroup )
+        //{
+        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_LEFT + ch );
+        addInput( pPort ); y2 += 23;
+
+        if( bGroup )
+            pPort->visible = false;
+
+        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_RIGHT + ch );
+        addInput( pPort );
+
+        if( bGroup )
+            pPort->visible = false;
+        //}
+        //else
+            //y2 += 23;
 
         x2 = x + 4;
-        y2 += 23;
-
-        // level/pan
-        module->m_pKnobLvl[ ch ] = new MySimpleKnob( module, (float)x2, (float)y2, 15, DWRGB( 1, 47, 94 ), DWRGB( 255, 255, 255 ), ch, 0, 0, Knob_Level_Callback, 0.0f, 1.0f, 0.5f ); y2 += 20;
-        addChild( module->m_pKnobLvl[ ch ] );
-
-        module->m_pKnobPan[ ch ] = new MySimpleKnob( module, (float)x2, (float)y2, 15, DWRGB( 133, 104, 3 ), DWRGB( 255, 255, 255 ), ch, 0, 0, Knob_Pan_Callback, 0.0f, 1.0f, 0.0f );
-        addChild( module->m_pKnobPan[ ch ] );
-
         y2 += 22;
-
-        // EQ
-        for( eq = 0; eq < nEQ; eq++ )
-        {
-            module->m_pKnobEq[ ch ][ eq ] = new MySimpleKnob( module, (float)x2, (float)y2, 15, DWRGB( 27, 30, 11 ), DWRGB( 255, 255, 255 ), ch, eq, 0, Knob_Eq_Callback, 0.0f, 1.0f, 0.0f ); y2 += 20;
-            addChild( module->m_pKnobEq[ ch ][ eq ] );
-        }
-
-        y2 += 2;
 
         // aux sends
         if( !bAux )
         {
-            for( aux = 0; aux < nAUX; aux++ )
-            {
-                module->m_pKnobAux[ ch ][ aux ] = new MySimpleKnob( module, (float)x2, (float)y2, 15, DWRGB( 163, 78, 77 ), DWRGB( 255, 255, 255 ), ch, aux, 0, Knob_Aux_Callback, 0.0f, 1.0f, 0.0f ); y2 += 20;
-                addChild( module->m_pKnobAux[ ch ][ aux ] );
-            }
+            addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 0, 0.0, 1.0, 0.0 ) );
+            y2 += 18;
+            addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 1, 0.0, 1.0, 0.0 ) );
+            y2 += 18;
+            addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 2, 0.0, 1.0, 0.0 ) );
+            y2 += 18;
+            addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 3, 0.0, 1.0, 0.0 ) );
+            y2 += 20;
         }
         else
         {
-            module->m_pKnobAux[ ch ][ 0 ] = new MySimpleKnob( module, (float)x2, (float)y2, 15, DWRGB( 180, 180, 180 ), DWRGB( 0, 0, 0 ), ch, 0, 0, Knob_Aux_Callback, 0.0f, 1.0f, 0.0f );
-            addChild( module->m_pKnobAux[ ch ][ 0 ] );
+            switch( ch )
+            {
+            case 28:
+                addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 0, 0.0, 1.0, 0.0 ) );
+                break;
+            case 29:
+                addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 1, 0.0, 1.0, 0.0 ) );
+                break;
+            case 30:
+                addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 2, 0.0, 1.0, 0.0 ) );
+                break;
+            case 31:
+                addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 3, 0.0, 1.0, 0.0 ) );
+                break;
+            }
+
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 22), Port::OUTPUT, module, Mixer_24_4_4::OUT_AUXL + (ch - 28) ) );
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 47), Port::OUTPUT, module, Mixer_24_4_4::OUT_AUXR + (ch - 28) ) );
+
+            y2 += 74;
         }
 
-        y2 = y + 242;
+        // EQ
+        addParam(ParamWidget::create<Mixer_24_4_4::MyEQHi_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQHI + ch, 0.0, 1.0, 0.5 ) );
+        y2 += 18;
+        addParam(ParamWidget::create<Mixer_24_4_4::MyEQMid_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQMD + ch, 0.0, 1.0, 0.5 ) );
+        y2 += 18;
+        addParam(ParamWidget::create<Mixer_24_4_4::MyEQLo_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQLO + ch, 0.0, 1.0, 0.5 ) );
+        y2 += 20;
+
+        if( !bAux )
+        {
+            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_LEVELCV + ch ) );
+            y2 += 25;
+            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_PANCV + ch ) );
+        }
+        else
+            y2 += 25;
+
+        y2 += 23;
+
+        addParam(ParamWidget::create<Knob_Yellow1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHPAN + ch, -1.0, 1.0, 0.0 ) );
+
+        y2 += 19;
 
         // mute/solo
-        if( !bAux )
+        if( bNormal )
         {
             module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x + 3, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChMute );
 	        addChild( module->m_pButtonChannelMute[ ch ] );
@@ -319,26 +358,31 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         module->m_pLEDMeterChannel[ ch ][ 1 ] = new LEDMeterWidget( x + 12, y + 260, 4, 1, 1, true );
         addChild( module->m_pLEDMeterChannel[ ch ][ 1 ] );
 
-        x2 = x + 8;
+        x2 = x + 2;
         y2 = y + 290;
 
         // Group Route
         if( bNormal )
         {
-            module->m_pMultiButtonRoute[ ch ] = new MyLEDButtonStrip( x2, y2, 8, 8, 1, 6.0f, 5, true, DWRGB( 180, 180, 180 ), DWRGB( 128, 128, 200 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, RouteCallback );
+            module->m_pMultiButtonRoute[ ch ] = new MyLEDButtonStrip( x2, y2, 6, 6, 3, 4.0f, 5, true, DWRGB( 0, 128, 128 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, RouteCallback );
 	        addChild( module->m_pMultiButtonRoute[ ch ] );
+        }
+
+        // level slider
+        if( !bAux )
+        {
+            addParam(ParamWidget::create<Slider02_10x15>( Vec( x + 10, y2 - 8 ), module, Mixer_24_4_4::PARAM_CHLVL + ch, 0.0, 2.0, 1.0 ) );
         }
 
         x += 23;
     }
 
     // output
-    module->m_pKnobOut = new MySimpleKnob( module, (float)695, (float)300, 56, DWRGB( 1, 47, 94 ), DWRGB( 255, 255, 255 ), ch, aux, 0, Knob_Aux_Callback, 0.0f, 1.0f, 0.0f );
-    addChild( module->m_pKnobOut );
+    addParam(ParamWidget::create<Knob_Blue2_56>( Vec( 697, 308 ), module, Mixer_24_4_4::PARAM_LEVEL_OUT, 0.0, 1.0, 0.5 ) );
 
-    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 759, 302, 5, 3, 2, true );
+    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 759, 310, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 0 ] );
-    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 759 + 7, 302, 5, 3, 2, true );
+    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 759 + 7, 310, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 1 ] );
 
     addOutput(Port::create<MyPortOutSmall>( Vec( 779, 307 ), Port::OUTPUT, module, Mixer_24_4_4::OUT_MAINL ) );
@@ -374,12 +418,7 @@ void Mixer_24_4_4::JsonParams( bool bTo, json_t *root)
 {
     JsonDataBool( bTo, "m_bMuteStates", root, m_bMuteStates, 32 );
     JsonDataBool( bTo, "m_bSoloStates", root, m_bSoloStates, 32 );
-    JsonDataInt( bTo, "m_iKnobLvl", root, &m_iKnobLvl[ 0 ], nCHANNELS );
-    JsonDataInt( bTo, "m_iKnobPan", root, &m_iKnobPan[ 0 ], nCHANNELS );
-    JsonDataInt( bTo, "m_iKnobEq", root, &m_iKnobEq[ 0 ][ 0 ], nCHANNELS * nEQ );
-    JsonDataInt( bTo, "m_iKnobAux", root, &m_iKnobAux[ 0 ][ 0 ], nCHANNELS * nAUX );
-    JsonDataInt( bTo, "m_iRouteGroup", root, &m_iRouteGroup[ 0 ], nCHANNELS );
-    JsonDataInt( bTo, "m_iKnobOut", root, &m_iKnobOut, 1 );
+    JsonDataInt( bTo, "m_iRouteGroup", root, &m_iRouteGroup[ 0 ], nINCHANNELS );
 }
 
 //-----------------------------------------------------
@@ -442,8 +481,6 @@ void Mixer_24_4_4::fromJson( json_t *root )
 //-----------------------------------------------------
 void Mixer_24_4_4::SetControls( int ch )
 {
-    int aux, eq;
-
     if( !m_bInitialized || ch >= nCHANNELS || ch < 0 )
         return;
 
@@ -457,27 +494,6 @@ void Mixer_24_4_4::SetControls( int ch )
 
     if( ch < nINCHANNELS && m_pMultiButtonRoute[ ch ] )
         m_pMultiButtonRoute[ ch ]->Set( m_iRouteGroup[ ch ], true );
-
-    if( m_pKnobLvl[ ch ] )
-        m_pKnobLvl[ ch ]->setVal( (float)m_iKnobLvl[ ch ] / 100.0f );
-
-    if( m_pKnobPan[ ch ] )
-        m_pKnobPan[ ch ]->setVal( (float)m_iKnobPan[ ch ] / 100.0f );
-
-    if( m_pKnobOut )
-        m_pKnobOut->setVal( (float)m_iKnobOut / 100.0f );
-
-    for( eq = 0; eq < nEQ; eq++ )
-    {
-        if( m_pKnobEq[ ch ][ eq ] )
-            m_pKnobEq[ ch ][ eq ]->setVal( (float)m_iKnobEq[ ch ][ eq ] / 100.0f );
-    }
-
-    for( aux = 0; aux < nAUX; aux++ )
-    {
-        if( m_pKnobAux[ ch ][ aux ] )
-            m_pKnobAux[ ch ][ aux ]->setVal( (float)m_iKnobAux[ ch ][ aux ] / 100.0f );
-    }
 }
 
 //-----------------------------------------------------
@@ -502,30 +518,21 @@ void Mixer_24_4_4::onDelete()
 //-----------------------------------------------------
 void Mixer_24_4_4::onReset()
 {
-    int ch, aux, eq;
+    int ch;
 
     if( !m_bInitialized )
         return;
 
-    m_iKnobOut = 0;
-
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_iKnobLvl[ ch ] = 0;
-        m_iKnobPan[ ch ] = 0;
-
         m_FadeState[ ch ] = MUTE_FADE_STATE_IDLE;
 
         m_bMuteStates[ ch ] = false;
         m_bSoloStates[ ch ] = false;
         m_fMuteFade[ ch ] = 1.0f;
-        m_iRouteGroup[ ch ] = nGROUPS;
 
-        for( eq = 0; eq < nEQ; eq++ )
-            m_iKnobEq[ ch ][ eq ] = 0;
-
-        for( aux = 0; aux < nAUX; aux++ )
-            m_iKnobAux[ ch ][ aux ] = 0;
+        if( ch < nINCHANNELS )
+            m_iRouteGroup[ ch ] = nGROUPS;
 
         SetControls( ch );
     }
@@ -690,42 +697,77 @@ void Mixer_24_4_4::ProcessMuteSolo( int index, bool bMute, bool bGroup )
 // Procedure:   step
 //
 //-----------------------------------------------------
+#define SNORMAL 0
+#define SGROUP 1
+#define SAUX   2
 void Mixer_24_4_4::step() 
 {
-    int ch, aux;
-    float fMixOutL = 0.0, fMixOutR = 0.0, inL, inR;
+    int section = 0;
+    int ch, aux, group = 0;
+    float GroupMixL[ nGROUPS ] = {0}, GroupMixR[ nGROUPS ] = {0}, fMixOutL = 0.0f, fMixOutR = 0.0f, inL, inR, flevel;
     float auxL[ nAUX ] = {}, auxR[ nAUX ] = {};
-    static bool  bChWasActive[ nCHANNELS ]= {};
+    bool bChannelActive, bGroupActive[ nGROUPS ] = {false};
+    float pan;
 
-    //if( !m_bInitialized )
+    if( !m_bInitialized )
         return;
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        bChWasActive[ ch ] = true;
-
         inL = 0.0f;
         inR = 0.0f;
 
-        // is this channel active?
-        if( inputs[ IN_LEFT + ch ].active || inputs[ IN_RIGHT ].active )
+        // normal(0), group(1) or aux channels(2) section
+        if( ch == nINCHANNELS || ch == ( nINCHANNELS + nGROUPS ) )
+            section++;
+
+        bChannelActive = false;
+
+        // see if channel active
+        if( section != SGROUP )
         {
-            // check right channel first for possible mono
-            if( inputs[ IN_RIGHT + ch ].active )
+            if( inputs[ IN_LEFT + ch ].active || inputs[ IN_RIGHT + ch ].active ) 
+                bChannelActive = true;
+        }
+        else if( section == SGROUP )
+        {
+            group = ch - nINCHANNELS;
+
+            if( bGroupActive[ group ] )
+                bChannelActive = true;
+        }
+
+        if( bChannelActive )
+        {
+            if( section == SAUX )
+                flevel = 1.0;
+            else
+                flevel = clamp( params[ PARAM_CHLVL + ch ].value + ( inputs[ IN_LEVELCV + ch ].normalize( 0.0 ) / 5.0f ), -1.0f, 1.0f );
+
+            if( section == SGROUP )
             {
-                inR = inputs[ IN_RIGHT + ch ].value * m_pKnobLvl[ ch ]->m_fVal;
-                m_bMono[ ch ] = false;
+                inL = GroupMixL[ group ] * flevel;
+                inR = GroupMixR[ group ] * flevel;
             }
             else
-                m_bMono[ ch ] = true;
-
-            // left channel
-            if( inputs[ IN_LEFT + ch ].active )
             {
-                inL = inputs[ IN_LEFT + ch ].value * m_pKnobLvl[ ch ]->m_fVal;
+                // check right channel first for possible mono
+                if( inputs[ IN_RIGHT + ch ].active )
+                {
+                    inR = inputs[ IN_RIGHT + ch ].value * flevel;
+                    m_bMono[ ch ] = false;
+                }
+                else
+                    m_bMono[ ch ] = true;
 
-                if( m_bMono[ ch ] )
-                    inR = inL;
+                // left channel
+                if( inputs[ IN_LEFT + ch ].active )
+                {
+                    inL = inputs[ IN_LEFT + ch ].value * flevel;
+
+                    if( m_bMono[ ch ] )
+                        inR = inL;
+                }
             }
 
             if( m_FadeState[ ch ] == MUTE_FADE_STATE_DEC )
@@ -754,40 +796,59 @@ void Mixer_24_4_4::step()
             inL *= m_fMuteFade[ ch ];
             inR *= m_fMuteFade[ ch ];
 
-            if( m_pKnobPan[ ch ]->m_fVal <= 0.0 )
-                inR *= ( 1.0 + m_pKnobPan[ ch ]->m_fVal );
+            if( section != SAUX )
+                pan = clamp( params[ PARAM_CHPAN + ch ].value + ( inputs[ IN_PANCV + ch ].normalize( 0.0 ) / 5.0f ), -1.0f, 1.0f );
             else
-                inL *= ( 1.0 - m_pKnobPan[ ch ]->m_fVal );
+                pan = params[ PARAM_CHPAN + ch ].value;
 
-            // put output to aux if not pre fader
-            for ( aux = 0; aux < nAUX; aux++ )
+            if( pan <= 0.0 )
+                inR *= ( 1.0 + pan );
+            else
+                inL *= ( 1.0 - pan );
+
+            // put output to aux
+            if( section != SAUX )
             {
-                auxL[ aux ] += inL * m_pKnobAux[ ch ][ aux ]->m_fVal;
-                auxR[ aux ] += inR * m_pKnobAux[ ch ][ aux ]->m_fVal;
+                for ( aux = 0; aux < nAUX; aux++ )
+                {
+                    auxL[ aux ] += inL * params[ PARAM_CHAUX + (ch * 4) + aux ].value;
+                    auxR[ aux ] += inR * params[ PARAM_CHAUX + (ch * 4) + aux ].value;
+                }
             }
 
-            fMixOutL += inL;
-            fMixOutR += inR;
+            if( section != SNORMAL )
+            {
+                fMixOutL += inL;
+                fMixOutR += inR;
+            }
+            else
+            {
+                // normal channel direct out
+                if( m_iRouteGroup[ ch ] == 4 )
+                {
+                    fMixOutL += inL;
+                    fMixOutR += inR;
+                }
+                // normal channel routed to group
+                else
+                {
+                    GroupMixL[ m_iRouteGroup[ ch ] ] += inL;
+                    GroupMixR[ m_iRouteGroup[ ch ] ] += inR;
 
-            if( m_pLEDMeterChannel[ ch ][ 0 ] )
-                m_pLEDMeterChannel[ ch ][ 0 ]->Process( inL / AUDIO_MAX );
-            if( m_pLEDMeterChannel[ ch ][ 1 ] )
-                m_pLEDMeterChannel[ ch ][ 1 ]->Process( inR / AUDIO_MAX);
+                    bGroupActive[ m_iRouteGroup[ ch ] ] = true;
+                }
+            }
         }
-        else if( bChWasActive[ ch ] )
-        {
-            bChWasActive[ ch ] = false;
 
-            if( m_pLEDMeterChannel[ ch ][ 0 ] )
-                m_pLEDMeterChannel[ ch ][ 0 ]->Process( 0.0f );
-            if( m_pLEDMeterChannel[ ch ][ 1 ] )
-                m_pLEDMeterChannel[ ch ][ 1 ]->Process( 0.0f );
-        }
+        if( m_pLEDMeterChannel[ ch ][ 0 ] )
+            m_pLEDMeterChannel[ ch ][ 0 ]->Process( inL / AUDIO_MAX );
+        if( m_pLEDMeterChannel[ ch ][ 1 ] )
+            m_pLEDMeterChannel[ ch ][ 1 ]->Process( inR / AUDIO_MAX);
     }
 
     // apply main level
-    fMixOutL = clamp( fMixOutL * m_pKnobOut->m_fVal, -AUDIO_MAX, AUDIO_MAX );
-    fMixOutR = clamp( fMixOutR * m_pKnobOut->m_fVal, -AUDIO_MAX, AUDIO_MAX );
+    fMixOutL = clamp( fMixOutL * params[ PARAM_LEVEL_OUT ].value, -AUDIO_MAX, AUDIO_MAX );
+    fMixOutR = clamp( fMixOutR * params[ PARAM_LEVEL_OUT ].value, -AUDIO_MAX, AUDIO_MAX );
 
     // update main VUMeters
     if( m_pLEDMeterMain[ 0 ] )
@@ -798,12 +859,12 @@ void Mixer_24_4_4::step()
     // put aux output
     for ( aux = 0; aux < nAUX; aux++ )
     {
-        outputs[ OUT_AUXL + aux ].value = clamp( auxL[ aux ] * m_pKnobAux[ ch ][ aux ]->m_fVal, -AUDIO_MAX, AUDIO_MAX );
-        outputs[ OUT_AUXR + aux ].value = clamp( auxR[ aux ] * m_pKnobAux[ ch ][ aux ]->m_fVal, -AUDIO_MAX, AUDIO_MAX );
+        outputs[ OUT_AUXL + aux ].value = clamp( auxL[ aux ] * params[ PARAM_AUXLVL + aux ].value, -AUDIO_MAX, AUDIO_MAX );
+        outputs[ OUT_AUXR + aux ].value = clamp( auxR[ aux ] * params[ PARAM_AUXLVL + aux ].value, -AUDIO_MAX, AUDIO_MAX );
     }
 
     outputs[ OUT_MAINL ].value = fMixOutL;
     outputs[ OUT_MAINR ].value = fMixOutR;
 }
 
-Model *modelMix_24_4_4 = Model::create<Mixer_24_4_4, Mixer_24_4_4_Widget>( "mscHack", "Mix_24_4_4", "MIXER 24ch (In Development)", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );
+Model *modelMix_24_4_4 = Model::create<Mixer_24_4_4, Mixer_24_4_4_Widget>( "mscHack", "Mix_24_4_4", "MIXER 24ch, 4 groups, 4 aux", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );

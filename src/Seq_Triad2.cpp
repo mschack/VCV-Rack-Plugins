@@ -5,7 +5,7 @@
 
 #define nKEYBOARDS  3
 #define nKEYS       37
-#define nOCTAVESEL  4
+#define nOCTAVESEL  5
 #define nPATTERNS   16
 #define nPHRASE_SAVES 8
 #define SEMI ( 1.0f / 12.0f )
@@ -77,6 +77,8 @@ struct Seq_Triad2 : Module
     SchmittTrigger  m_SchTrigPatternSelectInput[ nKEYBOARDS ];
     PatternSelectStrip *m_pPatternSelect[ nKEYBOARDS ] = {};
 
+    int             m_bCopySrc[ nKEYBOARDS ] = {-1};
+
     // phrase save
     int             m_CurrentPhrase[ nKEYBOARDS ] = {};
     PHRASE_CHANGE_STRUCT m_PhrasePending[ nKEYBOARDS ] = {};
@@ -115,6 +117,7 @@ struct Seq_Triad2 : Module
     MyLEDButtonStrip *m_pButtonOctaveSelect[ nKEYBOARDS ] = {};
     MyLEDButton      *m_pButtonPause[ nKEYBOARDS ] = {};
     MyLEDButton      *m_pButtonTrig[ nKEYBOARDS ] = {};
+    MyLEDButton      *m_pButtonCopy[ nKEYBOARDS ] = {};
 
     // Contructor
 	Seq_Triad2() : Module( nPARAMS, nINPUTS, nOUTPUTS, 0 )
@@ -140,7 +143,7 @@ struct Seq_Triad2 : Module
     void    ChangePattern( int kb, int index, bool bForce );
     void    ChangePhrase( int kb, int index, bool bForce );
     void    SetPendingPhrase( int kb, int phrase );
-    void    CopyNext( void );
+    void    Copy( int kb, bool bOn );
 };
 
 //-----------------------------------------------------
@@ -231,6 +234,16 @@ void Seq_Triad2_Widget_PhraseChangeCallback ( void *pClass, int kb, int pat, int
 }
 
 //-----------------------------------------------------
+// MyLEDButton_Copy
+//-----------------------------------------------------
+void MyLEDButton_Copy( void *pClass, int id, bool bOn ) 
+{
+    Seq_Triad2 *mymodule;
+    mymodule = (Seq_Triad2*)pClass;
+    mymodule->Copy( id, bOn );
+}
+
+//-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
@@ -270,12 +283,15 @@ Seq_Triad2_Widget::Seq_Triad2_Widget( Seq_Triad2 *module ) : ModuleWidget(module
 	    addChild( module->m_pButtonTrig[ kb ] );
 
         // glide knob
-        addParam( ParamWidget::create<Knob_Yellow1_15>( Vec( x + 220, y + 86 ), module, Seq_Triad2::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
+        addParam( ParamWidget::create<Knob_Yellow1_15>( Vec( x + 235, y + 86 ), module, Seq_Triad2::PARAM_GLIDE + kb, 0.0, 1.0, 0.0 ) );
+
+        module->m_pButtonCopy[ kb ] = new MyLEDButton( x + 194, y + 89, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, kb, module, MyLEDButton_Copy );
+	    addChild( module->m_pButtonCopy[ kb ] );
 
         x2 = x + 274;
 
         // octave select
-        module->m_pButtonOctaveSelect[ kb ] = new MyLEDButtonStrip( x2, y + 90, 11, 11, 3, 8.0, 4, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, kb, module, Seq_Triad2_OctSelect );
+        module->m_pButtonOctaveSelect[ kb ] = new MyLEDButtonStrip( x2, y + 90, 11, 11, 3, 8.0, nOCTAVESEL, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, kb, module, Seq_Triad2_OctSelect );
 	    addChild( module->m_pButtonOctaveSelect[ kb ] );
 
         // keyboard widget
@@ -372,7 +388,7 @@ void Seq_Triad2::onRandomize()
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
-        m_Octave[ kb ] = (int)( randomUniform() * 3.0 );
+        m_Octave[ kb ] = (int)( randomUniform() * 4.0 );
 
         for( pat = 0; pat < nPATTERNS; pat++ )
         {
@@ -414,6 +430,28 @@ void Seq_Triad2::SetSteps( int kb, int nSteps )
         nSteps = 0;
 
     m_nSteps[ kb ][ m_CurrentPhrase[ kb ] ] = nSteps;
+}
+
+//-----------------------------------------------------
+// Procedure:   Copy
+//
+//-----------------------------------------------------
+void Seq_Triad2::Copy( int kb, bool bOn )
+{
+    if( kb < 0 || kb >= nKEYBOARDS )
+        return;
+
+    if( !m_bPause[ kb ] || !bOn )
+    {
+        m_bCopySrc[ kb ] = -1;
+        m_pButtonCopy[ kb ]->Set( false );
+        return;
+    }
+
+    if( bOn )
+    {
+        m_bCopySrc[ kb ] = m_CurrentPattern[ kb ];
+    }
 }
 
 //-----------------------------------------------------
@@ -509,6 +547,13 @@ void Seq_Triad2::ChangePhrase( int kb, int index, bool bForce )
         index = nPHRASE_SAVES - 1;
     else if( index >= nPHRASE_SAVES )
         index = 0;
+
+    if( m_bCopySrc[ kb ] != -1 )
+    {
+        memcpy( m_PatternNotes[ kb ][ index ], m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ], sizeof(PATTERN_STRUCT) * nPATTERNS );
+        m_pButtonCopy[ kb ]->Set( false );
+        m_bCopySrc[ kb ] = -1;
+    }
 
     m_CurrentPhrase[ kb ] = index;
 
