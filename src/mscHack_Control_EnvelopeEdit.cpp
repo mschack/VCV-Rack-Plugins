@@ -767,7 +767,7 @@ float Widget_EnvelopeEdit::procStep( int ch, bool bTrig, bool bHold )
 {
     int handle;
 
-    if( m_bClkReset || bTrig )
+    if( ( m_bClkReset || bTrig ) && !bHold )
     {
         if( m_Mode[ ch ] == MODE_REVERSE )
             m_Clock[ ch ].fpos = engineGetSampleRate();
