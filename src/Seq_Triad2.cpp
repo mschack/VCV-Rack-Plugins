@@ -36,6 +36,7 @@ typedef struct
 //-----------------------------------------------------
 struct Seq_Triad2 : Module 
 {
+#define NO_COPY -1
 
 	enum ParamIds 
     {
@@ -77,7 +78,7 @@ struct Seq_Triad2 : Module
     SchmittTrigger  m_SchTrigPatternSelectInput[ nKEYBOARDS ];
     PatternSelectStrip *m_pPatternSelect[ nKEYBOARDS ] = {};
 
-    int             m_bCopySrc[ nKEYBOARDS ] = {-1};
+    int             m_CopySrc = NO_COPY;
 
     // phrase save
     int             m_CurrentPhrase[ nKEYBOARDS ] = {};
@@ -140,7 +141,7 @@ struct Seq_Triad2 : Module
     void    SetSteps( int kb, int steps );
     void    SetKey( int kb );
     void    SetOut( int kb );
-    void    ChangePattern( int kb, int index, bool bForce );
+    void    ChangePattern( int kb, int index, bool bForce, bool bPlay );
     void    ChangePhrase( int kb, int index, bool bForce );
     void    SetPendingPhrase( int kb, int phrase );
     void    Copy( int kb, bool bOn );
@@ -182,15 +183,28 @@ void Seq_Triad2_Trig( void *pClass, int id, bool bOn )
 // Procedure:   Widget
 //
 //-----------------------------------------------------
-void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn )
+void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button )
 {
     Seq_Triad2 *mymodule = (Seq_Triad2 *)pClass;
 
     if( !pClass )
         return;
 
-    mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
-    mymodule->SetOut( kb );    
+    // don't allow program unless paused
+    if( button == 1 && !mymodule->m_bPause[ kb ] )
+        return;
+
+    // right click advance step
+    if( button == 1 )
+    {
+        mymodule->ChangePattern( kb, mymodule->m_CurrentPattern[ kb ] + 1, true, false );
+        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
+        mymodule->SetKey( kb );
+    }
+    else
+        mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
+
+    mymodule->SetOut( kb );
 }
 
 //-----------------------------------------------------
@@ -205,7 +219,7 @@ void Seq_Triad2_Widget_PatternChangeCallback ( void *pClass, int kb, int pat, in
         return;
 
     if( mymodule->m_CurrentPattern[ kb ] != pat )
-        mymodule->ChangePattern( kb, pat, false );
+        mymodule->ChangePattern( kb, pat, false, true );
     else if( mymodule->m_nSteps[ kb ][ mymodule->m_CurrentPhrase[ kb ] ] != max )
         mymodule->SetSteps( kb, max );
 }
@@ -221,7 +235,15 @@ void Seq_Triad2_Widget_PhraseChangeCallback ( void *pClass, int kb, int pat, int
     if( !mymodule || !mymodule->m_bInitialized )
         return;
 
-    if( mymodule->m_CurrentPhrase[ kb ] != pat )
+    if( mymodule->m_PhrasesUsed[ kb ] != max )
+    {
+        mymodule->SetPhraseSteps( kb, max ); 
+    }
+    else if( mymodule->m_CurrentPhrase[ kb ] == pat && mymodule->m_bPause[ kb ] && mymodule->m_CopySrc != NO_COPY )
+    {
+        mymodule->ChangePhrase( kb, pat, true );
+    }
+    else if( mymodule->m_CurrentPhrase[ kb ] != pat )
     {
         if( !mymodule->m_bPause[ kb ] && mymodule->inputs[ Seq_Triad2::IN_PATTERN_TRIG + kb ].active )
             mymodule->SetPendingPhrase( kb, pat );
@@ -229,8 +251,6 @@ void Seq_Triad2_Widget_PhraseChangeCallback ( void *pClass, int kb, int pat, int
             mymodule->ChangePhrase( kb, pat, false );
             
     }
-    else if( mymodule->m_PhrasesUsed[ kb ] != max )
-        mymodule->SetPhraseSteps( kb, max );
 }
 
 //-----------------------------------------------------
@@ -362,7 +382,7 @@ void Seq_Triad2::onReset()
             m_nSteps[ kb ][ pat ] = 3;
 
         SetPhraseSteps( kb, 3 );
-        ChangePattern( kb, 0, true );
+        ChangePattern( kb, 0, true, true );
         ChangePhrase( kb, 0, true );
     }
 }
@@ -404,7 +424,7 @@ void Seq_Triad2::onRandomize()
             }
         }
 
-        ChangePattern( kb, 0, true );
+        ChangePattern( kb, 0, true, true );
     }
 }
 
@@ -441,16 +461,17 @@ void Seq_Triad2::Copy( int kb, bool bOn )
     if( kb < 0 || kb >= nKEYBOARDS )
         return;
 
-    if( !m_bPause[ kb ] || !bOn )
+    if( !m_bPause[ kb ] || !bOn || m_CopySrc != NO_COPY )
     {
-        m_bCopySrc[ kb ] = -1;
-        m_pButtonCopy[ kb ]->Set( false );
-        return;
-    }
+        if( m_CopySrc != NO_COPY )
+            m_pButtonCopy[ m_CopySrc ]->Set( false );
 
-    if( bOn )
+        m_CopySrc = NO_COPY;
+        m_pButtonCopy[ kb ]->Set( false );
+    }
+    else if( bOn )
     {
-        m_bCopySrc[ kb ] = m_CurrentPattern[ kb ];
+        m_CopySrc = kb;
     }
 }
 
@@ -496,8 +517,13 @@ void Seq_Triad2::SetOut( int kb )
 
     m_fglide[ kb ] = 1.0;
 
-    if( !m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff )
+    // always trig on pause
+    if( m_bPause[ kb ] )
         m_bTrig[ kb ] = true;
+    else if( !m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ][ m_CurrentPattern[ kb ] ].bTrigOff )
+        m_bTrig[ kb ] = true;
+    else
+        m_bTrig[ kb ] = false;
 }
 
 //-----------------------------------------------------
@@ -548,11 +574,16 @@ void Seq_Triad2::ChangePhrase( int kb, int index, bool bForce )
     else if( index >= nPHRASE_SAVES )
         index = 0;
 
-    if( m_bCopySrc[ kb ] != -1 )
+    if( m_CopySrc != NO_COPY )
     {
-        memcpy( m_PatternNotes[ kb ][ index ], m_PatternNotes[ kb ][ m_CurrentPhrase[ kb ] ], sizeof(PATTERN_STRUCT) * nPATTERNS );
-        m_pButtonCopy[ kb ]->Set( false );
-        m_bCopySrc[ kb ] = -1;
+        // do not copy if we are not paused
+        if( m_bPause[ kb ] )
+        {
+            memcpy( m_PatternNotes[ kb ][ index ], m_PatternNotes[ m_CopySrc ][ m_CurrentPhrase[ m_CopySrc ] ], sizeof(PATTERN_STRUCT) * nPATTERNS );
+            m_pButtonCopy[ m_CopySrc ]->Set( false );
+            m_nSteps[ kb ][ index ] = m_nSteps[ m_CopySrc ][ m_CurrentPhrase[ m_CopySrc ] ];
+            m_CopySrc = NO_COPY;
+        }
     }
 
     m_CurrentPhrase[ kb ] = index;
@@ -577,7 +608,7 @@ void Seq_Triad2::ChangePhrase( int kb, int index, bool bForce )
 // Procedure:   ChangePattern
 //
 //-----------------------------------------------------
-void Seq_Triad2::ChangePattern( int kb, int index, bool bForce )
+void Seq_Triad2::ChangePattern( int kb, int index, bool bForce, bool bPlay )
 {
     if( kb < 0 || kb >= nKEYBOARDS )
         return;
@@ -606,7 +637,8 @@ void Seq_Triad2::ChangePattern( int kb, int index, bool bForce )
     m_pButtonOctaveSelect[ kb ]->Set( m_Octave[ kb ], true );
 
     // set outputted note
-    SetOut( kb );
+    if( bPlay )
+        SetOut( kb );
 }
 
 //-----------------------------------------------------
@@ -846,7 +878,7 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 
         SetPhraseSteps( i, m_PhrasesUsed[ i ] );
         ChangePhrase( i, m_CurrentPhrase[ i ], true );
-        ChangePattern( i, m_CurrentPattern[ i ], true );
+        ChangePattern( i, m_CurrentPattern[ i ], true, false );
     }
 }
 
@@ -857,8 +889,8 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 #define LIGHT_LAMBDA ( 0.065f )
 void Seq_Triad2::step() 
 {
-    int kb;
-    bool bGlobalPatChange = false, bGlobalClkTriggered = false;
+    int kb, useclock;
+    bool bGlobalPatChange = false, bGlobalClkTriggered = false, PatTrig[ nKEYBOARDS ] = {};
 
     if( !m_bInitialized )
         return;
@@ -877,24 +909,34 @@ void Seq_Triad2::step()
             m_GlobalClkResetPending = true;
     }
 
+    // get trigs
+    for( kb = 0; kb < nKEYBOARDS; kb++ )
+        PatTrig[ kb ] = m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value );
+
     // process triggered phrase changes
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
+        useclock = kb;
+
+        // if no keyboard clock active then use kb 0's clock
+        if( !inputs[ IN_PATTERN_TRIG + kb ].active && inputs[ IN_PATTERN_TRIG + 0 ].active )
+            useclock = 0;
+
         // phrase change trigger
-        if( bGlobalPatChange && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + kb ].active )
+        if( bGlobalPatChange && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + useclock ].active )
         {
             SetPendingPhrase( kb, -1 );
         }
-        else if( inputs[ IN_PROG_CHANGE + kb ].active && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + kb ].active )
+        else if( inputs[ IN_PROG_CHANGE + kb ].active && !m_bPause[ kb ] && inputs[ IN_PATTERN_TRIG + useclock ].active )
         {
 	        if( m_SchTrigPhraseSelect[ kb ].process( inputs[ IN_PROG_CHANGE + kb ].value ) )
                 SetPendingPhrase( kb, -1 );
         }
 
 	    // pat change trigger - ignore if already pending
-        if( inputs[ IN_PATTERN_TRIG + kb ].active && !m_bPause[ kb ] )
+        if( inputs[ IN_PATTERN_TRIG + useclock ].active && !m_bPause[ kb ] )
         {
-            if( m_SchTrigPatternSelectInput[ kb ].process( inputs[ IN_PATTERN_TRIG + kb ].value ) ) 
+            if( PatTrig[ useclock ] ) 
             {
                 if( m_GlobalClkResetPending )
                 {
@@ -906,7 +948,7 @@ void Seq_Triad2::step()
                     m_CurrentPattern[ kb ] = (nPATTERNS - 1);
                 }
 
-                ChangePattern( kb, m_CurrentPattern[ kb ] + 1, true );
+                ChangePattern( kb, m_CurrentPattern[ kb ] + 1, true, true );
 
                 if( m_CurrentPattern[ kb ] == 0 )
                 {

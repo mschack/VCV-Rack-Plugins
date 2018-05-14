@@ -140,6 +140,8 @@ struct ARP700 : Module
     SchmittTrigger      m_SchTrigPatternChange;
     PatternSelectStrip  *m_pPatternSelect = NULL;
 
+    bool                m_bCopySrc = false;
+
     // pattern buttons
     MyLEDButtonStrip    *m_pButtonOnOff [ MAX_ARP_NOTES ][ SUBSTEP_PER_NOTE ] = {};
     MyLEDButtonStrip    *m_pButtonLen   [ MAX_ARP_NOTES ][ SUBSTEP_PER_NOTE ] = {};
@@ -147,6 +149,7 @@ struct ARP700 : Module
     MyLEDButton         *m_pButtonGlide [ MAX_ARP_NOTES ] = {};
     MyLEDButton         *m_pButtonTrig  [ MAX_ARP_NOTES ] = {};
     MyLEDButtonStrip    *m_plastbut = NULL;
+    MyLEDButton         *m_pButtonCopy= NULL;
 
     // clock     
     SchmittTrigger      m_SchTrigClk;
@@ -184,6 +187,7 @@ struct ARP700 : Module
     void    ChangePattern( int index, bool bForce );
     void    SetPendingPattern( int phrase );
     void    ArpStep( bool bReset );
+    void    Copy( bool bOn );
 };
 
 //-----------------------------------------------------
@@ -260,6 +264,16 @@ void ARP700_Pause( void *pClass, int id, bool bOn )
 }
 
 //-----------------------------------------------------
+// Procedure:   ARP700_Copy
+//-----------------------------------------------------
+void ARP700_Copy( void *pClass, int id, bool bOn ) 
+{
+    ARP700 *mymodule;
+    mymodule = (ARP700*)pClass;
+    mymodule->Copy( bOn );
+}
+
+//-----------------------------------------------------
 // Procedure:   ARP700_Glide
 //-----------------------------------------------------
 void ARP700_Glide( void *pClass, int id, bool bOn ) 
@@ -285,7 +299,7 @@ void ARP700_Trig( void *pClass, int id, bool bOn )
 // Procedure:   NoteChangeCallback
 //
 //-----------------------------------------------------
-void ARP700_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn )
+void ARP700_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button )
 {
     ARP700 *mymodule = (ARP700 *)pClass;
 
@@ -349,6 +363,10 @@ ARP700_Widget::ARP700_Widget( ARP700 *module ) : ModuleWidget(module)
     // pause button
     module->m_pButtonPause = new MyLEDButton( 75, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Pause );
 	addChild( module->m_pButtonPause );
+
+    // copy button
+    module->m_pButtonCopy = new MyLEDButton( 307, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Copy );
+	addChild( module->m_pButtonCopy );
 
     // keyboard widget
     module->pKeyboardWidget = new Keyboard_3Oct_Widget( 75, 38, MAX_ARP_NOTES, 0, DWRGB( 255, 128, 64 ), module, ARP700_Widget_NoteChangeCallback, &module->lg );
@@ -608,6 +626,23 @@ void ARP700::SetPendingPattern( int patin )
 }
 
 //-----------------------------------------------------
+// Procedure:   Copy
+//
+//-----------------------------------------------------
+void ARP700::Copy( bool bOn )
+{
+    if( !m_bPauseState || !bOn )
+    {
+        m_bCopySrc = false;
+        m_pButtonCopy->Set( false );
+    }
+    else if( bOn )
+    {
+        m_bCopySrc = true;
+    }
+}
+
+//-----------------------------------------------------
 // Procedure:   ChangePattern
 //
 //-----------------------------------------------------
@@ -622,6 +657,17 @@ void ARP700::ChangePattern( int index, bool bForce )
         index = MAX_ARP_PATTERNS - 1;
     else if( index >= MAX_ARP_PATTERNS )
         index = 0;
+
+    if( m_bCopySrc )
+    {
+        // do not copy if we are not paused
+        if( m_bPauseState )
+        {
+            memcpy( &m_PatternSave[ index ], &m_PatternSave[ m_PatCtrl.pat ], sizeof(ARP_PATTERN_STRUCT) );
+            m_pButtonCopy->Set( false );
+            m_bCopySrc = false;
+        }
+    }
 
     m_PatCtrl.pat = index;
 

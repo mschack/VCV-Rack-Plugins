@@ -6,7 +6,7 @@ extern Plugin *plugin;
 #include "CLog.h"
 #include "mscHack_Controls.hpp"
 
-#define CV_MAX (15.0f)
+#define CV_MAX (10.0f)
 #define AUDIO_MAX (6.0f)
 #define VOCT_MAX (6.0f)
 #define AMP_MAX (2.0f)
@@ -25,6 +25,7 @@ extern Model *modelMasterClockx4;
 extern Model *modelSeq_3x16x16;
 extern Model *modelSEQ_6x32x16;
 extern Model *modelSeq_Triad2;
+extern Model *modelSEQ_Envelope_8;
 extern Model *modelMaude_221;
 extern Model *modelARP700;
 extern Model *modelSynthDrums;

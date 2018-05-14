@@ -222,7 +222,7 @@ struct Osc_3Ch : Module
     void    Filter( int ch, float *InL, float *InR );
     float   GetWave( int type, float phase );
     float   ProcessADR( int ch );
-    void    GetAudio( int ch, float *pOutL, float *pOutR );
+    void    GetAudio( int ch, float *pOutL, float *pOutR, float flevel );
 };
 
 //-----------------------------------------------------
@@ -766,14 +766,14 @@ void Osc_3Ch::CalcDetune( int ch )
 // Procedure:   GetAudio
 //
 //-----------------------------------------------------
-void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
+void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR, float flevel )
 {
     float foutL = 0, foutR = 0, cutoff, adr;
     int i;
 
     for( i = 0; i <= m_nWaves[ ch ]; i++ )
     {
-        foutL = GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase[ i ] );
+        foutL = GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase[ i ] ) / 2.0;
         foutR = foutL;
 
         foutL *= m_Pan[ ch ][ m_nWaves[ ch ] ][ i ][ 0 ];
@@ -791,8 +791,8 @@ void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
 
     adr = ProcessADR( ch );
 
-    *pOutL = *pOutL * adr;
-    *pOutR = *pOutR * adr;
+    *pOutL = *pOutL * adr * flevel;
+    *pOutR = *pOutR * adr * flevel;
 
     cutoff = clamp( params[ PARAM_CUTOFF + ch ].value * ( inputs[ IN_FILTER + ch ].normalize( CV_MAX ) / CV_MAX ), 0.0f, 1.0f );
 
@@ -808,7 +808,7 @@ void Osc_3Ch::GetAudio( int ch, float *pOutL, float *pOutR )
 void Osc_3Ch::step() 
 {
     int ch;
-    float outL, outR;
+    float outL, outR, flevel;
 
     if( !m_bInitialized )
         return;
@@ -827,10 +827,15 @@ void Osc_3Ch::step()
             }
 	    }
 
-        GetAudio( ch, &outL, &outR );
+        flevel = clamp( params[ PARAM_OUTLVL + ch ].value + ( inputs[ IN_LEVEL + ch ].normalize( 0.0 ) / 5.0f ), 0.0f, 1.0f ); 
 
-        outL = clamp( ( outL * AUDIO_MAX ) * params[ PARAM_OUTLVL + ch ].value * ( inputs[ IN_LEVEL + ch ].normalize( CV_MAX ) / CV_MAX ), -AUDIO_MAX, AUDIO_MAX );
-        outR = clamp( ( outR * AUDIO_MAX ) * params[ PARAM_OUTLVL + ch ].value * ( inputs[ IN_LEVEL + ch ].normalize( CV_MAX ) / CV_MAX ), -AUDIO_MAX, AUDIO_MAX );
+        GetAudio( ch, &outL, &outR, flevel );
+
+        //outL = clamp( ( outL * AUDIO_MAX ), -AUDIO_MAX, AUDIO_MAX );
+        //outR = clamp( ( outR * AUDIO_MAX ), -AUDIO_MAX, AUDIO_MAX );
+
+        outL = outL * AUDIO_MAX;
+        outR = outR * AUDIO_MAX;
 
         outputs[ OUTPUT_AUDIO + (ch * 2 ) ].value = outL;
         outputs[ OUTPUT_AUDIO + (ch * 2 ) + 1 ].value = outR;

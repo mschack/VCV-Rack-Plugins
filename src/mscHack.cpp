@@ -14,6 +14,7 @@ void init(rack::Plugin *p)
     p->addModel( modelSeq_3x16x16 );
     p->addModel( modelSEQ_6x32x16 );
     p->addModel( modelSeq_Triad2 );
+    p->addModel( modelSEQ_Envelope_8 );
     p->addModel( modelMaude_221 );
     p->addModel( modelARP700 );
     p->addModel( modelSynthDrums );

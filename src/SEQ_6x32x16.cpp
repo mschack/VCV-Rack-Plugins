@@ -1,4 +1,4 @@
-#include "mscHack.hpp"
+﻿#include "mscHack.hpp"
 //#include "mscHack_Controls.hpp"
 #include "dsp/digital.hpp"
 //#include "CLog.h"
@@ -19,17 +19,20 @@ typedef struct
 //-----------------------------------------------------
 struct SEQ_6x32x16 : Module 
 {
+#define NO_COPY -1
+
 	enum ParamIds 
     {
         PARAM_CPY_NEXT,
         PARAM_RAND          = PARAM_CPY_NEXT + nCHANNELS,
         PARAM_PAUSE         = PARAM_RAND + nCHANNELS,
         PARAM_BILEVEL       = PARAM_PAUSE + nCHANNELS,
-        PARAM_LO_KNOB       = PARAM_BILEVEL + nCHANNELS,
-        PARAM_MD_KNOB       = PARAM_LO_KNOB + nCHANNELS,
-        PARAM_HI_KNOB       = PARAM_MD_KNOB + nCHANNELS,
-        PARAM_SWING_KNOB    = PARAM_HI_KNOB + nCHANNELS,
-        nPARAMS             = PARAM_SWING_KNOB + nCHANNELS
+        PARAM_LVL1_KNOB     = PARAM_BILEVEL + nCHANNELS,
+        PARAM_LVL2_KNOB     = PARAM_LVL1_KNOB + nCHANNELS,
+        PARAM_LVL3_KNOB     = PARAM_LVL2_KNOB + nCHANNELS,
+        PARAM_LVL4_KNOB     = PARAM_LVL3_KNOB + nCHANNELS,
+        PARAM_LVL5_KNOB     = PARAM_LVL4_KNOB + nCHANNELS,
+        nPARAMS             = PARAM_LVL5_KNOB + nCHANNELS
     };
 
 	enum InputIds 
@@ -74,9 +77,11 @@ struct SEQ_6x32x16 : Module
     PulseGenerator          m_gateBeatPulse[ nCHANNELS ];
 
     // swing
-    int                     m_SwingLen[ nCHANNELS ] = {0};
-    int                     m_SwingCount[ nCHANNELS ] = {0};
+    //int                     m_SwingLen[ nCHANNELS ] = {0};
+    //int                     m_SwingCount[ nCHANNELS ] = {0};
     int                     m_ClockTick[ nCHANNELS ] = {0};
+
+    int                     m_CopySrc = NO_COPY;
 
     // buttons    
     MyLEDButton             *m_pButtonPause[ nCHANNELS ] = {};
@@ -85,9 +90,14 @@ struct SEQ_6x32x16 : Module
     MyLEDButton             *m_pButtonRand[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonAutoPat[ nCHANNELS ] = {};
     MyLEDButton             *m_pButtonHoldCV[ nCHANNELS ] = {};
+    MyLEDButton             *m_pButtonClear[ nCHANNELS ] = {};
 
     bool                    m_bAutoPatChange[ nCHANNELS ] = {};
     bool                    m_bHoldCVState[ nCHANNELS ] = {};
+
+    float                   m_fCVRanges[ 3 ] = { 15.0f, 10.0f, 5.0f};
+    int                     m_RangeSelect = 0;
+    char                    m_strRange[ 10 ] = {0};
 
     // Contructor
 	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
@@ -104,6 +114,7 @@ struct SEQ_6x32x16 : Module
     void    Rand( int ch );
     void    ChangeProg( int ch, int prog, bool force );
     void    SetPendingProg( int ch, int prog );
+    void    Copy( int kb, bool bOn );
 };
 
 //-----------------------------------------------------
@@ -153,7 +164,7 @@ void MyLEDButton_CpyNxt( void *pClass, int id, bool bOn )
 {
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
-    mymodule->CpyNext( id );
+    mymodule->Copy( id, bOn );
 }
 
 //-----------------------------------------------------
@@ -164,6 +175,22 @@ void MyLEDButton_Rand( void *pClass, int id, bool bOn )
     SEQ_6x32x16 *mymodule;
     mymodule = (SEQ_6x32x16*)pClass;
     mymodule->Rand( id );
+}
+
+//-----------------------------------------------------
+// MyLEDButton_Rand
+//-----------------------------------------------------
+void MyLEDButton_Clear( void *pClass, int id, bool bOn ) 
+{
+    SEQ_6x32x16 *mymodule;
+    mymodule = (SEQ_6x32x16*)pClass;
+
+    for( int i = 0; i < nSTEPS; i++ )
+    {
+        mymodule->m_Pattern[ id ][ mymodule->m_CurrentProg[ id ] ][ i ] = 0;
+    }
+
+    mymodule->m_pPatternDisplay[ id ]->SetPatAll( mymodule->m_Pattern[ id ][ mymodule->m_CurrentProg[ id ] ] );
 }
 
 //-----------------------------------------------------
@@ -192,16 +219,20 @@ void SEQ_6x32x16_ProgramChangeCallback ( void *pClass, int ch, int pat, int max 
     if( !mymodule || !mymodule->m_bInitialized )
         return;
 
-    if( mymodule->m_CurrentProg[ ch ] != pat )
+    if( mymodule->m_MaxProg[ ch ] != max )
+    {
+        mymodule->m_MaxProg[ ch ] = max;
+    }
+    else if( mymodule->m_CurrentProg[ ch ] == pat && mymodule->m_bPauseState[ ch ] && mymodule->m_CopySrc != NO_COPY )
+    {
+        mymodule->ChangeProg( ch, pat, true );
+    }
+    else if( mymodule->m_CurrentProg[ ch ] != pat )
     {
         if( !mymodule->m_bPauseState[ ch ] && mymodule->inputs[ SEQ_6x32x16::IN_CLK + ch ].active )
             mymodule->SetPendingProg( ch, pat );
         else
             mymodule->ChangeProg( ch, pat, false );
-    }
-    else if( mymodule->m_MaxProg[ ch ] != max )
-    {
-        mymodule->m_MaxProg[ ch ] = max;
     }
 }
 
@@ -210,7 +241,9 @@ void SEQ_6x32x16_ProgramChangeCallback ( void *pClass, int ch, int pat, int max 
 //
 //-----------------------------------------------------
 
-struct SEQ_6x32x16_Widget : ModuleWidget {
+struct SEQ_6x32x16_Widget : ModuleWidget 
+{
+    Menu *createContextMenu() override;
 	SEQ_6x32x16_Widget( SEQ_6x32x16 *module );
 };
 
@@ -244,7 +277,7 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
         addInput(Port::create<MyPortInSmall>( Vec( x + 64, y + 31 ), Port::INPUT, module, SEQ_6x32x16::IN_PAT_TRIG + ch ) );
 
         // pattern display
-        module->m_pPatternDisplay[ ch ] = new SinglePatternClocked32( x + 39, y + 2, 13, 13, 5, 2, 7, DWRGB( 255, 128, 64 ), DWRGB( 18, 18, 0 ), DWRGB( 180, 75, 180 ), DWRGB( 80, 45, 80 ), nSTEPS, ch, module, SEQ_6x32x16_PatternChangeCallback );
+        module->m_pPatternDisplay[ ch ] = new SinglePatternClocked32( x + 39, y + 2, 13, 13, 5, 2, 7, DWRGB( 255, 128, 64 ), DWRGB( 18, 9, 0 ), DWRGB( 180, 75, 180 ), DWRGB( 80, 45, 80 ), nSTEPS, ch, module, SEQ_6x32x16_PatternChangeCallback );
 	    addChild( module->m_pPatternDisplay[ ch ] );
 
         // program display
@@ -253,7 +286,7 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
 
         // add knobs
         y2 = y + 34;
-        pWidget = ParamWidget::create<Knob_Green1_15>( Vec( x + 374, y2 ), module, SEQ_6x32x16::PARAM_SWING_KNOB + ch, 0.0, 0.6, 0.0 );
+        //pWidget = ParamWidget::create<Knob_Green1_15>( Vec( x + 374, y2 ), module, SEQ_6x32x16::PARAM_SWING_KNOB + ch, 0.0, 0.6, 0.0 );
 
         // removed for now
         if( pWidget )
@@ -263,9 +296,11 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
         }
 
         x2 = x + 447;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LO_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_MD_KNOB + ch, 0.0, 1.0, 0.0 ) ); x2 += 24;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_HI_KNOB + ch, 0.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL1_KNOB + ch, 0.0, 1.0, 0.25 ) ); x2 += 19;
+        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL2_KNOB + ch, 0.0, 1.0, 0.33 ) ); x2 += 19;
+        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL3_KNOB + ch, 0.0, 1.0, 0.50 ) ); x2 += 19;
+        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL4_KNOB + ch, 0.0, 1.0, 0.75 ) ); x2 += 19;
+        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL5_KNOB + ch, 0.0, 1.0, 0.9 ) );
 
         // add buttons
         module->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
@@ -275,11 +310,14 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
 	    addChild( module->m_pButtonPause[ ch ] );
 
         y2 = y + 33;
-        module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_CpyNxt );
+        module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_CpyNxt );
 	    addChild( module->m_pButtonCopy[ ch ] );
 
         module->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
 	    addChild( module->m_pButtonRand[ ch ] );
+
+        module->m_pButtonClear[ ch ] = new MyLEDButton( x + 340, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Clear );
+	    addChild( module->m_pButtonClear[ ch ] );
 
         module->m_pButtonHoldCV[ ch ] = new MyLEDButton( x + 405, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_HoldCV );
 	    addChild( module->m_pButtonHoldCV[ ch ] );
@@ -319,6 +357,7 @@ void SEQ_6x32x16::JsonParams( bool bTo, json_t *root)
     JsonDataInt     ( bTo, "m_MaxProg",         root, &m_MaxProg[ 0 ], nCHANNELS );
     JsonDataBool    ( bTo, "m_bAutoPatChange",  root, &m_bAutoPatChange[ 0 ], nCHANNELS );
     JsonDataBool    ( bTo, "m_bHoldCVState",    root, &m_bHoldCVState[ 0 ], nCHANNELS );
+    JsonDataInt     ( bTo, "m_RangeSelect",     root, &m_RangeSelect, 1 );
 }
 
 //-----------------------------------------------------
@@ -358,6 +397,8 @@ void SEQ_6x32x16::fromJson( json_t *root )
         m_pProgramDisplay[ ch ]->SetPat( m_CurrentProg[ ch ], false );
         m_pProgramDisplay[ ch ]->SetMax( m_MaxProg[ ch ] );
     }
+
+    sprintf( m_strRange, "%.1fV", m_fCVRanges[ m_RangeSelect ] );
 }
 
 //-----------------------------------------------------
@@ -411,7 +452,7 @@ void SEQ_6x32x16::onRandomize()
         {
             for( int i = 0; i < nSTEPS; i++ )
             {
-                m_Pattern[ ch ][ p ][ i ] = (int)(randomUniform() * 3.4 );
+                m_Pattern[ ch ][ p ][ i ] = (int)(randomUniform() * 5.0 );
             }
         }
 
@@ -427,7 +468,10 @@ void SEQ_6x32x16::Rand( int ch )
 {
     for( int i = 0; i < nSTEPS; i++ )
     {
-        m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(randomUniform() * 3.4 );
+        if( i <= m_MaxPat[ ch ][ m_CurrentProg[ ch ] ] && randomUniform() > 0.5f )
+            m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(randomUniform() * 5.0 );
+        else
+            m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = 0;
     }
 
     m_pPatternDisplay[ ch ]->SetPatAll( m_Pattern[ ch ][ m_CurrentProg[ ch ] ] );
@@ -453,6 +497,26 @@ void SEQ_6x32x16::CpyNext( int ch )
 }
 
 //-----------------------------------------------------
+// Procedure:   Copy
+//
+//-----------------------------------------------------
+void SEQ_6x32x16::Copy( int ch, bool bOn )
+{
+    if( !m_bPauseState[ ch ] || !bOn || m_CopySrc != NO_COPY )
+    {
+        if( m_CopySrc != NO_COPY )
+            m_pButtonCopy[ m_CopySrc ]->Set( false );
+
+        m_CopySrc = NO_COPY;
+        m_pButtonCopy[ ch ]->Set( false );
+    }
+    else if( bOn )
+    {
+        m_CopySrc = ch;
+    }
+}
+
+//-----------------------------------------------------
 // Procedure:   ChangProg
 //
 //-----------------------------------------------------
@@ -468,6 +532,17 @@ void SEQ_6x32x16::ChangeProg( int ch, int prog, bool bforce )
         prog = nPROG - 1;
     else if( prog >= nPROG )
         prog = 0;
+
+    if( m_CopySrc != NO_COPY )
+    {
+        if( m_bPauseState[ ch ] )
+        {
+            memcpy( m_Pattern[ ch ][ prog ], m_Pattern[ m_CopySrc ][ m_CurrentProg[ m_CopySrc ] ], sizeof(int) * nSTEPS );
+            m_pButtonCopy[ m_CopySrc ]->Set( false );
+            m_MaxPat[ ch ][ prog ] = m_MaxPat[ m_CopySrc ][ m_CurrentProg[ m_CopySrc ] ];
+            m_CopySrc = NO_COPY;
+        }
+    }
 
     m_CurrentProg[ ch ] = prog;
 
@@ -504,11 +579,9 @@ void SEQ_6x32x16::SetPendingProg( int ch, int progIn )
 //-----------------------------------------------------
 void SEQ_6x32x16::step() 
 {
-    int ch, level;
-    bool bClk, bClkTrig, bClockAtZero = false, bGlobalClk = false, bGlobalProg = false, bTrigOut;
+    int ch, level, useclock;
+    bool bClk, bClkTrig, bClockAtZero = false, bGlobalClk = false, bGlobalProg = false, bTrigOut, bPatTrig[ nCHANNELS ] = {};
     float fout = 0.0;
-
-    //bool bTestClk = false;
 
     if( !m_bInitialized )
         return;
@@ -519,61 +592,38 @@ void SEQ_6x32x16::step()
     if( inputs[ IN_GLOBAL_PAT_CHANGE ].active )
         bGlobalProg= m_SchTrigGlobalProg.process( inputs[ IN_GLOBAL_PAT_CHANGE ].value );
 
+    // get trigs
+    for( ch = 0; ch < nCHANNELS; ch++ )
+        bPatTrig[ ch ] = m_SchTrigClock[ ch ].process( inputs[ IN_CLK + ch ].normalize( 0.0f ) );
+
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
         bClkTrig = false;
         bClk = false;
         bTrigOut = false;
         bClockAtZero = false;
+        useclock = ch;
 
-        if( inputs[ IN_CLK + ch ].active )
+        // if no keyboard clock active then use kb 0's clock
+        if( !inputs[ IN_CLK + ch ].active && inputs[ IN_CLK + 0 ].active )
+            useclock = 0;
+
+        if( inputs[ IN_CLK + useclock ].active )
         {
-            m_ClockTick[ ch ]++;
-
             // time the clock tick
             if( bGlobalClk )
             {
-                m_SwingCount[ ch ] = m_SwingLen[ ch ];
-                m_ClockTick[ ch ] = 0;
                 m_pPatternDisplay[ ch ]->ClockReset();
                 bClkTrig = true;
                 bClockAtZero = true;
                 bClk = true;
-                //lg.f("%d ***********Reset\n", ch );
             }
 
             // clock
-            if( m_SchTrigClock[ ch ].process( inputs[ IN_CLK + ch ].value ) && !bGlobalClk )
-            {
-                //m_SwingLen[ ch ] = m_ClockTick[ ch ] + (int)( (float)m_ClockTick[ ch ] * params[ PARAM_SWING_KNOB + ch ].value );
-                m_ClockTick[ ch ] = 0;
+            if( bPatTrig[ useclock ] && !bGlobalClk )
                 bClkTrig = true;
-                //lg.f("%d Clk\n", ch );
-            }
 
             bClk = bClkTrig;
-
-            // no swing
-            /*if( params[ PARAM_SWING_KNOB + ch ].value < 0.05 )
-            {
-                bClk = bClkTrig;
-            }
-            // swing
-            else
-            {
-                // beat 1, wait for count to shorten every other note
-                if( !( m_pPatternDisplay[ ch ]->m_PatClk & 1 ) )
-                {
-                    if( --m_SwingCount[ ch ] <= 0 )
-                        bClk = true;
-                }
-                // beat 0, wait for actual clock
-                else if( bClkTrig )
-                {
-                    m_SwingCount[ ch ] = m_SwingLen[ ch ];
-                    bClk = true;
-                }
-            }*/
 
             // clock the pattern
             if( !m_bPauseState[ ch ] )
@@ -587,12 +637,7 @@ void SEQ_6x32x16::step()
                     if( !bGlobalClk )
                         bClockAtZero = m_pPatternDisplay[ ch ]->ClockInc();
 
-                    //bTestClk = true;
-
                     bTrigOut = ( m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ] );
-                    //lg.f("%d PatClk = %d\n", ch,  m_pPatternDisplay[ ch ]->m_PatClk );
-
-
                 }
             }
         }
@@ -645,13 +690,19 @@ void SEQ_6x32x16::step()
         switch( level )
         {
         case 1:
-            fout = params[ PARAM_LO_KNOB + ch ].value;
+            fout = params[ PARAM_LVL1_KNOB + ch ].value;
             break;
         case 2:
-            fout = params[ PARAM_MD_KNOB + ch ].value;
+            fout = params[ PARAM_LVL2_KNOB + ch ].value;
             break;
         case 3:
-            fout = params[ PARAM_HI_KNOB + ch ].value;
+            fout = params[ PARAM_LVL3_KNOB + ch ].value;
+            break;
+        case 4:
+            fout = params[ PARAM_LVL4_KNOB + ch ].value;
+            break;
+        case 5:
+            fout = params[ PARAM_LVL5_KNOB + ch ].value;
             break;
         default:
             if( m_bHoldCVState[ ch ] )
@@ -664,11 +715,52 @@ void SEQ_6x32x16::step()
         if( m_bBiLevelState[ ch ] )
             fout = ( fout * 2 ) - 1.0;
 
-        outputs[ OUT_LEVEL + ch ].value = CV_MAX * fout;
+        outputs[ OUT_LEVEL + ch ].value = m_fCVRanges[ m_RangeSelect ] * fout;
+    }
+}
+
+//-----------------------------------------------------
+// Procedure:   SEQ_6x32x16_CVRange
+//
+//-----------------------------------------------------
+struct SEQ_6x32x16_CVRange : MenuItem 
+{
+    SEQ_6x32x16 *module;
+
+    void onAction(EventAction &e) override 
+    {
+        module->m_RangeSelect++;
+
+        if( module->m_RangeSelect > 2 )
+            module->m_RangeSelect = 0;
+
+        sprintf( module->m_strRange, "%.1fV", module->m_fCVRanges[ module->m_RangeSelect ] );
     }
 
-    //if( bTestClk )
-        //lg.f("\n");
+    void step() override 
+    {
+        rightText = module->m_strRange;
+    }
+};
+
+//-----------------------------------------------------
+// Procedure:   createContextMenu
+//
+//-----------------------------------------------------
+Menu *SEQ_6x32x16_Widget::createContextMenu() 
+{
+    Menu *menu = ModuleWidget::createContextMenu();
+
+    SEQ_6x32x16 *mod = dynamic_cast<SEQ_6x32x16*>(module);
+
+    assert(mod);
+
+    menu->addChild(construct<MenuLabel>());
+
+    menu->addChild(construct<MenuLabel>(&MenuLabel::text, "---- CV Output Level ----"));
+    menu->addChild(construct<SEQ_6x32x16_CVRange>( &MenuItem::text, "VRange (15, 10, 5):", &SEQ_6x32x16_CVRange::module, mod ) );
+
+    return menu;
 }
 
 Model *modelSEQ_6x32x16 = Model::create<SEQ_6x32x16, SEQ_6x32x16_Widget>( "mscHack", "Seq_6ch_32step", "SEQ 6 x 32", SEQUENCER_TAG, MULTIPLE_TAG );

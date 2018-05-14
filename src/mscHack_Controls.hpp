@@ -73,6 +73,11 @@ typedef struct
 
 typedef struct
 {
+    float fx, fy, fx2, fy2;
+}fRECT_STRUCT;
+
+typedef struct
+{
     float fx, fy;
 }POINT_STRUCT;
 
@@ -81,6 +86,146 @@ typedef struct
     int nUsed;
     POINT_STRUCT p[ 8 ];
 }DRAW_VECT_STRUCT;
+
+typedef struct
+{
+	float fx, fy;
+	float fmx; // as in function y = fx + fn
+	float fb;
+    bool bVert;
+    bool bHorz;
+    bool bSet;
+}fLine;
+
+//-----------------------------------------------------
+// Widget_EnvelopeEdit
+//-----------------------------------------------------
+#define ENVELOPE_VDIV 8
+#define ENVELOPE_DIVISIONS 16
+#define ENVELOPE_HANDLES ( ENVELOPE_DIVISIONS + 1 )
+#define MAX_ENVELOPE_CHANNELS 9
+
+typedef struct
+{
+    int state, prevstate;
+    float fpos;
+    float syncInc;
+}EE_CTRL;
+
+
+struct Widget_EnvelopeEdit : OpaqueWidget
+{
+    typedef void EnvelopeEditCALLBACK ( void *pClass, float val );
+
+    bool            m_bInitialized=false;
+    bool            m_bGateMode[ MAX_ENVELOPE_CHANNELS ] = {false};
+    int             m_Mode[ MAX_ENVELOPE_CHANNELS ]={MODE_LOOP};
+    int             m_Range[ MAX_ENVELOPE_CHANNELS ]={RANGE_0to5};
+    int             m_TimeDiv[ MAX_ENVELOPE_CHANNELS ]={TIME_64th};
+    float           m_HandleVal[ MAX_ENVELOPE_CHANNELS ][ ENVELOPE_HANDLES ]={};
+    fLine           m_Lines[ MAX_ENVELOPE_CHANNELS ][ ENVELOPE_HANDLES ]={};
+
+    float           m_divw=0;
+    float           m_handleSize=0, m_handleSizeD2;
+    int             m_currentChannel = 0;
+    int             m_Drag = -1;
+    float           m_fband = 0.0f;
+
+
+    bool            m_bDrag = false, m_bDraw = false;
+    float           m_Drawy = 0.0f;
+
+    bool            m_bClkReset = false;
+    int             m_BeatLen = 0;
+
+    float           m_fIndicator[ MAX_ENVELOPE_CHANNELS ] = {}; 
+
+    RGB_STRUCT      m_HandleCol[ ENVELOPE_HANDLES ];
+    EE_CTRL         m_Clock[ MAX_ENVELOPE_CHANNELS ] ={};
+
+
+    EnvelopeEditCALLBACK *m_pCallback = NULL;
+    void            *m_pClass = NULL;
+
+    bool            m_bClkd = false;
+
+	enum Widget_EnvelopeEdit_Modes 
+    {
+        MODE_LOOP,
+        MODE_REVERSE,
+        MODE_PINGPONG,
+        MODE_ONESHOT,
+        MODE_TWOSHOT,
+        nMODES
+	};
+
+	enum Widget_EnvelopeEdit_Ranges 
+    {
+        RANGE_0to5,
+        RANGE_n5to5,
+        RANGE_0to10,
+        RANGE_n10to10,
+        nRANGES
+	};
+
+	enum Widget_EnvelopeEdit_TimeDivs 
+    {
+        TIME_64th,
+        TIME_32nd,
+        TIME_16th,
+        TIME_8th,
+        TIME_4tr,
+        TIME_Bar,
+        nTIMEDIVS
+	};
+
+  	enum Widget_Envelope_States 
+    {
+        STATE_RUN,
+        STATE_RUN_REV,
+        STATE_WAIT_TRIG,
+        STATE_WAIT_TRIG_REV,
+        STATE_HOLD,
+        nSTATES
+	};   
+
+    Widget_EnvelopeEdit( int x, int y, int w, int h, int handleSize, void *pClass, EnvelopeEditCALLBACK *pCallback );
+
+    void setView( int ch );
+    void resetValAll( int ch, float val );
+    void setVal( int ch, int handle, float val );
+    void setMode( int ch, int Mode );
+    void setRange( int ch, int Range );
+    void setGateMode( int ch, bool bGate );
+    void setTimeDiv( int ch, int timediv );
+    void setBeatLen( int len );
+
+    int  getPos( int ch );
+    void setPos( int ch, int pos );
+
+    void setDataAll( int *pint );
+    void getDataAll( int *pint );
+
+    float getActualVal( int ch, float val );
+
+    bool process_state( int ch, bool bTrig, bool bHold );
+    float procStep( int ch, bool bTrig, bool bHold );
+
+    float Val2y( float fval );
+    float y2Val( float fy );
+
+    void  line_from_points( float x1, float y1, float x2, float y2, fLine *L );
+    float valfromline ( int ch, int handle, float x );
+    void  recalcLine( int ch, int handle );
+
+    // overrides
+    void draw( NVGcontext *vg ) override;
+    void onMouseMove( EventMouseMove &e ) override;
+    void onMouseDown( EventMouseDown &e ) override;
+	void onDragStart(EventDragStart &e) override;
+	void onDragEnd(EventDragEnd &e) override;
+	void onDragMove(EventDragMove &e) override;
+};
 
 //-----------------------------------------------------
 // MySimpleKnob
@@ -924,6 +1069,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
 // SinglePatternClocked32
 //-----------------------------------------------------
 #define MAX_CLK_PAT 32
+#define LEVELS 5
 struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget 
 {
     typedef void SINGLEPAT16CALLBACK ( void *pClass, int id, int pat, int level, int maxpat );
@@ -1001,7 +1147,7 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
             return;
 
         for( int i = 0; i < m_nLEDs; i++ )
-            m_PatSelLevel[ i ] = pPat[ i ] & 0x3;
+            m_PatSelLevel[ i ] = pPat[ i ];// & 0x3;
 
         dirty = true;
     }
@@ -1028,7 +1174,11 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
         if ( pat < 0 || pat >= m_nLEDs )
             return;
 
-        m_PatSelLevel[ pat ] = ( m_PatSelLevel[ pat ] + 1 ) & 0x3;
+        m_PatSelLevel[ pat ] = ( m_PatSelLevel[ pat ] + 1 );
+
+        if( m_PatSelLevel[ pat ] > LEVELS )
+            m_PatSelLevel[ pat ] = 0;
+
         dirty = true;
     }
 
@@ -1102,6 +1252,9 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 		nvgClosePath(vg);
 		nvgFill(vg);
 
+        nvgStrokeWidth( vg, 0.35 );
+        nvgStrokeColor( vg, nvgRGBA( 0xc0, 0xc0, 0xc0, 255 ) );
+
         for( i = 0; i < m_nLEDs; i++ )
         {
             // max pattern display
@@ -1118,11 +1271,12 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 			//nvgLineTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );
 			nvgClosePath(vg);
 		    nvgFill(vg);
+            //nvgStroke( vg );
 
             // pattern select
-            rgb.Col[ 0 ] = ( ( m_PatCol[ 1 ].Col[ 0 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 0 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
-            rgb.Col[ 1 ] = ( ( m_PatCol[ 1 ].Col[ 1 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 1 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
-            rgb.Col[ 2 ] = ( ( m_PatCol[ 1 ].Col[ 2 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 2 ] * ( 3 - m_PatSelLevel[ i ] ) ) ) / 3;
+            rgb.Col[ 0 ] = ( ( m_PatCol[ 1 ].Col[ 0 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 0 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
+            rgb.Col[ 1 ] = ( ( m_PatCol[ 1 ].Col[ 1 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 1 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
+            rgb.Col[ 2 ] = ( ( m_PatCol[ 1 ].Col[ 2 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 2 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
 
             nvgFillColor( vg, nvgRGB( rgb.Col[ 2 ], rgb.Col[ 1 ], rgb.Col[ 0 ] ) );
 
@@ -1133,6 +1287,7 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 			nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
 			nvgClosePath(vg);
 		    nvgFill(vg);
+            nvgStroke( vg );
 
             xi = ( ( (float)m_RectsPatSel[ i ].x2 + (float)m_RectsPatSel[ i ].x ) / 2.0f ) - 2.0f ;
             yi = ( ( (float)m_RectsPatSel[ i ].y2 + (float)m_RectsPatSel[ i ].y ) / 2.0f ) - 2.0f ;
@@ -1716,7 +1871,7 @@ struct LEDMeterWidget : TransparentWidget
 //-----------------------------------------------------
 struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
 {
-    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn );
+    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button );
 
 #define nKEYS 37
 #define MAX_MULT_KEYS 16
@@ -1841,7 +1996,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     // Procedure:   addtokeylist
     //-----------------------------------------------------
-    void addtokeylist( int key )
+    void addtokeylist( int key, int button )
     {
         int count = 0;
         bool bOn = false;
@@ -1882,7 +2037,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         }
 
         if( pNoteChangeCallback )
-            pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn );
+            pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn, button );
     }
 
     //-----------------------------------------------------
@@ -1913,7 +2068,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         {
             if( OctaveKeyDrawVects[ i ].nUsed == 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                addtokeylist( i );
+                addtokeylist( i, e.button );
                 dirty = true;
                 e.consumed = true;
                 return;
@@ -1925,7 +2080,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         {
             if( OctaveKeyDrawVects[ i ].nUsed != 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                addtokeylist( i );
+                addtokeylist( i, e.button );
                 dirty = true;
                 e.consumed = true;
                 return;
