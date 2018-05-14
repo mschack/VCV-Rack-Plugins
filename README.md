@@ -3,21 +3,30 @@
 ![screenshot](modules.PNG)
 
 # Updates
-- 19 Apr 18
-	- Added 24ch mixer
-	- Added Copy to Triad sequencer
-		-(while paused) Select pattern to copy, press copy button, press pattern to copy to
-	- Added another octave select to Triad
-
-- 26 Mar 18:
-	- Updated to VCV Rack 0.6.0
-	- Added "Maude 221" module for wave combining
-	- Added Step Delay (still in development)
-	- fixed clock sync in MasterClock, and sequencers.
-	- decreased size of MasterClock
-	- old 4x4 mixer and original Triad sequencer removed
+- 14 May 18 [v0.6.2]
+	- [NEW] "ENVY 9", a 9 channel envelope editor/generator
+		- All channels synced to an input beat
+		- 5 speed multipliers
+		- loop, reverse, ping pong, one shot and two shot modes
+		- each channel externally triggerable
+		- each channel external gated hold
+		- hand drawable patterns
+	- 24 Channel mixer
+		- Added pre-fader option for AUXs
+		- Menu option for Group out pre-mute, and 1.5x mixer gain
+		- Added pre EQ makeup gain, input signal was being attenuated
+	- ARP700
+		-Added pattern copy; (while paused) Select pattern to copy, press copy button, press pattern to copy to
+	- SEQ 6x32
+		-Copy now like Triad and Arp.  Now you can copy patterns between channels
+		-Added two more output level knobs
+		-Added a pattern clear button
+		-improved random pattern generation
+	- Triad2
+		-Now you can copy patterns between channels
 
 # Includes
+- "ENVY 9", a 9 channel envelope editor/generator
 - 4 Channel Master Clock
 - 3 Channel 16 Step Programmable Sequencer.
 - 6 Channel 32 Step Sequencer
