@@ -298,13 +298,13 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         // aux sends
         if( !bAux )
         {
-            addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 0, 0.0, 2.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 0, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 1, 0.0, 2.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 1, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 2, 0.0, 2.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 2, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 3, 0.0, 2.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 3, 0.0, 1.0, 0.0 ) );
 
             module->m_pButtonPreFader[ ch ] = new MyLEDButton( x2 - 3, y2 + 15, 7, 7, 5.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChPreFader );
 	        addChild( module->m_pButtonPreFader[ ch ] );
@@ -316,16 +316,16 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
             switch( ch )
             {
             case 28:
-                addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 0, 0.0, 2.0, 0.0 ) );
+                addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 0, 0.0, 1.0, 0.0 ) );
                 break;
             case 29:
-                addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 1, 0.0, 2.0, 0.0 ) );
+                addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 1, 0.0, 1.0, 0.0 ) );
                 break;
             case 30:
-                addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 2, 0.0, 2.0, 0.0 ) );
+                addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 2, 0.0, 1.0, 0.0 ) );
                 break;
             case 31:
-                addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 3, 0.0, 2.0, 0.0 ) );
+                addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 3, 0.0, 1.0, 0.0 ) );
                 break;
             }
 
@@ -830,7 +830,7 @@ void Mixer_24_4_4::step()
         if( bChannelActive )
         {
             if( section == SNORMAL )
-                flevel = clamp( ( params[ PARAM_CHLVL + ch ].value * levelmult ) * ( inputs[ IN_LEVELCV + ch ].normalize( 1.0 ) / 5.0f ), 0.0f, levelmult );
+                flevel = clamp( ( params[ PARAM_CHLVL + ch ].value * levelmult ) * ( inputs[ IN_LEVELCV + ch ].normalize( CV_MAX ) / CV_MAX ), 0.0f, levelmult );
             else
                 flevel = params[ PARAM_CHLVL + ch ].value * levelmult;
 
@@ -883,12 +883,13 @@ void Mixer_24_4_4::step()
             }
 
             // attenuate for EQ
+
+            ProcessEQ( ch, &inL, &inR );
             inL *= 2.0f;
             inR *= 2.0f;
-            ProcessEQ( ch, &inL, &inR );
 
             if( section == SNORMAL )
-                pan = clamp( params[ PARAM_CHPAN + ch ].value + ( inputs[ IN_PANCV + ch ].normalize( 0.0 ) / 5.0f ), -1.0f, 1.0f );
+                pan = clamp( params[ PARAM_CHPAN + ch ].value + ( inputs[ IN_PANCV + ch ].normalize( 0.0 ) / CV_MAX ), -1.0f, 1.0f );
             else
                 pan = params[ PARAM_CHPAN + ch ].value;
 
