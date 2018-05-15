@@ -21,7 +21,7 @@ struct SEQ_Envelope_8 : Module
     {
         INPUT_CLK_RESET,
         INPUT_CLK,
-        INPUT_GLOBAL_RESET,
+        INPUT_GLOBAL_TRIG,
         INPUT_CH_HOLD,
         INPUT_CH_TRIG           = INPUT_CH_HOLD + nCHANNELS,
         nINPUTS                 = INPUT_CH_TRIG + nCHANNELS
@@ -50,6 +50,7 @@ struct SEQ_Envelope_8 : Module
 
     // global triggers
     SchmittTrigger      m_SchTrigGlobalClkReset;
+    SchmittTrigger      m_SchTrigGlobalTrig;
 
     // channel triggers
     SchmittTrigger      m_SchTrigChTrig[ nCHANNELS ] ={};
@@ -384,9 +385,6 @@ SEQ_Envelope_8_Widget::SEQ_Envelope_8_Widget( SEQ_Envelope_8 *module ) : ModuleW
     // input clock reset
     addInput(Port::create<MyPortInSmall>( Vec( 21, 18 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_CLK_RESET ) );
 
-    // global trigger input
-    addInput(Port::create<MyPortInSmall>( Vec( 21, 313 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_GLOBAL_RESET ) );
-
     // invert
     module->m_pButtonInvert = new MyLEDButton( 95, 23, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveInvert );
 	addChild( module->m_pButtonInvert );
@@ -446,7 +444,7 @@ SEQ_Envelope_8_Widget::SEQ_Envelope_8_Widget( SEQ_Envelope_8 *module ) : ModuleW
 	addChild( module->m_pButtonGateMode );
 
     // global reset input
-    addInput(Port::create<MyPortInSmall>( Vec( 21, 313 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_GLOBAL_RESET ) );
+    addInput(Port::create<MyPortInSmall>( Vec( 21, 313 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_GLOBAL_TRIG ) );
 
     // global reseet button
     module->m_pButtonGlobalReset = new MyLEDButton( 5, 315, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, nCHANNELS, module, SEQ_Envelope_8_Trig );
@@ -661,7 +659,7 @@ void SEQ_Envelope_8::ChangeChannel( int ch )
 void SEQ_Envelope_8::step() 
 {
     int ch;
-    bool bHold = false, bTrig = false;
+    bool bHold = false, bTrig = false, bGlobalTrig = false;
     //char strVal[ 10 ] = {};
 
     if( !m_bInitialized || !inputs[ INPUT_CLK ].active )
@@ -681,11 +679,16 @@ void SEQ_Envelope_8::step()
         m_BeatCount = 0;
     }
 
+    if( m_SchTrigGlobalTrig.process( inputs[ INPUT_GLOBAL_TRIG ].normalize( 0.0f ) ) )
+    {
+        bGlobalTrig = true;
+    }
+
     // process each channel
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
         // trig, clock reset
-        bTrig = ( m_SchTrigChTrig[ ch ].process( inputs[ INPUT_CH_TRIG + ch ].normalize( 0.0f ) ) );
+        bTrig = ( m_SchTrigChTrig[ ch ].process( inputs[ INPUT_CH_TRIG + ch ].normalize( 0.0f ) ) ) || bGlobalTrig;
 
         if( bTrig )
             m_pButtonTrig[ ch ]->Set( true );
