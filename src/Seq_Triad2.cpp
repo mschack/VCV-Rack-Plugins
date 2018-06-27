@@ -2,6 +2,7 @@
 //#include "mscHack_Controls.hpp"
 #include "dsp/digital.hpp"
 //#include "CLog.h"
+#include "window.hpp"
 
 #define nKEYBOARDS  3
 #define nKEYS       37
@@ -185,6 +186,7 @@ void Seq_Triad2_Trig( void *pClass, int id, bool bOn )
 //-----------------------------------------------------
 void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button )
 {
+	bool bCtrl = false;
     Seq_Triad2 *mymodule = (Seq_Triad2 *)pClass;
 
     if( !pClass )
@@ -197,7 +199,22 @@ void Seq_Triad2_Widget_NoteChangeCallback ( void *pClass, int kb, int notepresse
     // right click advance step
     if( button == 1 )
     {
+    	if( windowIsModPressed() )
+    		bCtrl = true;
+
         mymodule->ChangePattern( kb, mymodule->m_CurrentPattern[ kb ] + 1, true, false );
+
+        if( mymodule->m_CurrentPattern[ kb ] == 0 )
+        	mymodule->ChangePhrase( kb, mymodule->m_CurrentPhrase[ kb ] + 1, true );
+
+        // hit control to set trig off
+        if( bCtrl )
+        	mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff = true;
+        else
+        	mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].bTrigOff = false;
+
+        mymodule->m_pButtonTrig[ kb ]->Set( bCtrl );
+
         mymodule->m_PatternNotes[ kb ][ mymodule->m_CurrentPhrase[ kb ] ][ mymodule->m_CurrentPattern[ kb ] ].note = notepressed;
         mymodule->SetKey( kb );
     }

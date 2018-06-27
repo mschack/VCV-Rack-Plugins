@@ -1,10 +1,14 @@
+/debug
 /backup
 /build
 /mschack
 /dep
+/.settings
 plugin.dll
 WaveShaper1.svg
 WaveShaper.cpp
 mschack.zip
+.cproject
+.project
 *.bat
 *.scc

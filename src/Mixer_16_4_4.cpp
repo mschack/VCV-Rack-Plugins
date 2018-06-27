@@ -1,7 +1,7 @@
 ﻿#include "mscHack.hpp"
 
-#define nCHANNELS 32
-#define nINCHANNELS 24
+#define nCHANNELS 24
+#define nINCHANNELS 16
 #define nGROUPS   4
 #define nAUX      4
 #define nEQ       3
@@ -20,7 +20,7 @@
 // Module Definition
 //
 //-----------------------------------------------------
-struct Mixer_24_4_4 : Module 
+struct Mixer_16_4_4 : Module
 {
 	enum ParamIds 
     {
@@ -69,7 +69,7 @@ struct Mixer_24_4_4 : Module
     CLog            lg;
 
     // Contructor
-	Mixer_24_4_4() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	Mixer_16_4_4() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
 
     // mute/solo
     bool            m_bMuteStates[ nCHANNELS ] = {};
@@ -94,7 +94,7 @@ struct Mixer_24_4_4 : Module
 
     // buttons
     MyLEDButton            *m_pButtonChannelMute[ nCHANNELS ] = {};
-    MyLEDButton            *m_pButtonChannelSolo[ nCHANNELS ] = {};
+    MyLEDButton            *m_pButtonChannelSolo[ nCHANNELS - nAUX ] = {};
     MyLEDButton            *m_pButtonPreFader[ nCHANNELS ] = {};
 
     // routing
@@ -125,16 +125,16 @@ struct Mixer_24_4_4 : Module
     //-----------------------------------------------------
     struct MyEQHi_Knob : Knob_Green1_15
     {
-        Mixer_24_4_4 *mymodule;
+        Mixer_16_4_4 *mymodule;
         int param;
 
         void onChange( EventChange &e ) override 
         {
-            mymodule = (Mixer_24_4_4*)module;
+            mymodule = (Mixer_16_4_4*)module;
 
             if( mymodule )
             {
-                param = paramId - Mixer_24_4_4::PARAM_CHEQHI;
+                param = paramId - Mixer_16_4_4::PARAM_CHEQHI;
 
                 mymodule->m_hpIn[ param ] = value; 
             }
@@ -148,16 +148,16 @@ struct Mixer_24_4_4 : Module
     //-----------------------------------------------------
     struct MyEQMid_Knob : Knob_Green1_15
     {
-        Mixer_24_4_4 *mymodule;
+        Mixer_16_4_4 *mymodule;
         int param;
 
         void onChange( EventChange &e ) override 
         {
-            mymodule = (Mixer_24_4_4*)module;
+            mymodule = (Mixer_16_4_4*)module;
 
             if( mymodule )
             {
-                param = paramId - Mixer_24_4_4::PARAM_CHEQMD;
+                param = paramId - Mixer_16_4_4::PARAM_CHEQMD;
                 mymodule->m_mpIn[ param ] = value; 
             }
 
@@ -170,16 +170,16 @@ struct Mixer_24_4_4 : Module
     //-----------------------------------------------------
     struct MyEQLo_Knob : Knob_Green1_15
     {
-        Mixer_24_4_4 *mymodule;
+        Mixer_16_4_4 *mymodule;
         int param;
 
         void onChange( EventChange &e ) override 
         {
-            mymodule = (Mixer_24_4_4*)module;
+            mymodule = (Mixer_16_4_4*)module;
 
             if( mymodule )
             {
-                param = paramId - Mixer_24_4_4::PARAM_CHEQLO;
+                param = paramId - Mixer_16_4_4::PARAM_CHEQLO;
                 mymodule->m_lpIn[ param ] = value; 
             }
 
@@ -191,40 +191,40 @@ struct Mixer_24_4_4 : Module
 //-----------------------------------------------------
 // MyLEDButton_ChSolo
 //-----------------------------------------------------
-void Button_ChSolo( void *pClass, int id, bool bOn ) 
+void Mixer_16_4_4_Button_ChSolo( void *pClass, int id, bool bOn )
 {
-    Mixer_24_4_4 *mymodule;
-    mymodule = (Mixer_24_4_4*)pClass;
+    Mixer_16_4_4 *mymodule;
+    mymodule = (Mixer_16_4_4*)pClass;
     mymodule->ProcessMuteSolo( id, false, bOn );
 }
 
 //-----------------------------------------------------
 // MyLEDButton_ChMute
 //-----------------------------------------------------
-void Button_ChMute( void *pClass, int id, bool bOn ) 
+void Mixer_16_4_4_Button_ChMute( void *pClass, int id, bool bOn )
 {
-    Mixer_24_4_4 *mymodule;
-    mymodule = (Mixer_24_4_4*)pClass;
+    Mixer_16_4_4 *mymodule;
+    mymodule = (Mixer_16_4_4*)pClass;
     mymodule->ProcessMuteSolo( id, true, bOn );
 }
 
 //-----------------------------------------------------
 // Button_ChPreFader
 //-----------------------------------------------------
-void Button_ChPreFader( void *pClass, int id, bool bOn ) 
+void Mixer_16_4_4_Button_ChPreFader( void *pClass, int id, bool bOn )
 {
-    Mixer_24_4_4 *mymodule;
-    mymodule = (Mixer_24_4_4*)pClass;
+    Mixer_16_4_4 *mymodule;
+    mymodule = (Mixer_16_4_4*)pClass;
     mymodule->m_bPreFader[ id ] = bOn;
 }
 
 //-----------------------------------------------------
 // Procedure:   RouteCallback
 //-----------------------------------------------------
-void RouteCallback( void *pClass, int id, int nbutton, bool bOn ) 
+void Mixer_16_4_4_RouteCallback( void *pClass, int id, int nbutton, bool bOn )
 {
-    Mixer_24_4_4 *mymodule;
-    mymodule = (Mixer_24_4_4*)pClass;
+    Mixer_16_4_4 *mymodule;
+    mymodule = (Mixer_16_4_4*)pClass;
 
     if( mymodule )
     {
@@ -237,29 +237,29 @@ void RouteCallback( void *pClass, int id, int nbutton, bool bOn )
 //
 //-----------------------------------------------------
 
-struct Mixer_24_4_4_Widget : ModuleWidget 
+struct Mixer_16_4_4_Widget : ModuleWidget
 {
     Menu *createContextMenu() override;
-	Mixer_24_4_4_Widget( Mixer_24_4_4 *module );
+	Mixer_16_4_4_Widget( Mixer_16_4_4 *module );
 };
 
-Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(module) 
+Mixer_16_4_4_Widget::Mixer_16_4_4_Widget( Mixer_16_4_4 *module ) : ModuleWidget(module)
 {
     Port *pPort;
     float fx, fx2, fx3, fx5, fx7;
     int ch, x, y, x2, y2;
     bool bGroup, bAux, bNormal;
 
-	box.size = Vec( 15*57, 380);
+	box.size = Vec( 15*45, 380);
 
 	{
 		SVGPanel *panel = new SVGPanel();
 		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Mixer_24_4_4.svg")));
+		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Mixer_16_4_4.svg")));
 		addChild(panel);
 	}
 
-    //module->lg.Open("Mixer_24_4_4.txt");
+    //module->lg.Open("Mixer_16_4_4.txt");
 
     x = 47;
     y = 13;
@@ -282,13 +282,13 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         y2 = y + 8;
 
         // inputs
-        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_LEFT + ch );
+        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_16_4_4::IN_LEFT + ch );
         addInput( pPort ); y2 += 23;
 
         if( bGroup )
             pPort->visible = false;
 
-        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_RIGHT + ch );
+        pPort = Port::create<MyPortInSmall>( Vec( x2, y2 ), Port::INPUT, module, Mixer_16_4_4::IN_RIGHT + ch );
         addInput( pPort );
 
         if( bGroup )
@@ -300,15 +300,15 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         // aux sends
         if( !bAux )
         {
-            addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 0, 0.0, 1.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHAUX + (ch * 4) + 0, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 1, 0.0, 1.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHAUX + (ch * 4) + 1, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 2, 0.0, 1.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHAUX + (ch * 4) + 2, 0.0, 1.0, 0.0 ) );
             y2 += 17;
-            addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHAUX + (ch * 4) + 3, 0.0, 1.0, 0.0 ) );
+            addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHAUX + (ch * 4) + 3, 0.0, 1.0, 0.0 ) );
 
-            module->m_pButtonPreFader[ ch ] = new MyLEDButton( x2 - 3, y2 + 15, 7, 7, 5.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChPreFader );
+            module->m_pButtonPreFader[ ch ] = new MyLEDButton( x2 - 3, y2 + 15, 7, 7, 5.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 255 ), MyLEDButton::TYPE_SWITCH, ch, module, Mixer_16_4_4_Button_ChPreFader );
 	        addChild( module->m_pButtonPreFader[ ch ] );
 
             y2 += 24;
@@ -317,70 +317,70 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         {
             switch( ch )
             {
-            case 28:
-                addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 0, 0.0, 1.0, 0.0 ) );
+            case 20:
+                addParam(ParamWidget::create<Knob_Red1_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_AUXLVL + 0, 0.0, 1.0, 0.0 ) );
                 break;
-            case 29:
-                addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 1, 0.0, 1.0, 0.0 ) );
+            case 21:
+                addParam(ParamWidget::create<Knob_Yellow3_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_AUXLVL + 1, 0.0, 1.0, 0.0 ) );
                 break;
-            case 30:
-                addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 2, 0.0, 1.0, 0.0 ) );
+            case 22:
+                addParam(ParamWidget::create<Knob_Blue3_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_AUXLVL + 2, 0.0, 1.0, 0.0 ) );
                 break;
-            case 31:
-                addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_AUXLVL + 3, 0.0, 1.0, 0.0 ) );
+            case 23:
+                addParam(ParamWidget::create<Knob_Purp1_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_AUXLVL + 3, 0.0, 1.0, 0.0 ) );
                 break;
             }
 
-            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 22), Port::OUTPUT, module, Mixer_24_4_4::OUT_AUXL + (ch - (nCHANNELS - nAUX)) ) );
-            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 47), Port::OUTPUT, module, Mixer_24_4_4::OUT_AUXR + (ch - (nCHANNELS - nAUX)) ) );
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 22), Port::OUTPUT, module, Mixer_16_4_4::OUT_AUXL + (ch - (nCHANNELS - nAUX) ) ) );
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 + 47), Port::OUTPUT, module, Mixer_16_4_4::OUT_AUXR + (ch - (nCHANNELS - nAUX) ) ) );
 
             y2 += 75;
         }
 
         // EQ
-        addParam(ParamWidget::create<Mixer_24_4_4::MyEQHi_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQHI + ch, 0.0, 1.0, 0.5 ) );
+        addParam(ParamWidget::create<Mixer_16_4_4::MyEQHi_Knob>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHEQHI + ch, 0.0, 1.0, 0.5 ) );
         y2 += 18;
-        addParam(ParamWidget::create<Mixer_24_4_4::MyEQMid_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQMD + ch, 0.0, 1.0, 0.5 ) );
+        addParam(ParamWidget::create<Mixer_16_4_4::MyEQMid_Knob>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHEQMD + ch, 0.0, 1.0, 0.5 ) );
         y2 += 18;
-        addParam(ParamWidget::create<Mixer_24_4_4::MyEQLo_Knob>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHEQLO + ch, 0.0, 1.0, 0.5 ) );
+        addParam(ParamWidget::create<Mixer_16_4_4::MyEQLo_Knob>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHEQLO + ch, 0.0, 1.0, 0.5 ) );
         y2 += 20;
 
         // CVs
         if( bNormal )
         {
-            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_LEVELCV + ch ) );
+            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_16_4_4::IN_LEVELCV + ch ) );
             y2 += 25;
-            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_24_4_4::IN_PANCV + ch ) );
+            addInput(Port::create<MyPortInSmall>( Vec( x2 - 1, y2 ), Port::INPUT, module, Mixer_16_4_4::IN_PANCV + ch ) );
         }
         // group outs
         else if( bGroup )
         {
-            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 ), Port::OUTPUT, module, Mixer_24_4_4::OUT_GRPL + (ch - nINCHANNELS) ) );
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 ), Port::OUTPUT, module, Mixer_16_4_4::OUT_GRPL + (ch - nINCHANNELS) ) );
             y2 += 25;
-            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 ), Port::OUTPUT, module, Mixer_24_4_4::OUT_GRPR + (ch - nINCHANNELS) ) );
+            addOutput(Port::create<MyPortOutSmall>( Vec( x2 - 1, y2 ), Port::OUTPUT, module, Mixer_16_4_4::OUT_GRPR + (ch - nINCHANNELS) ) );
         }
         else
             y2 += 25;
 
         y2 += 23;
 
-        addParam(ParamWidget::create<Knob_Yellow1_15>( Vec( x2, y2 ), module, Mixer_24_4_4::PARAM_CHPAN + ch, -1.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Knob_Yellow1_15>( Vec( x2, y2 ), module, Mixer_16_4_4::PARAM_CHPAN + ch, -1.0, 1.0, 0.0 ) );
 
         y2 += 19;
 
         // mute/solo
         if( bNormal || bGroup )
         {
-            module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x + 3, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChMute );
+            module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x + 3, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Mixer_16_4_4_Button_ChMute );
 	        addChild( module->m_pButtonChannelMute[ ch ] );
 
-            module->m_pButtonChannelSolo[ ch ] = new MyLEDButton( x + 12, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChSolo );
+            module->m_pButtonChannelSolo[ ch ] = new MyLEDButton( x + 12, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Mixer_16_4_4_Button_ChSolo );
 	        addChild( module->m_pButtonChannelSolo[ ch ] );
         }
         // mute only
         else
         {
-            module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x + 7, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Button_ChMute );
+            module->m_pButtonChannelMute[ ch ] = new MyLEDButton( x + 9, y2, 8, 8, 6.0f, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, Mixer_16_4_4_Button_ChMute );
 	        addChild( module->m_pButtonChannelMute[ ch ] );
         }
 
@@ -396,31 +396,31 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
         // Group Route
         if( bNormal )
         {
-            module->m_pMultiButtonRoute[ ch ] = new MyLEDButtonStrip( x2, y2, 6, 6, 3, 4.0f, 5, true, DWRGB( 0, 128, 128 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, RouteCallback );
+            module->m_pMultiButtonRoute[ ch ] = new MyLEDButtonStrip( x2, y2, 6, 6, 3, 4.0f, 5, true, DWRGB( 0, 128, 128 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, Mixer_16_4_4_RouteCallback );
 	        addChild( module->m_pMultiButtonRoute[ ch ] );
         }
 
         // level slider
-        addParam(ParamWidget::create<Slider02_10x15>( Vec( x + 10, y2 - 8 ), module, Mixer_24_4_4::PARAM_CHLVL + ch, 0.0, 1.0, 0.0 ) );
+        addParam(ParamWidget::create<Slider02_10x15>( Vec( x + 10, y2 - 8 ), module, Mixer_16_4_4::PARAM_CHLVL + ch, 0.0, 1.0, 0.0 ) );
 
         x += 23;
     }
 
     // output
-    addParam(ParamWidget::create<Knob_Blue2_56>( Vec( 788, 256 ), module, Mixer_24_4_4::PARAM_LEVEL_OUT, 0.0, 1.0, 0.5 ) );
+    addParam(ParamWidget::create<Knob_Blue2_56>( Vec( 605, 256 ), module, Mixer_16_4_4::PARAM_LEVEL_OUT, 0.0, 1.0, 0.5 ) );
 
-    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 798, 315, 5, 3, 2, true );
+    module->m_pLEDMeterMain[ 0 ] = new LEDMeterWidget( 615, 315, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 0 ] );
-    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 798 + 7, 315, 5, 3, 2, true );
+    module->m_pLEDMeterMain[ 1 ] = new LEDMeterWidget( 615 + 7, 315, 5, 3, 2, true );
     addChild( module->m_pLEDMeterMain[ 1 ] );
 
     // main outputs
-    addOutput(Port::create<MyPortOutSmall>( Vec( 821, 319 ), Port::OUTPUT, module, Mixer_24_4_4::OUT_MAINL ) );
-    addOutput(Port::create<MyPortOutSmall>( Vec( 821, 344 ), Port::OUTPUT, module, Mixer_24_4_4::OUT_MAINR ) );
+    addOutput(Port::create<MyPortOutSmall>( Vec( 638, 319 ), Port::OUTPUT, module, Mixer_16_4_4::OUT_MAINL ) );
+    addOutput(Port::create<MyPortOutSmall>( Vec( 638, 344 ), Port::OUTPUT, module, Mixer_16_4_4::OUT_MAINR ) );
 
     // xfade inputs
-    addInput(Port::create<MyPortInSmall>( Vec( 833, 203 ), Port::INPUT, module, Mixer_24_4_4::IN_FADEX ) );
-    addInput(Port::create<MyPortInSmall>( Vec( 833, 230 ), Port::INPUT, module, Mixer_24_4_4::IN_FADEY ) );
+    addInput(Port::create<MyPortInSmall>( Vec( 650, 203 ), Port::INPUT, module, Mixer_16_4_4::IN_FADEX ) );
+    addInput(Port::create<MyPortInSmall>( Vec( 650, 230 ), Port::INPUT, module, Mixer_16_4_4::IN_FADEY ) );
 
     //screw
 	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
@@ -448,7 +448,7 @@ Mixer_24_4_4_Widget::Mixer_24_4_4_Widget( Mixer_24_4_4 *module ) : ModuleWidget(
 // Procedure: JsonParams  
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::JsonParams( bool bTo, json_t *root) 
+void Mixer_16_4_4::JsonParams( bool bTo, json_t *root)
 {
     JsonDataBool( bTo, "m_bMuteStates", root, m_bMuteStates, nCHANNELS );
     JsonDataBool( bTo, "m_bSoloStates", root, m_bSoloStates, nCHANNELS );
@@ -463,7 +463,7 @@ void Mixer_24_4_4::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *Mixer_24_4_4::toJson() 
+json_t *Mixer_16_4_4::toJson()
 {
 	json_t *root = json_object();
 
@@ -479,7 +479,7 @@ json_t *Mixer_24_4_4::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::fromJson( json_t *root ) 
+void Mixer_16_4_4::fromJson( json_t *root )
 {
     int ch;
 
@@ -501,7 +501,7 @@ void Mixer_24_4_4::fromJson( json_t *root )
 // Procedure:   SetControls
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::SetControls( int ch )
+void Mixer_16_4_4::SetControls( int ch )
 {
     if( !m_bInitialized || ch >= nCHANNELS || ch < 0 )
         return;
@@ -525,7 +525,7 @@ void Mixer_24_4_4::SetControls( int ch )
 // Procedure:   onCreate
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::onCreate()
+void Mixer_16_4_4::onCreate()
 {
 }
 
@@ -533,7 +533,7 @@ void Mixer_24_4_4::onCreate()
 // Procedure:   onDelete
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::onDelete()
+void Mixer_16_4_4::onDelete()
 {
 }
 
@@ -541,7 +541,7 @@ void Mixer_24_4_4::onDelete()
 // Procedure:   onReset
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::onReset()
+void Mixer_16_4_4::onReset()
 {
     int ch;
 
@@ -567,7 +567,7 @@ void Mixer_24_4_4::onReset()
 // Procedure:   onRandomize
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::onRandomize()
+void Mixer_16_4_4::onRandomize()
 {
 }
 
@@ -576,7 +576,7 @@ void Mixer_24_4_4::onRandomize()
 //
 //-----------------------------------------------------
 #define MULTI (0.33333333333333333333333333333333f)
-void Mixer_24_4_4::ProcessEQ( int ch, float *pL, float *pR )
+void Mixer_16_4_4::ProcessEQ( int ch, float *pL, float *pR )
 {
     float rez, hp1; 
     float input[ 2 ], out[ 2 ], lowpass, bandpass, highpass;
@@ -625,7 +625,7 @@ void Mixer_24_4_4::ProcessEQ( int ch, float *pL, float *pR )
 // Procedure:   ProcessMuteSolo
 //
 //-----------------------------------------------------
-void Mixer_24_4_4::ProcessMuteSolo( int index, bool bMute, bool bOn )
+void Mixer_16_4_4::ProcessMuteSolo( int index, bool bMute, bool bOn )
 {
     int i, j;
     bool bSoloing = false, bSoloGroup[ nGROUPS ] = {}, bSoloRoutedToGroup[ nGROUPS ] = {};
@@ -767,7 +767,7 @@ void Mixer_24_4_4::ProcessMuteSolo( int index, bool bMute, bool bOn )
 #define SNORMAL 0
 #define SGROUP 1
 #define SAUX   2
-void Mixer_24_4_4::step() 
+void Mixer_16_4_4::step()
 {
     int section = 0;
     int ch, aux, group = 0;
@@ -1023,9 +1023,9 @@ void Mixer_24_4_4::step()
 // Procedure:   Group Pre-Mute Menu Item
 //
 //-----------------------------------------------------
-struct Mixer_24_4_4_GroupPreMute : MenuItem 
+struct Mixer_16_4_4_GroupPreMute : MenuItem
 {
-    Mixer_24_4_4 *module;
+    Mixer_16_4_4 *module;
 
     void onAction(EventAction &e) override 
     {
@@ -1042,9 +1042,9 @@ struct Mixer_24_4_4_GroupPreMute : MenuItem
 // Procedure:   Level Gain x2 Menu Item
 //
 //-----------------------------------------------------
-struct Mixer_24_4_4_Gainx2 : MenuItem 
+struct Mixer_16_4_4_Gainx2 : MenuItem
 {
-    Mixer_24_4_4 *module;
+    Mixer_16_4_4 *module;
 
     void onAction(EventAction &e) override 
     {
@@ -1061,9 +1061,9 @@ struct Mixer_24_4_4_Gainx2 : MenuItem
 // Procedure:   AuxIgnoreSolo menu item
 //
 //-----------------------------------------------------
-struct Mixer_24_4_4_AuxIgnoreSolo : MenuItem
+struct Mixer_16_4_4_AuxIgnoreSolo : MenuItem
 {
-	Mixer_24_4_4 *module;
+    Mixer_16_4_4 *module;
 
     void onAction(EventAction &e) override
     {
@@ -1083,26 +1083,26 @@ struct Mixer_24_4_4_AuxIgnoreSolo : MenuItem
 // Procedure:   createContextMenu
 //
 //-----------------------------------------------------
-Menu *Mixer_24_4_4_Widget::createContextMenu() 
+Menu *Mixer_16_4_4_Widget::createContextMenu()
 {
     Menu *menu = ModuleWidget::createContextMenu();
 
-    Mixer_24_4_4 *mod = dynamic_cast<Mixer_24_4_4*>(module);
+    Mixer_16_4_4 *mod = dynamic_cast<Mixer_16_4_4*>(module);
 
     assert(mod);
 
     menu->addChild(construct<MenuLabel>());
 
     menu->addChild(construct<MenuLabel>(&MenuLabel::text, "---- Group Outputs ----"));
-    menu->addChild(construct<Mixer_24_4_4_GroupPreMute>( &MenuItem::text, "Pre-Mute", &Mixer_24_4_4_GroupPreMute::module, mod ) );
+    menu->addChild(construct<Mixer_16_4_4_GroupPreMute>( &MenuItem::text, "Pre-Mute", &Mixer_16_4_4_GroupPreMute::module, mod ) );
 
     menu->addChild(construct<MenuLabel>(&MenuLabel::text, "---- Level Sliders ----"));
-    menu->addChild(construct<Mixer_24_4_4_Gainx2>( &MenuItem::text, "Gain x1.5", &Mixer_24_4_4_Gainx2::module, mod ) );
+    menu->addChild(construct<Mixer_16_4_4_Gainx2>( &MenuItem::text, "Gain x1.5", &Mixer_16_4_4_Gainx2::module, mod ) );
 
     menu->addChild(construct<MenuLabel>(&MenuLabel::text, "---- Aux Output ----"));
-    menu->addChild(construct<Mixer_24_4_4_AuxIgnoreSolo>( &MenuItem::text, "Do Not Mute AUX when SOLOing", &Mixer_24_4_4_AuxIgnoreSolo::module, mod ) );
+    menu->addChild(construct<Mixer_16_4_4_AuxIgnoreSolo>( &MenuItem::text, "Do Not Mute AUX when SOLOing", &Mixer_16_4_4_AuxIgnoreSolo::module, mod ) );
 
     return menu;
 }
 
-Model *modelMix_24_4_4 = Model::create<Mixer_24_4_4, Mixer_24_4_4_Widget>( "mscHack", "Mix_24_4_4", "MIXER 24ch, 4 groups, 4 aux", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );
+Model *modelMix_16_4_4 = Model::create<Mixer_16_4_4, Mixer_16_4_4_Widget>( "mscHack", "Mix_16_4_4", "MIXER 16ch, 4 groups, 4 aux", MIXER_TAG, EQUALIZER_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );

@@ -16,6 +16,13 @@ extern Plugin *plugin;
 
 void JsonDataInt( bool bTo, std::string strName, json_t *root, int *pdata, int len );
 void JsonDataBool( bool bTo, std::string strName, json_t *root, bool *pdata, int len );
+void JsonDataString( bool bTo, std::string strName, json_t *root, std::string *strText );
+void init_rand( unsigned int seed );
+unsigned short srand(void);
+float frand(void);
+float frand_mm( float fmin, float max );
+bool  brand( void );
+bool  frand_perc( float perc );
 
 ////////////////////
 // module widgets
@@ -34,8 +41,14 @@ extern Model *modelMix_1x4_Stereo;
 extern Model *modelMix_2x4_Stereo;
 extern Model *modelMix_4x4_Stereo;
 extern Model *modelMix_24_4_4;
+extern Model *modelMix_16_4_4;
+extern Model *modelMix_9_3_4;
 extern Model *modelStepDelay;
 extern Model *modelPingPong;
 extern Model *modelOsc_3Ch;
 extern Model *modelCompressor;
-
+extern Model *modelOSC_WaveMorph_3;
+extern Model *modelDronez;
+extern Model *modelMorze;
+extern Model *modelWindz;
+extern Model *modelAlienz;

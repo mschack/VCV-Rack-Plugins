@@ -22,11 +22,82 @@ void init(rack::Plugin *p)
     p->addModel( modelMix_1x4_Stereo );
     p->addModel( modelMix_2x4_Stereo );
     p->addModel( modelMix_4x4_Stereo );
+    p->addModel( modelMix_9_3_4 );
+    p->addModel( modelMix_16_4_4 );
     p->addModel( modelMix_24_4_4 );
     p->addModel( modelStepDelay );
     p->addModel( modelPingPong );
     p->addModel( modelOsc_3Ch );
+    p->addModel( modelOSC_WaveMorph_3 );
+    p->addModel( modelDronez );
+    p->addModel( modelMorze );
+    p->addModel( modelWindz );
+    p->addModel( modelAlienz );
     p->addModel( modelCompressor );
+}
+
+//-----------------------------------------------------
+// Procedure: random
+//
+//-----------------------------------------------------
+#define PHI 0x9e3779b9
+unsigned int Q[4096], c = 362436;
+unsigned int index = 4095;
+
+void init_rand( unsigned int seed )
+{
+    int i;
+
+    Q[0] = seed;
+    Q[1] = seed + PHI;
+    Q[2] = seed + PHI + PHI;
+
+    for (i = 3; i < 4096; i++)
+            Q[i] = Q[i - 3] ^ Q[i - 2] ^ PHI ^ i;
+
+    c = 362436;
+    index = 4095;
+}
+
+unsigned short srand(void)
+{
+	long long t, a = 18782LL;
+    unsigned int x, r = 0xfffffffe;
+
+    index = (index + 1) & 4095;
+    t = a * Q[index] + c;
+    c = (t >> 32);
+    x = t + c;
+
+    if (x < c)
+    {
+        x++;
+        c++;
+    }
+
+    return (unsigned short)( ( Q[index] = r - x ) & 0xFFFF );
+}
+
+float frand(void)
+{
+	return (float)srand() / (float)0xFFFF;
+}
+
+float frand_mm( float fmin, float fmax )
+{
+	float range = fmax - fmin;
+
+	return fmin + ( frand() * range );
+}
+
+bool brand( void )
+{
+	return ( srand() & 1 );
+}
+
+bool frand_perc( float perc )
+{
+	return ( frand() <= (perc / 100.0f) );
 }
 
 //-----------------------------------------------------
@@ -108,5 +179,29 @@ void JsonDataBool( bool bTo, std::string strName, json_t *root, bool *pdata, int
 				    pdata[ i ] = json_boolean_value( js );
 		    }
         }
+    }
+}
+
+//-----------------------------------------------------
+// Procedure: JsonDataString
+//
+//-----------------------------------------------------
+void JsonDataString( bool bTo, std::string strName, json_t *root, std::string *strText )
+{
+    json_t *textJ;
+
+    if( !root )
+        return;
+
+    if( bTo )
+    {
+    	json_object_set_new( root, strName.c_str(), json_string( strText->c_str() ) );
+    }
+    else
+    {
+    	textJ = json_object_get( root, strName.c_str() );
+
+		if( textJ )
+			*strText = json_string_value( textJ );
     }
 }

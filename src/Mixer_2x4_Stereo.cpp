@@ -1214,4 +1214,4 @@ void Mix_2x4_Stereo::step()
     outputs[ OUT_MAINR ].value = clamp( mainR * params[ PARAM_MAIN_LEVEL ].value, -AUDIO_MAX, AUDIO_MAX );
 }
 
-Model *modelMix_2x4_Stereo = Model::create<Mix_2x4_Stereo, Mix_2x4_Stereo_Widget>( "mscHack", "Mix_2x4_Stereo", "MIXER 2x4 Stereo/Mono", MIXER_TAG, EQUALIZER_TAG, DUAL_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );
+Model *modelMix_2x4_Stereo = Model::create<Mix_2x4_Stereo, Mix_2x4_Stereo_Widget>( "mscHack", "Mix_2x4_Stereo", "(OBSOLETE) MIXER 2x4 Stereo/Mono", MIXER_TAG, EQUALIZER_TAG, DUAL_TAG, PANNING_TAG, AMPLIFIER_TAG, MULTIPLE_TAG );
