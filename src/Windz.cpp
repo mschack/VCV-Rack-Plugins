@@ -48,10 +48,9 @@ typedef struct
 
 enum MOD_TYPES
 {
-	MOD_MORPH,
     MOD_LEVEL,
-	MOD_DET1,
-	MOD_DET2,
+	MOD_REZ,
+	MOD_FILTER,
 	nMODS
 };
 
@@ -76,7 +75,6 @@ struct Windz : Module
 
 	enum InputIds 
     {
-		IN_VOCT,
 		IN_RANDTRIG,
         nINPUTS 
 	};
@@ -109,16 +107,12 @@ struct Windz : Module
 	Label				*m_pTextLabel = NULL;
 	Label				*m_pTextLabel2 = NULL;
 
+	// modulation envelopes
 	EnvelopeData 		m_mod[ nCHANNELS ][ nMODS ] = {};
 	float               m_fval[ nCHANNELS ][ nMODS ] = {};
-
-	float               m_cuttoff = 0.5, m_rez = 0.5;
 	float               m_finc[ nCHANNELS ][ nMODS ] = {};
 
 	FILTER_STRUCT 		m_filter[ nCHANNELS ]={};
-
-	// reverb
-	REVERB_STRUCT 		m_reverb = {};
 
 	// random seed
 	SchmittTrigger 		m_SchmitTrigRand;
@@ -170,8 +164,8 @@ struct Windz : Module
 	void RandPresetWaveAdjust( EnvelopeData *pEnv );
 
 	// audio
-	void ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq );
-	void processFilter( FILTER_STRUCT *pfilter, float *pIn );
+	void ChangeFilterCutoff( int ch );
+	void processFilter( int ch, float *pIn );
 	void processReverb( float In, float *pL, float *pR );
 
     // Overrides 
@@ -229,7 +223,7 @@ Windz_Widget::Windz_Widget( Windz *module ) : ModuleWidget(module)
 		addChild(panel);
 	}
 
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Windz::IN_VOCT ) );
+	//addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Windz::IN_VOCT ) );
 	addInput(Port::create<MyPortInSmall>( Vec( 10, 241 ), Port::INPUT, module, Windz::IN_RANDTRIG ) );
 
     // random button
@@ -444,37 +438,18 @@ void Windz::RandPresetWaveAdjust( EnvelopeData *pEnv )
 //-----------------------------------------------------
 void Windz::BuildWave( int ch )
 {
-	m_osc[ ch ].semi = semis[ srand() & 0x7 ];
-
-	// audio waves
-	m_wav[ ch ][ 0 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	RandPresetWaveAdjust( &m_wav[ ch ][ 0 ] );
-	//RandWave( &m_wav[ ch ][ 0 ], 0.0f, 1.0f );
-
-	m_wav[ ch ][ 1 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	//RandPresetWaveAdjust( &m_wav[ ch ][ 1 ], -0.1f, 0.1f );
-	m_wav[ ch ][ 1 ].Preset( (int)frand_mm( 2.0f, 7.2f) );
-
-	m_wav[ ch ][ 2 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	RandPresetWaveAdjust( &m_wav[ ch ][ 2 ] );
-	//RandWave( &m_wav[ ch ][ 2 ], 0.0f, 1.0f );
-
 	// modulation waveforms
-	m_mod[ ch ][ MOD_MORPH ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_n1to1, false, 1.0f );
-	m_finc[ ch ][ MOD_MORPH ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_MORPH ], 0.3f, 0.7f );
-
-	m_mod[ ch ][ MOD_LEVEL ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
+	m_mod[ ch ][ MOD_LEVEL ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_n1to1, false, 1.0f );
 	m_finc[ ch ][ MOD_LEVEL ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_LEVEL ], 0.1f, 0.4f );
+	RandWave( &m_mod[ ch ][ MOD_LEVEL ], 0.2f, 0.9f );
 
-	m_mod[ ch ][ MOD_DET1 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_finc[ ch ][ MOD_DET1 ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_DET1 ], 0.01f, 0.1f );
+	m_mod[ ch ][ MOD_FILTER ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
+	m_finc[ ch ][ MOD_FILTER ] = 1.0f / frand_mm( 14.5f, 38.0f );
+	RandWave( &m_mod[ ch ][ MOD_FILTER ], 0.02f, 0.8f );
 
-	m_mod[ ch ][ MOD_DET2 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_finc[ ch ][ MOD_DET2 ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_DET2 ], 0.01f, 0.1f );
+	m_mod[ ch ][ MOD_REZ ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
+	m_finc[ ch ][ MOD_REZ ] = 1.0f / frand_mm( 14.5f, 38.0f );
+	RandWave( &m_mod[ ch ][ MOD_REZ ], 0.5f, 0.99f );
 }
 
 //-----------------------------------------------------
@@ -483,7 +458,7 @@ void Windz::BuildWave( int ch )
 //-----------------------------------------------------
 void Windz::BuildDrone( void )
 {
-	int i, ch;
+	int ch;
 
     init_rand( m_Seed );
 
@@ -491,27 +466,6 @@ void Windz::BuildDrone( void )
 	{
 		BuildWave( ch );
 	}
-
-
-	m_global[ GOSC_FILTER ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_GlobalOsc[ GOSC_FILTER ].finc = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_global[ GOSC_FILTER ], 0.01f, 1.0f );
-	//m_GlobalOsc[GOSC_FILTERi ].Env.Preset( EnvelopeData::PRESET_SIN );
-	//RandPresetWaveAdjust( &m_GlobalOsc[GOSC_FILTER ].Env );
-
-	m_global[ GOSC_NOISE ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_GlobalOsc[ GOSC_NOISE ].finc = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_global[ GOSC_NOISE ], 0.01f, 0.3f );
-	//m_GlobalOsc[GOSC_NOISE ].Env.Preset( EnvelopeData::PRESET_SIN );
-	//RandPresetWaveAdjust( &m_GlobalOsc[ GOSC_NOISE ].Env );
-
-	m_cuttoff = frand_mm( 0.05f, 0.4f );
-	m_rez = frand_mm( 0.1f, 0.8f );
-
-    //-----------------------------------------------------
-    // Reverb
-	for( i = 0; i < REV_TAPS; i++ )
-		m_reverb.out[ i ] = ( m_reverb.in - (int)( engineGetSampleRate() * frand_mm( 0.01f, .1f ) ) ) & REV_BUF_MAX;
 
 	m_bInitialized = true;
 }
@@ -544,9 +498,14 @@ void Windz::putx( int x )
 // Procedure:   ChangeFilterCutoff
 //
 //-----------------------------------------------------
-void Windz::ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq )
+void Windz::ChangeFilterCutoff( int ch )
 {
-    float fx, fx2, fx3, fx5, fx7;
+    float fx, fx2, fx3, fx5, fx7, cutfreq;
+    FILTER_STRUCT *pf;
+
+    pf = &m_filter[ ch ];
+
+    cutfreq = m_fval[ ch ][ MOD_FILTER ];
 
     // clamp at 1.0 and 20/samplerate
     cutfreq = fmax(cutfreq, 20 / engineGetSampleRate());
@@ -570,14 +529,17 @@ void Windz::ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq )
 //
 //-----------------------------------------------------
 #define MULTI (0.33333333333333333333333333333333f)
-void Windz::processFilter( FILTER_STRUCT *pf, float *pIn )
+void Windz::processFilter( int ch, float *pIn )
 {
     float rez, hp1;
     float input, lowpass, bandpass, highpass;
+    FILTER_STRUCT *pf;
 
-    rez = 1.0 - m_rez;
+    rez = 1.0 - m_fval[ ch ][ MOD_REZ ];
 
-    input = *pIn / AUDIO_MAX;
+    pf = &m_filter[ ch ];
+
+    input = *pIn;
 
     input  = input + 0.000000001;
 
@@ -623,34 +585,10 @@ void Windz::processFilter( FILTER_STRUCT *pf, float *pIn )
         return;
     }*/
 
-    *pIn = lowpass * AUDIO_MAX;
+    *pIn = lowpass;
 }
 
-//-----------------------------------------------------
-// Procedure:   processReverb
-//
-//-----------------------------------------------------
-void Windz::processReverb( float In, float *pL, float *pR )
-{
-	float fl = 0, fr = 0, rin;
 
-	for( int i = 0; i < REV_TAPS; i++ )
-	{
-		rin = m_reverb.buf[ m_reverb.out[ i ]++ ] * 0.2f;
-		m_reverb.out[ i ] &= REV_BUF_MAX;
-
-		if( i < (REV_TAPS / 2) )
-			fl += rin;
-		else
-			fr += rin;
-	}
-
-	m_reverb.buf[ m_reverb.in++ ] = In;
-	m_reverb.in &= REV_BUF_MAX;
-
-	*pL = (In * .3) + fl;
-	*pR = (In * .3) + fr;
-}
 
 //-----------------------------------------------------
 // Procedure:   step
@@ -658,8 +596,8 @@ void Windz::processReverb( float In, float *pL, float *pR )
 //-----------------------------------------------------
 void Windz::step()
 {
-	float out = 0.0f, In =0.0f, outL = 0.0f, outR = 0.0f;
-	int ch, i, wv;
+	float In =0.0f, fout[ nCHANNELS ] = {};
+	int ch, i;
 
 	if( !m_bInitialized )
 		return;
@@ -705,44 +643,17 @@ void Windz::step()
 			m_fval[ ch ][ i ] = m_mod[ ch ][ i ].procStep( false, false );
 		}
 
-		In= 0.0f;
+		In = frand_mm( -m_fval[ ch ][ MOD_LEVEL ], m_fval[ ch ][ MOD_LEVEL ] );
 
-		// get wave audio
-		for( wv = 0; wv < nMORPH_WAVES; wv++ )
-		{
-			m_wav[ ch ][ wv ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ IN_VOCT ].normalize( 3.0f ) + m_osc[ ch ].semi, 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
+		// filter
+		ChangeFilterCutoff( ch );
+		processFilter( ch, &In );
 
-			if( wv == 0 )
-			{
-				m_wav[ ch ][ wv ].m_Clock.syncInc += m_osc[ ch ].fval[ MOD_DET1 ];
-			}
-			else if( wv == 2 )
-			{
-				m_wav[ ch ][ wv ].m_Clock.syncInc += m_osc[ ch ].fval[ MOD_DET2 ];
-			}
-
-			In += m_wav[ ch ][ wv ].procStep( false, false ) * fmorph[ wv ];
-		}
-
-		if( wv != 1 )
-			out += In * m_osc[ ch ].fval[ MOD_LEVEL ];
-		else
-			out += In;
+		fout[ ch ] = In * AUDIO_MAX;
 	}
 
-	if( frand_perc( 75.0f ) )
-		out += frand_mm( -1.0f, 1.0f ) * m_GlobalOsc[ GOSC_NOISE ].fval;
-
-	// filter
-	ChangeFilterCutoff( &m_filter, m_cuttoff * m_GlobalOsc[ GOSC_FILTER ].fval );
-	processFilter( &m_filter, &out );
-
-	out *= m_fFade;
-
-	processReverb( out, &outL, &outR );
-
-	outputs[ OUT_L ].value = outL;
-	outputs[ OUT_R ].value = outR;
+	outputs[ OUT_L ].value = (fout[ 0 ] + fout[ 1 ]) * m_fFade;
+	outputs[ OUT_R ].value = (fout[ 0 ] + fout[ 2 ]) * m_fFade;
 }
 
 Model *modelWindz = Model::create<Windz, Windz_Widget>( "mscHack", "Windz", "Windz module", OSCILLATOR_TAG, MULTIPLE_TAG );
