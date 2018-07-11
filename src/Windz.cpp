@@ -5,21 +5,6 @@
 // General Definition
 //-----------------------------------------------------
 #define nCHANNELS 3
-#define SEMI ( 1.0f / 12.0f )
-
-//-----------------------------------------------------
-// Reverb Definition
-//-----------------------------------------------------
-#define REV_TAPS 16
-#define REV_BUF_SIZE 0x4000
-#define REV_BUF_MAX  0x3FFF
-
-typedef struct
-{
-	float 			buf[ REV_BUF_SIZE ];
-	unsigned int   	in;
-	unsigned int   	out[ REV_TAPS ];
-}REVERB_STRUCT;
 
 //-----------------------------------------------------
 // filter
@@ -53,13 +38,6 @@ enum MOD_TYPES
 	MOD_FILTER,
 	nMODS
 };
-
-typedef struct
-{
-	float        finc;
-	float        fval;
-
-}GLOBAL_OSC_STRUCT;
 
 //-----------------------------------------------------
 // Module Definition
@@ -123,7 +101,7 @@ struct Windz : Module
 	int             	m_FadeState = FADE_IN;
 	float           	m_fFade = 0.0f;
 	float speeds[ 9 ] = { 0.1f, 0.25f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
-	float semis[ 8 ]  = { (SEMI * 5.0f), (SEMI * 6.0f), (SEMI * 9.0f), (SEMI * 11.0f), (SEMI * 21.0f), (SEMI * 12.0f), (SEMI * 24.0f), (SEMI * 29.0f) };
+
     //-----------------------------------------------------
     // MySpeed_Knob
     //-----------------------------------------------------

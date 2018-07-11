@@ -4,22 +4,7 @@
 //-----------------------------------------------------
 // General Definition
 //-----------------------------------------------------
-#define nCHANNELS 3
-#define SEMI ( 1.0f / 12.0f )
-
-//-----------------------------------------------------
-// Reverb Definition
-//-----------------------------------------------------
-#define REV_TAPS 16
-#define REV_BUF_SIZE 0x4000
-#define REV_BUF_MAX  0x3FFF
-
-typedef struct
-{
-	float 			buf[ REV_BUF_SIZE ];
-	unsigned int   	in;
-	unsigned int   	out[ REV_TAPS ];
-}REVERB_STRUCT;
+#define nCHANNELS 2
 
 //-----------------------------------------------------
 // filter
@@ -44,40 +29,30 @@ typedef struct
 //-----------------------------------------------------
 // Morph oscillator
 //-----------------------------------------------------
-#define nMORPH_WAVES 3
+#define nMORPH_WAVES 2
 
 enum MOD_TYPES
 {
-	MOD_MORPH,
     MOD_LEVEL,
-	MOD_DET1,
-	MOD_DET2,
+	MOD_REZ,
 	nMODS
 };
 
-typedef struct
-{
-	float        inc;
-	float        semi;
-	float        fval[ nMODS ];
 
-	//FILTER_STRUCT filter;
-
-}MORPH_OSC_STRUCT;
-
-enum GLOBAL_OSCS
-{
-	GOSC_FILTER,
-	GOSC_NOISE,
-	nGLOBALOSCS
-};
+#define nBITS 2048
 
 typedef struct
 {
-	float        finc;
-	float        fval;
+	int     state;
+	int     baud;
+	float   finc;
+	float   fcount;
+	float   fout;
+	int     bits[ nBITS ];
 
-}GLOBAL_OSC_STRUCT;
+}DIGITAL_OSC_STRUCT;
+
+#define OSC2_NOTES 5
 
 //-----------------------------------------------------
 // Module Definition
@@ -93,15 +68,14 @@ struct Alienz : Module
 
 	enum InputIds 
     {
-		IN_VOCT,
 		IN_RANDTRIG,
+		IN_GATE,
         nINPUTS 
 	};
 
 	enum OutputIds 
     {
-		OUT_L,
-		OUT_R,
+		OUT,
         nOUTPUTS
 	};
 
@@ -126,21 +100,19 @@ struct Alienz : Module
 	Label				*m_pTextLabel = NULL;
 	Label				*m_pTextLabel2 = NULL;
 
-	// oscillators
-	MORPH_OSC_STRUCT 	m_osc[ nCHANNELS ] = {};
-	EnvelopeData 		m_wav[ nCHANNELS ][ nMORPH_WAVES ] = {};
+	// osc
+	DIGITAL_OSC_STRUCT  m_bitosc = {};
+
+	EnvelopeData        m_osc2;
+	float               m_osc2notes[ OSC2_NOTES ];
+	float               m_osc2freq;
+
+	// modulation envelopes
 	EnvelopeData 		m_mod[ nCHANNELS ][ nMODS ] = {};
-	EnvelopeData 		m_global[ nGLOBALOSCS ];
-
-	GLOBAL_OSC_STRUCT   m_GlobalOsc[ nGLOBALOSCS ] = {};
-
-	float               m_cuttoff = 0.5, m_rez = 0.5;
+	float               m_fval[ nCHANNELS ][ nMODS ] = {};
 	float               m_finc[ nCHANNELS ][ nMODS ] = {};
 
-	FILTER_STRUCT 		m_filter={};
-
-	// reverb
-	REVERB_STRUCT 		m_reverb = {};
+	FILTER_STRUCT 		m_filter[ nCHANNELS ]={};
 
 	// random seed
 	SchmittTrigger 		m_SchmitTrigRand;
@@ -151,7 +123,6 @@ struct Alienz : Module
 	int             	m_FadeState = FADE_IN;
 	float           	m_fFade = 0.0f;
 	float speeds[ 9 ] = { 0.1f, 0.25f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
-	float semis[ 8 ]  = { (SEMI * 5.0f), (SEMI * 6.0f), (SEMI * 9.0f), (SEMI * 11.0f), (SEMI * 21.0f), (SEMI * 12.0f), (SEMI * 24.0f), (SEMI * 29.0f) };
 
     //-----------------------------------------------------
     // MySpeed_Knob
@@ -193,8 +164,8 @@ struct Alienz : Module
 	void RandPresetWaveAdjust( EnvelopeData *pEnv );
 
 	// audio
-	void ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq );
-	void processFilter( FILTER_STRUCT *pfilter, float *pIn );
+	void ChangeFilterCutoff( int ch, float f );
+	void processFilter( int ch, float *pIn );
 	void processReverb( float In, float *pL, float *pR );
 
     // Overrides 
@@ -252,15 +223,14 @@ Alienz_Widget::Alienz_Widget( Alienz *module ) : ModuleWidget(module)
 		addChild(panel);
 	}
 
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Alienz::IN_VOCT ) );
+	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Alienz::IN_GATE ) );
 	addInput(Port::create<MyPortInSmall>( Vec( 10, 241 ), Port::INPUT, module, Alienz::IN_RANDTRIG ) );
 
     // random button
     module->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Alienz_RandButton );
 	addChild( module->m_pButtonRand );
 
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Alienz::OUT_L ) );
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 45 ), Port::OUTPUT, module, Alienz::OUT_R ) );
+	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Alienz::OUT ) );
 
 	y = 95;
 	x = 9;
@@ -467,74 +437,67 @@ void Alienz::RandPresetWaveAdjust( EnvelopeData *pEnv )
 //-----------------------------------------------------
 void Alienz::BuildWave( int ch )
 {
-	m_osc[ ch ].semi = semis[ srand() & 0x7 ];
-
-	// audio waves
-	m_wav[ ch ][ 0 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	RandPresetWaveAdjust( &m_wav[ ch ][ 0 ] );
-	//RandWave( &m_wav[ ch ][ 0 ], 0.0f, 1.0f );
-
-	m_wav[ ch ][ 1 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	//RandPresetWaveAdjust( &m_wav[ ch ][ 1 ], -0.1f, 0.1f );
-	m_wav[ ch ][ 1 ].Preset( (int)frand_mm( 2.0f, 7.2f) );
-
-	m_wav[ ch ][ 2 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
-	RandPresetWaveAdjust( &m_wav[ ch ][ 2 ] );
-	//RandWave( &m_wav[ ch ][ 2 ], 0.0f, 1.0f );
-
 	// modulation waveforms
-	m_mod[ ch ][ MOD_MORPH ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_n1to1, false, 1.0f );
-	m_finc[ ch ][ MOD_MORPH ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_MORPH ], 0.3f, 0.7f );
-
 	m_mod[ ch ][ MOD_LEVEL ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
 	m_finc[ ch ][ MOD_LEVEL ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_LEVEL ], 0.1f, 0.4f );
 
-	m_mod[ ch ][ MOD_DET1 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_finc[ ch ][ MOD_DET1 ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_DET1 ], 0.01f, 0.1f );
+	if( ch == 0 )
+		RandWave( &m_mod[ ch ][ MOD_LEVEL ], 0.8f, 0.9f );
+	else
+		RandWave( &m_mod[ ch ][ MOD_LEVEL ], 0.1f, 0.4f );
 
-	m_mod[ ch ][ MOD_DET2 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_finc[ ch ][ MOD_DET2 ] = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_mod[ ch ][ MOD_DET2 ], 0.01f, 0.1f );
+	m_mod[ ch ][ MOD_REZ ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
+	m_finc[ ch ][ MOD_REZ ] = 1.0f / frand_mm( 14.5f, 38.0f );
+	RandWave( &m_mod[ ch ][ MOD_REZ ], 0.9f, 1.0f );
 }
 
 //-----------------------------------------------------
 // Procedure:   BuildDrone
 //
 //-----------------------------------------------------
+int bauds[ 4 ] = { 2400, 4800, 9600, 19200 };
 void Alienz::BuildDrone( void )
 {
-	int i, ch;
+	int ch, i;
+	int byte;
+	int bit;
 
     init_rand( m_Seed );
 
 	for( ch = 0; ch < nCHANNELS; ch++ )
 	{
 		BuildWave( ch );
+
+		ChangeFilterCutoff( ch, frand_mm( 0.1, 0.5 ) );
 	}
 
+	//set up osc
+	m_bitosc.baud = bauds[ srand() & 3 ];
 
-	m_global[ GOSC_FILTER ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_GlobalOsc[ GOSC_FILTER ].finc = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_global[ GOSC_FILTER ], 0.01f, 1.0f );
-	//m_GlobalOsc[GOSC_FILTERi ].Env.Preset( EnvelopeData::PRESET_SIN );
-	//RandPresetWaveAdjust( &m_GlobalOsc[GOSC_FILTER ].Env );
+	m_bitosc.finc = engineGetSampleRate() / frand_mm( 100.0f, 400.0f );
 
-	m_global[ GOSC_NOISE ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_0to1, false, 1.0f );
-	m_GlobalOsc[ GOSC_NOISE ].finc = 1.0f / frand_mm( 14.5f, 38.0f );
-	RandWave( &m_global[ GOSC_NOISE ], 0.01f, 0.3f );
-	//m_GlobalOsc[GOSC_NOISE ].Env.Preset( EnvelopeData::PRESET_SIN );
-	//RandPresetWaveAdjust( &m_GlobalOsc[ GOSC_NOISE ].Env );
+	m_bitosc.fcount = 0.0f;
 
-	m_cuttoff = frand_mm( 0.05f, 0.4f );
-	m_rez = frand_mm( 0.1f, 0.8f );
+	m_bitosc.fout = 0.0f;
 
-    //-----------------------------------------------------
-    // Reverb
-	for( i = 0; i < REV_TAPS; i++ )
-		m_reverb.out[ i ] = ( m_reverb.in - (int)( engineGetSampleRate() * frand_mm( 0.01f, .1f ) ) ) & REV_BUF_MAX;
+	for( i= 0; i < nBITS; i+=8 )
+	{
+		byte = (int)frand_mm( (float)0x20, (float)0x80 );
+
+		for( bit = 0; bit < 8; bit++ )
+		{
+			m_bitosc.bits[ i + bit ] = (byte >> bit) & 1;
+		}
+	}
+
+	// osc 2
+	m_osc2.Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_n1to1, false, 1.0f );
+	m_osc2.Preset( EnvelopeData::PRESET_TRI_FULL );
+
+	for( i = 0; i < OSC2_NOTES; i++ )
+		m_osc2notes[ i ] = frand_mm( 3.0f, 6.0f );
+
+	m_osc2freq = engineGetSampleRate() / frand_mm( 60.0f, 90.0f );
 
 	m_bInitialized = true;
 }
@@ -567,9 +530,14 @@ void Alienz::putx( int x )
 // Procedure:   ChangeFilterCutoff
 //
 //-----------------------------------------------------
-void Alienz::ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq )
+void Alienz::ChangeFilterCutoff( int ch, float f )
 {
-    float fx, fx2, fx3, fx5, fx7;
+    float fx, fx2, fx3, fx5, fx7, cutfreq;
+    FILTER_STRUCT *pf;
+
+    pf = &m_filter[ ch ];
+
+    cutfreq = f;
 
     // clamp at 1.0 and 20/samplerate
     cutfreq = fmax(cutfreq, 20 / engineGetSampleRate());
@@ -593,14 +561,17 @@ void Alienz::ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq )
 //
 //-----------------------------------------------------
 #define MULTI (0.33333333333333333333333333333333f)
-void Alienz::processFilter( FILTER_STRUCT *pf, float *pIn )
+void Alienz::processFilter( int ch, float *pIn )
 {
     float rez, hp1;
     float input, lowpass, bandpass, highpass;
+    FILTER_STRUCT *pf;
 
-    rez = 1.0 - m_rez;
+    rez = 1.0 - m_fval[ ch ][ MOD_REZ ];
 
-    input = *pIn / AUDIO_MAX;
+    pf = &m_filter[ ch ];
+
+    input = *pIn;
 
     input  = input + 0.000000001;
 
@@ -646,33 +617,7 @@ void Alienz::processFilter( FILTER_STRUCT *pf, float *pIn )
         return;
     }*/
 
-    *pIn = lowpass * AUDIO_MAX;
-}
-
-//-----------------------------------------------------
-// Procedure:   processReverb
-//
-//-----------------------------------------------------
-void Alienz::processReverb( float In, float *pL, float *pR )
-{
-	float fl = 0, fr = 0, rin;
-
-	for( int i = 0; i < REV_TAPS; i++ )
-	{
-		rin = m_reverb.buf[ m_reverb.out[ i ]++ ] * 0.2f;
-		m_reverb.out[ i ] &= REV_BUF_MAX;
-
-		if( i < (REV_TAPS / 2) )
-			fl += rin;
-		else
-			fr += rin;
-	}
-
-	m_reverb.buf[ m_reverb.in++ ] = In;
-	m_reverb.in &= REV_BUF_MAX;
-
-	*pL = (In * .3) + fl;
-	*pR = (In * .3) + fr;
+    *pIn = lowpass;
 }
 
 //-----------------------------------------------------
@@ -681,8 +626,9 @@ void Alienz::processReverb( float In, float *pL, float *pR )
 //-----------------------------------------------------
 void Alienz::step()
 {
-	float out = 0.0f, In =0.0f, outL = 0.0f, outR = 0.0f, fmorph[ nCHANNELS ], fcv=0.0f;
-	int ch, i, wv;
+	float In = 0.0f, fout;
+	int i, ch;
+	static int bcount = 0, note = 0, fcount = 0;
 
 	if( !m_bInitialized )
 		return;
@@ -697,7 +643,7 @@ void Alienz::step()
     switch( m_FadeState )
     {
     case FADE_OUT:
-    	m_fFade -= 0.00005f;
+    	m_fFade -= 0.0005f;
     	if( m_fFade <= 0.0f )
     	{
     		m_fFade = 0.0f;
@@ -706,7 +652,7 @@ void Alienz::step()
     	}
     	break;
     case FADE_IN:
-    	m_fFade += 0.00005f;
+    	m_fFade += 0.0005f;
     	if( m_fFade >= 1.0f )
     	{
     		m_fFade = 1.0f;
@@ -718,11 +664,14 @@ void Alienz::step()
     	break;
     }
 
-	for( i = 0; i < nGLOBALOSCS; i++ )
-	{
-		m_global[ i ].m_Clock.syncInc = m_GlobalOsc[ i ].finc * speeds[ (int)params[ PARAM_SPEED ].value ];
-		m_GlobalOsc[ i ].fval = m_global[ i ].procStep( false, false );
-	}
+    if( inputs[ IN_GATE ].active )
+    {
+    	if( inputs[ IN_GATE ].value < 0.000001 )
+    	{
+    		outputs[ OUT ].value= 0.0f;
+    		return;
+    	}
+    }
 
 	// process oscillators
 	for( ch = 0; ch < nCHANNELS; ch++ )
@@ -731,63 +680,62 @@ void Alienz::step()
 		for( i = 0; i < nMODS; i++ )
 		{
 			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].value ];
-			m_osc[ ch ].fval[ i ] = m_mod[ ch ][ i ].procStep( false, false );
+			m_fval[ ch ][ i ] = m_mod[ ch ][ i ].procStep( false, false );
 		}
-
-		// wav morph modulation
-		memset( fmorph, 0, sizeof(fmorph));
-
-	    fcv = m_osc[ ch ].fval[ MOD_MORPH ];
-	    fmorph[ 1 ] = 1.0 - fabs( fcv );
-
-	    // left wave
-	    if( fcv <= 0.0f )
-	    {
-	        fmorph[ 0 ] = -fcv;
-	    }
-	    else
-	    {
-	        fmorph[ 2 ] = fcv;
-	    }
-
-		In= 0.0f;
-
-		// get wave audio
-		for( wv = 0; wv < nMORPH_WAVES; wv++ )
-		{
-			m_wav[ ch ][ wv ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ IN_VOCT ].normalize( 3.0f ) + m_osc[ ch ].semi, 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
-
-			if( wv == 0 )
-			{
-				m_wav[ ch ][ wv ].m_Clock.syncInc += m_osc[ ch ].fval[ MOD_DET1 ];
-			}
-			else if( wv == 2 )
-			{
-				m_wav[ ch ][ wv ].m_Clock.syncInc += m_osc[ ch ].fval[ MOD_DET2 ];
-			}
-
-			In += m_wav[ ch ][ wv ].procStep( false, false ) * fmorph[ wv ];
-		}
-
-		if( wv != 1 )
-			out += In * m_osc[ ch ].fval[ MOD_LEVEL ];
-		else
-			out += In;
 	}
 
-	if( frand_perc( 75.0f ) )
-		out += frand_mm( -1.0f, 1.0f ) * m_GlobalOsc[ GOSC_NOISE ].fval;
+	m_bitosc.fcount -= 1.0f;
 
-	// filter
-	ChangeFilterCutoff( &m_filter, m_cuttoff * m_GlobalOsc[ GOSC_FILTER ].fval );
-	processFilter( &m_filter, &out );
+	// change
+	if( m_bitosc.fcount <= 0.0f )
+	{
+		m_bitosc.fcount += m_bitosc.finc;
 
-	out *= m_fFade;
+		if( m_bitosc.state == 2 )
+			m_bitosc.state = m_bitosc.bits[ ( bcount++ ) & (nBITS - 1) ];
+		else
+			m_bitosc.state = 2;
 
-	processReverb( out, &outL, &outR );
+		switch( m_bitosc.state )
+		{
+		case 0:
+			m_bitosc.fout = -0.7f;
+			break;
+		case 1:
+			m_bitosc.fout = 0.7f;
+			break;
+		case 2:
+			m_bitosc.fout = 0.0f;
+			break;
+		}
+	}
 
-	outputs[ OUT_L ].value = outL;
-	outputs[ OUT_R ].value = outR;
+	In = m_bitosc.fout;
+	processFilter( 0, &In );
+
+	// osc2
+	fcount -= 1.0f;
+
+	// change
+	if( fcount <= 0.0f )
+	{
+		fcount += m_osc2freq;
+
+		if( ++note >= OSC2_NOTES )
+			note = 0;
+
+		m_osc2.m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, m_osc2notes[ note ] ), 0.0f, 4186.01f );
+	}
+
+	fout = m_osc2.procStep( false, false );
+
+	processFilter( 1, &fout );
+
+	fout *= AUDIO_MAX * m_fval[ 1 ][ MOD_LEVEL ];
+
+	fout += In * m_fval[ 0 ][ MOD_LEVEL ] * AUDIO_MAX;
+
+	outputs[ OUT ].value = fout * m_fFade;
 }
 
 Model *modelAlienz = Model::create<Alienz, Alienz_Widget>( "mscHack", "Alienz", "Alienz module", OSCILLATOR_TAG, MULTIPLE_TAG );
