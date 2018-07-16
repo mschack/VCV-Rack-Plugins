@@ -25,6 +25,7 @@ void init(rack::Plugin *p)
     p->addModel( modelMix_9_3_4 );
     p->addModel( modelMix_16_4_4 );
     p->addModel( modelMix_24_4_4 );
+    p->addModel( modelASAF8 );
     p->addModel( modelStepDelay );
     p->addModel( modelPingPong );
     p->addModel( modelOsc_3Ch );

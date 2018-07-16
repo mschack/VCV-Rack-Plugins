@@ -52,3 +52,4 @@ extern Model *modelDronez;
 extern Model *modelMorze;
 extern Model *modelWindz;
 extern Model *modelAlienz;
+extern Model *modelASAF8;
