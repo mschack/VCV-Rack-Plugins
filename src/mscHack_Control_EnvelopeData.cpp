@@ -39,6 +39,9 @@ void EnvelopeData::Preset( int preset )
     case EnvelopeData::PRESET_CLEAR:
         resetValAll( 0.0f );
         break;
+    case EnvelopeData::PRESET_SET:
+        resetValAll( 1.0f );
+        break;
     case EnvelopeData::PRESET_HALF:
         resetValAll( 0.5f );
         break;

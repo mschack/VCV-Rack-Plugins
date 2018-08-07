@@ -158,6 +158,7 @@ struct EnvelopeData
 		PRESET_TRI_FULL,
 		PRESET_TRI_HALF,
 		PRESET_SQR,
+		PRESET_SET,
 	    nPRESETS
 	};
 

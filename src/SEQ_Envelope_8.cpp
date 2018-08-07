@@ -61,7 +61,7 @@ struct SEQ_Envelope_8 : Module
     int                 m_Ranges[ nCHANNELS ] = {};
     int                 m_TimeDivs[ nCHANNELS ] = {};
     bool                m_bHold[ nCHANNELS ] = {};
-    bool                m_bGateMode[ nCHANNELS ] = {true};
+    bool                m_bGateMode[ nCHANNELS ] = {};
     int                 m_HoldPos[ nCHANNELS ] = {};
     bool                m_bTrig[ nCHANNELS ] = {};
 

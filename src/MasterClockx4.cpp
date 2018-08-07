@@ -636,7 +636,7 @@ void MasterClockx4::step()
         }
 
         if( bChannelClockTrig )
-            m_PulseClock[ ch ].trigger(1e-3);
+            m_PulseClock[ ch ].trigger( 0.050f );
 
         // syncs
         fSyncPulseOut = m_PulseSync[ ch ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;

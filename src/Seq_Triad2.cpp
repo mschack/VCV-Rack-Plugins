@@ -55,7 +55,9 @@ struct Seq_Triad2 : Module
         IN_PROG_CHANGE          = IN_VOCT_OFF + ( nKEYBOARDS ),
         IN_CLOCK_RESET          = IN_PROG_CHANGE + ( nKEYBOARDS ),
         IN_GLOBAL_PAT_CLK,
-        nINPUTS
+		IN_GLOBAL_TRIG_MUTE,
+		IN_CHANNEL_TRIG_MUTE,
+        nINPUTS					= IN_CHANNEL_TRIG_MUTE + ( nKEYBOARDS )
 	};
 
 	enum OutputIds 
@@ -93,6 +95,14 @@ struct Seq_Triad2 : Module
 
     // pause button
     bool            m_bPause[ nKEYBOARDS ] = {};
+
+    // trig mute
+    bool            m_bTrigMute = false;
+    MyLEDButton     *m_pButtonTrigMute = NULL;
+
+    // channel trig mute
+    bool            m_bChTrigMute[ nKEYBOARDS ] = {};
+    MyLEDButton     *m_pButtonChTrigMute[ nKEYBOARDS ] = {};
 
     // triggers     
     bool            m_bTrig[ nKEYBOARDS ] = {};
@@ -171,13 +181,33 @@ void Seq_Triad2_Pause( void *pClass, int id, bool bOn )
 }
 
 //-----------------------------------------------------
+// Seq_Triad2_TrigMute
+//-----------------------------------------------------
+void Seq_Triad2_TrigMute( void *pClass, int id, bool bOn )
+{
+    Seq_Triad2 *mymodule;
+    mymodule = (Seq_Triad2*)pClass;
+    mymodule->m_bTrigMute = bOn;
+}
+
+//-----------------------------------------------------
+// Seq_Triad2_ChTrigMute
+//-----------------------------------------------------
+void Seq_Triad2_ChTrigMute( void *pClass, int id, bool bOn )
+{
+    Seq_Triad2 *mymodule;
+    mymodule = (Seq_Triad2*)pClass;
+    mymodule->m_bChTrigMute[ id ] = bOn;
+}
+
+//-----------------------------------------------------
 // Seq_Triad2_Trig
 //-----------------------------------------------------
 void Seq_Triad2_Trig( void *pClass, int id, bool bOn ) 
 {
     Seq_Triad2 *mymodule;
     mymodule = (Seq_Triad2*)pClass;
-    mymodule->m_PatternNotes[ id ][ mymodule->m_CurrentPhrase[ id ] ][ mymodule->m_CurrentPattern[ id ] ].bTrigOff = !mymodule->m_PatternNotes[ id ][ mymodule->m_CurrentPhrase[ id ] ][ mymodule->m_CurrentPattern[ id ] ].bTrigOff;
+    mymodule->m_PatternNotes[ id ][ mymodule->m_CurrentPhrase[ id ] ][ mymodule->m_CurrentPattern[ id ] ].bTrigOff = bOn;//!mymodule->m_PatternNotes[ id ][ mymodule->m_CurrentPhrase[ id ] ][ mymodule->m_CurrentPattern[ id ] ].bTrigOff;
 }
 
 //-----------------------------------------------------
@@ -311,12 +341,18 @@ Seq_Triad2_Widget::Seq_Triad2_Widget( Seq_Triad2 *module ) : ModuleWidget(module
 
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
+        // channel trig mute
+        module->m_pButtonChTrigMute[ kb ] = new MyLEDButton( x + 310, y + 3, 15, 15, 13.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, kb, module, Seq_Triad2_ChTrigMute );
+        addChild( module->m_pButtonChTrigMute[ kb ] );
+
+        addInput(Port::create<MyPortInSmall>( Vec( x + 285, y + 1 ), Port::INPUT, module, Seq_Triad2::IN_CHANNEL_TRIG_MUTE + kb ) );
+
         // pause button
         module->m_pButtonPause[ kb ] = new MyLEDButton( x + 60, y + 4, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, kb, module, Seq_Triad2_Pause );
 	    addChild( module->m_pButtonPause[ kb ] );
 
         // trig button
-        module->m_pButtonTrig[ kb ] = new MyLEDButton( x + 314, y + 5, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, kb, module, Seq_Triad2_Trig );
+        module->m_pButtonTrig[ kb ] = new MyLEDButton( x + 260, y + 5, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, kb, module, Seq_Triad2_Trig );
 	    addChild( module->m_pButtonTrig[ kb ] );
 
         // glide knob
@@ -361,6 +397,12 @@ Seq_Triad2_Widget::Seq_Triad2_Widget( Seq_Triad2 *module ) : ModuleWidget(module
 
         y += 111;
     }
+
+    // trig mute
+    module->m_pButtonTrigMute = new MyLEDButton( x + 310, 3, 15, 15, 13.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, Seq_Triad2_TrigMute );
+    addChild( module->m_pButtonTrigMute );
+
+    addInput(Port::create<MyPortInSmall>( Vec( x + 285, 1 ), Port::INPUT, module, Seq_Triad2::IN_GLOBAL_TRIG_MUTE ) );
 
     // reset inputs
     y2 = 357; 
@@ -761,6 +803,26 @@ json_t *Seq_Triad2::toJson()
 
 	json_object_set_new( rootJ, "m_CurrentPattern", gatesJ );
 
+    // trig mute
+	gatesJ = json_array();
+
+	json_t *gateJ = json_boolean( m_bTrigMute );
+	json_array_append_new( gatesJ, gateJ );
+	json_object_set_new( rootJ, "m_bTrigMute", gatesJ );
+
+    // channel trig mute
+    pbool = &m_bChTrigMute[ 0 ];
+
+	gatesJ = json_array();
+
+	for (int i = 0; i < nKEYBOARDS; i++)
+    {
+		json_t *gateJ = json_integer( pbool[ i ] );
+		json_array_append_new( gatesJ, gateJ );
+	}
+
+	json_object_set_new( rootJ, "m_bChTrigMute", gatesJ );
+
 	return rootJ;
 }
 
@@ -897,6 +959,41 @@ void Seq_Triad2::fromJson(json_t *rootJ)
         ChangePhrase( i, m_CurrentPhrase[ i ], true );
         ChangePattern( i, m_CurrentPattern[ i ], true, false );
     }
+
+    // pauses
+	StepsJ = json_object_get( rootJ, "m_bTrigMute" );
+
+	if (StepsJ)
+    {
+		json_t *gateJ = json_array_get( StepsJ, 0 );
+
+		if (gateJ)
+			m_bTrigMute = json_boolean_value( gateJ );
+	}
+
+	if( m_bTrigMute )
+		m_pButtonTrigMute->Set( m_bTrigMute );
+
+    // channel trig mute
+    pbool = &m_bChTrigMute[ 0 ];
+	StepsJ = json_object_get( rootJ, "m_bChTrigMute" );
+
+	if (StepsJ)
+    {
+		for ( i = 0; i < nKEYBOARDS; i++)
+        {
+			json_t *gateJ = json_array_get(StepsJ, i);
+
+			if (gateJ)
+				pbool[ i ] = json_integer_value( gateJ );
+		}
+	}
+
+	for( i = 0; i < nKEYBOARDS; i++ )
+	{
+		if( m_bChTrigMute[ i ] )
+			m_pButtonChTrigMute[ i ]->Set( m_bChTrigMute[ i ] );
+	}
 }
 
 //-----------------------------------------------------
@@ -906,11 +1003,27 @@ void Seq_Triad2::fromJson(json_t *rootJ)
 #define LIGHT_LAMBDA ( 0.065f )
 void Seq_Triad2::step() 
 {
+	static float flast[ nKEYBOARDS ] = {};
     int kb, useclock;
     bool bGlobalPatChange = false, bGlobalClkTriggered = false, PatTrig[ nKEYBOARDS ] = {};
+    float trigout = 0.0f;
 
     if( !m_bInitialized )
         return;
+
+    if( inputs[ IN_GLOBAL_TRIG_MUTE ].active )
+    {
+		if( inputs[ IN_GLOBAL_TRIG_MUTE ].value >= 0.00001 )
+		{
+			m_bTrigMute = true;
+			m_pButtonTrigMute->Set( true );
+		}
+		else if( inputs[ IN_GLOBAL_TRIG_MUTE ].value < 0.00001 )
+		{
+			m_bTrigMute = false;
+			m_pButtonTrigMute->Set( false );
+		}
+    }
 
     // global phrase change trigger
     if( inputs[ IN_GLOBAL_PAT_CLK ].active )
@@ -934,6 +1047,20 @@ void Seq_Triad2::step()
     for( kb = 0; kb < nKEYBOARDS; kb++ )
     {
         useclock = kb;
+
+        if( inputs[ IN_CHANNEL_TRIG_MUTE + kb ].active )
+        {
+    		if( inputs[ IN_CHANNEL_TRIG_MUTE + kb ].value >= 0.00001 )
+    		{
+    			m_bChTrigMute[ kb ] = true;
+    			m_pButtonChTrigMute[ kb ]->Set( true );
+    		}
+    		else if( inputs[ IN_CHANNEL_TRIG_MUTE + kb ].value < 0.00001 )
+    		{
+    			m_bChTrigMute[ kb ] = false;
+    			m_pButtonChTrigMute[ kb ]->Set( false );
+    		}
+        }
 
         // if no keyboard clock active then use kb 0's clock
         if( !inputs[ IN_PATTERN_TRIG + kb ].active && inputs[ IN_PATTERN_TRIG + 0 ].active )
@@ -990,17 +1117,28 @@ void Seq_Triad2::step()
         if( m_bTrig[ kb ] )
         {
             m_bTrig[ kb ] = false;
-            m_gatePulse[ kb ].trigger(1e-3);
+            m_gatePulse[ kb ].trigger( 0.050f );
         }
 
-        outputs[ OUT_TRIG + kb ].value = m_gatePulse[ kb ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
+        trigout = m_gatePulse[ kb ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
+
+        if( !m_bTrigMute && !m_bChTrigMute[ kb ] )
+        	outputs[ OUT_TRIG + kb ].value = trigout;
+        else
+        	outputs[ OUT_TRIG + kb ].value = 0.0f;
 
         if( --m_glideCount[ kb ] > 0 )
             m_fglide[ kb ] -= m_fglideInc[ kb ];
         else
             m_fglide[ kb ] = 0.0;
 
-        outputs[ OUT_VOCTS + kb ].value = ( m_fCvStartOut[ kb ] * m_fglide[ kb ] ) + ( m_fCvEndOut[ kb ] * ( 1.0 - m_fglide[ kb ] ) );
+        if( m_bTrigMute || m_bChTrigMute[ kb ] )
+        	outputs[ OUT_VOCTS + kb ].value = flast[ kb ];
+        else
+        {
+        	flast[ kb ] = ( m_fCvStartOut[ kb ] * m_fglide[ kb ] ) + ( m_fCvEndOut[ kb ] * ( 1.0 - m_fglide[ kb ] ) );
+        	outputs[ OUT_VOCTS + kb ].value = flast[ kb ];
+        }
     }
 
     if( bGlobalClkTriggered )
