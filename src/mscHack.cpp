@@ -43,7 +43,7 @@ void init(rack::Plugin *p)
 //-----------------------------------------------------
 #define PHI 0x9e3779b9
 unsigned int Q[4096], c = 362436;
-unsigned int index = 4095;
+unsigned int rindex = 4095;
 
 void init_rand( unsigned int seed )
 {
@@ -57,7 +57,7 @@ void init_rand( unsigned int seed )
             Q[i] = Q[i - 3] ^ Q[i - 2] ^ PHI ^ i;
 
     c = 362436;
-    index = 4095;
+    rindex = 4095;
 }
 
 unsigned short srand(void)
@@ -65,8 +65,8 @@ unsigned short srand(void)
 	long long t, a = 18782LL;
     unsigned int x, r = 0xfffffffe;
 
-    index = (index + 1) & 4095;
-    t = a * Q[index] + c;
+    rindex = (rindex + 1) & 4095;
+    t = a * Q[rindex] + c;
     c = (t >> 32);
     x = t + c;
 
@@ -76,7 +76,7 @@ unsigned short srand(void)
         c++;
     }
 
-    return (unsigned short)( ( Q[index] = r - x ) & 0xFFFF );
+    return (unsigned short)( ( Q[rindex] = r - x ) & 0xFFFF );
 }
 
 float frand(void)
