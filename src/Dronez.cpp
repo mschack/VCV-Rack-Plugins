@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 //-----------------------------------------------------
 // General Definition
@@ -118,10 +117,14 @@ struct Dronez : Module
 	};
 
 	bool            m_bInitialized = false;
-    CLog            lg;
 
     // Contructor
-	Dronez() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	Dronez()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_SPEED, 0.0, 8.0, 4.0, "Morph speed" );
+    }
 
 	Label				*m_pTextLabel = NULL;
 	Label				*m_pTextLabel2 = NULL;
@@ -143,38 +146,41 @@ struct Dronez : Module
 	REVERB_STRUCT 		m_reverb = {};
 
 	// random seed
-	SchmittTrigger 		m_SchmitTrigRand;
+	dsp::SchmittTrigger m_SchmitTrigRand;
 
 	MyLEDButton    		*m_pButtonSeed[ 32 ] = {};
 	MyLEDButton    		*m_pButtonRand = NULL;
 	int   				m_Seed = 0;
 	int             	m_FadeState = FADE_IN;
 	float           	m_fFade = 0.0f;
-	float speeds[ 9 ] = { 0.1f, 0.25f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
+	float speeds[ 9 ] = { 0.01f, 0.1f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
 
     //-----------------------------------------------------
     // MySpeed_Knob
     //-----------------------------------------------------
-    struct MySpeed_Knob : Knob_Yellow3_20_Snap
+    struct MySpeed_Knob : MSCH_Widget_Knob1
     {
-        Dronez *mymodule;
-        char strVal[ 10 ] = {};
-
-        void onChange( EventChange &e ) override
+        MySpeed_Knob()
         {
-            mymodule = (Dronez*)module;
+            snap = true;
+            set( DWRGB( 255, 255, 0 ), DWRGB( 0, 0, 0 ), 13.0f );
+        }
 
-            if( mymodule )
-            {
-                if( !mymodule->m_bInitialized )
-                	return;
+        void onChange( const event::Change &e ) override
+        {
+            Dronez *mymodule;
+            char strVal[ 10 ] = {};
 
-                sprintf( strVal, "x%.2f", mymodule->speeds[ (int)value ] );
-                mymodule->m_pTextLabel2->text = strVal;
-            }
+            MSCH_Widget_Knob1::onChange( e );
 
-		    RoundKnob::onChange( e );
-	    }
+            mymodule = (Dronez*)paramQuantity->module;
+
+            if( !mymodule )
+                return;
+
+            sprintf( strVal, "x%.2f", mymodule->speeds[ (int)paramQuantity->getValue() ] );
+            mymodule->m_pTextLabel2->text = strVal;
+        }
     };
 
 
@@ -197,15 +203,14 @@ struct Dronez : Module
 	void processReverb( float In, float *pL, float *pR );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
-    void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+Dronez DronezBrowser;
 
 //-----------------------------------------------------
 // Dronez_SeedButton
@@ -226,7 +231,7 @@ void Dronez_RandButton( void *pClass, int id, bool bOn )
 	Dronez *mymodule;
     mymodule = (Dronez*)pClass;
 
-    mymodule->ChangeSeedPending( (int)randomu32() );
+    mymodule->ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -234,32 +239,33 @@ void Dronez_RandButton( void *pClass, int id, bool bOn )
 //
 //-----------------------------------------------------
 
-struct Dronez_Widget : ModuleWidget {
-	Dronez_Widget( Dronez *module );
-};
+struct Dronez_Widget : ModuleWidget 
+{
 
-Dronez_Widget::Dronez_Widget( Dronez *module ) : ModuleWidget(module)
+Dronez_Widget( Dronez *module )
 {
 	int i, x, y;
+    Dronez *pmod;
 
-	box.size = Vec( 15*5, 380 );
+    setModule(module);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Dronez.svg")));
-		addChild(panel);
-	}
+    if( !module )
+        pmod = &DronezBrowser;
+    else
+        pmod = module;
 
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Dronez::IN_VOCT ) );
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 241 ), Port::INPUT, module, Dronez::IN_RANDTRIG ) );
+    //box.size = Vec( 15*5, 380 );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/Dronez.svg")));
+
+	addInput(createInput<MyPortInSmall>( Vec( 10, 20 ), module, Dronez::IN_VOCT ) );
+	addInput(createInput<MyPortInSmall>( Vec( 10, 241 ), module, Dronez::IN_RANDTRIG ) );
 
     // random button
-    module->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Dronez_RandButton );
-	addChild( module->m_pButtonRand );
+    pmod->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Dronez_RandButton );
+	addChild( pmod->m_pButtonRand );
 
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Dronez::OUT_L ) );
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 45 ), Port::OUTPUT, module, Dronez::OUT_R ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 20 ), module, Dronez::OUT_L ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 45 ), module, Dronez::OUT_R ) );
 
 	y = 95;
 	x = 9;
@@ -268,8 +274,8 @@ Dronez_Widget::Dronez_Widget( Dronez *module ) : ModuleWidget(module)
 
 	for( i = 31; i >=0; i-- )
 	{
-	    module->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Dronez_SeedButton );
-		addChild( module->m_pButtonSeed[ i ] );
+        pmod->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Dronez_SeedButton );
+		addChild( pmod->m_pButtonSeed[ i ] );
 
 		if( i % 4 == 0 )
 		{
@@ -282,24 +288,28 @@ Dronez_Widget::Dronez_Widget( Dronez *module ) : ModuleWidget(module)
 		}
 	}
 
-	addParam(ParamWidget::create<Dronez::MySpeed_Knob>( Vec( 10, 280 ), module, Dronez::PARAM_SPEED, 0.0, 8.0, 4.0 ) );
+	addParam(createParam<Dronez::MySpeed_Knob>( Vec( 10, 280 ), module, Dronez::PARAM_SPEED ) );
 
-	module->m_pTextLabel2 = new Label();
-	module->m_pTextLabel2->box.pos = Vec( 30, 280 );
-	module->m_pTextLabel2->text = "x1.00";
-	addChild( module->m_pTextLabel2 );
+    pmod->m_pTextLabel2 = new Label();
+    pmod->m_pTextLabel2->box.pos = Vec( 30, 280 );
+    pmod->m_pTextLabel2->text = "x1.00";
+	addChild( pmod->m_pTextLabel2 );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 0, 213 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 0, 213 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
-	addChild(Widget::create<ScrewSilver>(Vec(30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(30, 365)));
+	addChild(createWidget<ScrewSilver>(Vec(30, 0)));
+	addChild(createWidget<ScrewSilver>(Vec(30, 365)));
 
-	module->putseed( (int)randomu32() );
-	module->BuildDrone();
+    if( module )
+    {
+	    module->putseed( (int)random::u32() );
+	    module->BuildDrone();
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -314,7 +324,7 @@ void Dronez::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *Dronez::toJson()
+json_t *Dronez::dataToJson()
 {
 	json_t *root = json_object();
 
@@ -330,7 +340,7 @@ json_t *Dronez::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Dronez::fromJson( json_t *root )
+void Dronez::dataFromJson( json_t *root )
 {
 	//char strVal[ 10 ] = {};
 
@@ -343,36 +353,12 @@ void Dronez::fromJson( json_t *root )
 }
 
 //-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void Dronez::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void Dronez::onDelete()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onReset
-//
-//-----------------------------------------------------
-void Dronez::onReset()
-{
-}
-
-//-----------------------------------------------------
 // Procedure:   onRandomize
 //
 //-----------------------------------------------------
 void Dronez::onRandomize()
 {
-	ChangeSeedPending( (int)randomu32() );
+	ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -464,10 +450,21 @@ void Dronez::RandPresetWaveAdjust( EnvelopeData *pEnv )
 // Procedure:   BuildWave
 //
 //-----------------------------------------------------
-float semis[ 8 ] = { (SEMI * 5.0f), (SEMI * 6.0f), (SEMI * 9.0f), (SEMI * 11.0f), (SEMI * 21.0f), (SEMI * 12.0f), (SEMI * 24.0f), (SEMI * 29.0f) };
+float semis[ 8 ] = { (SEMI * 5.0f), (SEMI * 12.0f), (SEMI * 17.0f), (SEMI * 24.0f), (SEMI * 29.0f), (SEMI * 36.0f), (SEMI * 41.0f), (SEMI * 48.0f) };
 void Dronez::BuildWave( int ch )
 {
-	m_osc[ ch ].semi = semis[ srand() & 0x7 ];
+    if( srand() & 1 )
+    {
+	    m_osc[ ch ].semi = 0;//semis[ srand() & 0x7 ];
+    }
+    else if( srand() & 1 )
+    {
+        m_osc[ ch ].semi = 1;
+    }
+    else
+    {
+        m_osc[ ch ].semi = 2;
+    }
 
 	// audio waves
 	m_wav[ ch ][ 0 ].Init( EnvelopeData::MODE_LOOP, EnvelopeData::RANGE_Audio, false, 1.0f );
@@ -534,7 +531,7 @@ void Dronez::BuildDrone( void )
     //-----------------------------------------------------
     // Reverb
 	for( i = 0; i < REV_TAPS; i++ )
-		m_reverb.out[ i ] = ( m_reverb.in - (int)( engineGetSampleRate() * frand_mm( 0.01f, .1f ) ) ) & REV_BUF_MAX;
+		m_reverb.out[ i ] = ( m_reverb.in - (int)( APP->engine->getSampleRate() * frand_mm( 0.01f, .1f ) ) ) & REV_BUF_MAX;
 
 	m_bInitialized = true;
 }
@@ -572,7 +569,7 @@ void Dronez::ChangeFilterCutoff( FILTER_STRUCT *pf, float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate());
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate());
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -679,7 +676,7 @@ void Dronez::processReverb( float In, float *pL, float *pR )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Dronez::step()
+void Dronez::process(const ProcessArgs &args)
 {
 	float out = 0.0f, In =0.0f, outL = 0.0f, outR = 0.0f, fmorph[ nCHANNELS ], fcv=0.0f;
 	int ch, i, wv;
@@ -688,10 +685,10 @@ void Dronez::step()
 		return;
 
 	// randomize trigger
-	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].normalize( 0.0f ) ) )
+	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].getNormalVoltage( 0.0f ) ) )
 	{
 		m_pButtonRand->Set( true );
-		ChangeSeedPending( (int)randomu32() );
+		ChangeSeedPending( (int)random::u32() );
 	}
 
     switch( m_FadeState )
@@ -720,7 +717,7 @@ void Dronez::step()
 
 	for( i = 0; i < nGLOBALOSCS; i++ )
 	{
-		m_global[ i ].m_Clock.syncInc = m_GlobalOsc[ i ].finc * speeds[ (int)params[ PARAM_SPEED ].value ];
+		m_global[ i ].m_Clock.syncInc = m_GlobalOsc[ i ].finc * speeds[ (int)params[ PARAM_SPEED ].getValue() ];
 		m_GlobalOsc[ i ].fval = m_global[ i ].procStep( false, false );
 	}
 
@@ -730,7 +727,7 @@ void Dronez::step()
 		// process modulation waves
 		for( i = 0; i < nMODS; i++ )
 		{
-			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].value ];
+			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].getValue() ];
 			m_osc[ ch ].fval[ i ] = m_mod[ ch ][ i ].procStep( false, false );
 		}
 
@@ -755,7 +752,7 @@ void Dronez::step()
 		// get wave audio
 		for( wv = 0; wv < nMORPH_WAVES; wv++ )
 		{
-			m_wav[ ch ][ wv ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ IN_VOCT ].normalize( 3.0f ) + m_osc[ ch ].semi, 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
+			m_wav[ ch ][ wv ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ IN_VOCT ].getNormalVoltage( 3.0f ) + m_osc[ ch ].semi, 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
 
 			if( wv == 0 )
 			{
@@ -786,8 +783,8 @@ void Dronez::step()
 
 	processReverb( out, &outL, &outR );
 
-	outputs[ OUT_L ].value = outL;
-	outputs[ OUT_R ].value = outR;
+	outputs[ OUT_L ].setVoltage( outL );
+	outputs[ OUT_R ].setVoltage( outR );
 }
 
-Model *modelDronez = Model::create<Dronez, Dronez_Widget>( "mscHack", "Dronez", "Dronez module", OSCILLATOR_TAG, MULTIPLE_TAG );
+Model *modelDronez = createModel<Dronez, Dronez_Widget>( "Dronez" );

@@ -1,40 +1,38 @@
 #include "mscHack.hpp"
 
-Plugin *plugin;
+Plugin *thePlugin;
 
 void init(rack::Plugin *p) 
 {
-	plugin = p;
+    thePlugin = p;
 
-	plugin->website = "https://github.com/mschack/VCV-Rack-Plugins";
-	p->slug = TOSTRING(SLUG);
-	p->version = TOSTRING(VERSION);
-
-    p->addModel( modelMasterClockx4 );
+    /*
     p->addModel( modelSeq_3x16x16 );
-    p->addModel( modelSEQ_6x32x16 );
-    p->addModel( modelSeq_Triad2 );
-    p->addModel( modelSEQ_Envelope_8 );
     p->addModel( modelMaude_221 );
-    p->addModel( modelARP700 );
-    p->addModel( modelSynthDrums );
     p->addModel( modelXFade );
-    p->addModel( modelMix_1x4_Stereo );
-    p->addModel( modelMix_2x4_Stereo );
-    p->addModel( modelMix_4x4_Stereo );
+    p->addModel( modelStepDelay );
+    p->addModel( modelCompressor );
+    */
+
+    p->addModel( modelSynthDrums );
+    p->addModel( modelSEQ_6x32x16 );
+    p->addModel( modelMasterClockx4 );
+    p->addModel( modelMasterClockx8 );  
+    p->addModel( modelSEQ_Envelope_8 );
+    p->addModel( modelSeq_Triad2 );
+    p->addModel( modelARP700 );
+    p->addModel( modelMix_4_0_4 );
     p->addModel( modelMix_9_3_4 );
     p->addModel( modelMix_16_4_4 );
     p->addModel( modelMix_24_4_4 );
     p->addModel( modelASAF8 );
-    p->addModel( modelStepDelay );
     p->addModel( modelPingPong );
     p->addModel( modelOsc_3Ch );
-    p->addModel( modelOSC_WaveMorph_3 );
     p->addModel( modelDronez );
     p->addModel( modelMorze );
     p->addModel( modelWindz );
     p->addModel( modelAlienz );
-    p->addModel( modelCompressor );
+    p->addModel( modelOSC_WaveMorph_3 );
 }
 
 //-----------------------------------------------------

@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 #define WAVE_BUFFER_LEN ( 192000 / 20 ) // (9600) based on quality for 20Hz at max sample rate 192000
 
@@ -63,7 +62,6 @@ struct Morze : Module
         nLIGHTS
 	};
 
-    CLog            lg;
     bool            m_bInitialized = false;
 
     int             m_Index = 0;
@@ -73,7 +71,7 @@ struct Morze : Module
 
     std::string     m_stdCurrent;
 
-    SchmittTrigger 	m_SchmitTrig;
+    dsp::SchmittTrigger 	m_SchmitTrig;
     bool            m_bTrigWait = true;
 
     TextField 		*m_TextField = NULL;
@@ -83,72 +81,75 @@ struct Morze : Module
     Label			*m_pTextLabel = NULL;
 
     // Contructor
-    Morze() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+    Morze()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_SPEED, 0.0f, 1.0f, 0.5f, "Morse speed" );
+    }
 
     void    Text2Code( char *strText );
     bool    GetGate( void );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
-    void    onRandomize() override;
-    void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
 };
+
+Morze MorzeBrowser;
 
 //-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
 
-struct Morze_Widget : ModuleWidget {
-	Morze_Widget( Morze *module );
-};
-
-Morze_Widget::Morze_Widget( Morze *module ) : ModuleWidget(module)
+struct Morze_Widget : ModuleWidget 
 {
-	box.size = Vec( 15*5, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Morze.svg")));
-		addChild(panel);
-	}
+Morze_Widget( Morze *module )
+{
+    Morze *pmod;
 
-    //module->lg.Open("c://users//mark//documents//rack//Morze.txt");
+    setModule(module);
 
-	//mm2px(Vec(3.39962, 14.8373))
+    if( !module )
+        pmod = &MorzeBrowser;
+    else
+        pmod = module;
 
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Morze::IN_TRIG ) );
+    //box.size = Vec( 15*5, 380 );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/Morze.svg")));
 
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Morze::OUT_GATE ) );
+	addInput(createInput<MyPortInSmall>( Vec( 10, 20 ), module, Morze::IN_TRIG ) );
 
-	addParam(ParamWidget::create<Knob_Yellow3_20>( Vec( 10, 280 ), module, Morze::PARAM_SPEED, 0.0f, 1.0f, 0.5f ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 20 ), module, Morze::OUT_GATE ) );
 
-	module->m_TextField = Widget::create<LedDisplayTextField>( Vec( 4, 100 ) );
-	module->m_TextField->box.size = Vec( 67, 150.0 );
-	module->m_TextField->multiline = true;
-	addChild( module->m_TextField );
-	module->m_TextField->text = "mscHack";
+	addParam(createParam<Knob_Yellow3_20>( Vec( 10, 280 ), module, Morze::PARAM_SPEED ) );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 30, 250 );
-	module->m_pTextLabel->text = "";
-	addChild( module->m_pTextLabel );
+    pmod->m_TextField = createWidget<LedDisplayTextField>( Vec( 4, 100 ) );
+    pmod->m_TextField->box.size = Vec( 67, 150.0 );
+    pmod->m_TextField->multiline = true;
+	addChild( pmod->m_TextField );
+    pmod->m_TextField->text = "mscHack";
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 30, 250 );
+    pmod->m_pTextLabel->text = "";
+	addChild( pmod->m_pTextLabel );
 
-	module->Text2Code( (char*)module->m_TextField->text.c_str() );
-	//module->BuildWaves();
-	module->m_bInitialized = true;
+    addChild(createWidget<ScrewSilver>(Vec(30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(30, 365)));
+
+    if( module )
+    {
+	    module->Text2Code( (char*)module->m_TextField->text.c_str() );
+	    //module->BuildWaves();
+	    module->m_bInitialized = true;
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -163,7 +164,7 @@ void Morze::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *Morze::toJson()
+json_t *Morze::dataToJson()
 {
 	json_t *root = json_object();
 
@@ -179,43 +180,11 @@ json_t *Morze::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Morze::fromJson( json_t *root )
+void Morze::dataFromJson( json_t *root )
 {
     JsonParams( FROMJSON, root );
 
     Text2Code( (char*)m_TextField->text.c_str() );
-}
-
-//-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void Morze::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void Morze::onDelete()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onReset
-//
-//-----------------------------------------------------
-void Morze::onReset()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onRandomize
-//
-//-----------------------------------------------------
-void Morze::onRandomize()
-{
 }
 
 //-----------------------------------------------------
@@ -334,7 +303,7 @@ bool Morze::GetGate( void )
 {
 	char strChar[ 2 ] = {0};
 	static int spc = 10;
-	int ms = (int)( ( engineGetSampleRate() / 1000.0f ) * ( ( 1.0 - params[ PARAM_SPEED ].value ) + 0.5f ) );
+	int ms = (int)( ( APP->engine->getSampleRate() / 1000.0f ) * ( ( 1.0 - params[ PARAM_SPEED ].getValue() ) + 0.5f ) );
 
 	if( --m_count > 0 )
 		return m_bGate;
@@ -401,7 +370,7 @@ bool Morze::GetGate( void )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Morze::step()
+void Morze::process(const ProcessArgs &args)
 {
 	static int checkcount = 0;
 
@@ -415,26 +384,26 @@ void Morze::step()
 			Text2Code( (char*)m_TextField->text.c_str() );
 		}
 
-		checkcount = (int)( engineGetSampleRate() / 10.0f );
+		checkcount = (int)( args.sampleRate / 10.0f );
 	}
 
 	if( m_bTrigWait )
 	{
-		if( m_SchmitTrig.process( inputs[ IN_TRIG ].normalize( 0.0f ) ) )
+		if( m_SchmitTrig.process( inputs[ IN_TRIG ].getNormalVoltage( 0.0f ) ) )
 		{
 			m_bTrigWait = false;
 		}
 		else
 		{
-			outputs[ OUT_GATE ].value = 0.0f;
+			outputs[ OUT_GATE ].setVoltage( 0.0f );
 			return;
 		}
 	}
 
 	if( GetGate() )
-		outputs[ OUT_GATE ].value = CV_MAX;
+		outputs[ OUT_GATE ].setVoltage ( CV_MAX10 );
 	else
-		outputs[ OUT_GATE ].value = 0.0f;
+		outputs[ OUT_GATE ].setVoltage ( 0.0f );
 }
 
-Model *modelMorze = Model::create<Morze, Morze_Widget>( "mscHack", "Morze", "Morze - Morse Code generator", SEQUENCER_TAG, UTILITY_TAG );
+Model *modelMorze = createModel<Morze, Morze_Widget>( "Morze" );

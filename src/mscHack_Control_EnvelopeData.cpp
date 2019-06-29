@@ -392,7 +392,7 @@ bool EnvelopeData::process_state( bool bTrig, bool bHold )
 
                 case MODE_REVERSE:
                 default:
-                    m_Clock.fpos += engineGetSampleRate();
+                    m_Clock.fpos += APP->engine->getSampleRate();
                 }
             }
         }
@@ -401,25 +401,25 @@ bool EnvelopeData::process_state( bool bTrig, bool bHold )
         {
             m_Clock.fpos += m_Clock.syncInc;
 
-            if( m_Clock.fpos >= engineGetSampleRate() )
+            if( m_Clock.fpos >= APP->engine->getSampleRate() )
             {
                 switch( m_Mode )
                 {
                 case MODE_ONESHOT:
-                    m_Clock.fpos = engineGetSampleRate() - 1.0f;;
+                    m_Clock.fpos = APP->engine->getSampleRate() - 1.0f;;
                     m_Clock.state = STATE_WAIT_TRIG;
                     break;
                 case MODE_TWOSHOT:
-                    m_Clock.fpos = engineGetSampleRate() - 1.0f;
+                    m_Clock.fpos = APP->engine->getSampleRate() - 1.0f;
                     m_Clock.state = STATE_WAIT_TRIG_REV;
                     break;
                 case MODE_PINGPONG:
-                    m_Clock.fpos -= (m_Clock.fpos - engineGetSampleRate()) * 2.0f;
+                    m_Clock.fpos -= (m_Clock.fpos - APP->engine->getSampleRate()) * 2.0f;
                     m_Clock.state = STATE_RUN_REV;
                     break;
                 case MODE_LOOP:
                 default:
-                    m_Clock.fpos -= engineGetSampleRate();
+                    m_Clock.fpos -= APP->engine->getSampleRate();
                 }
             }
         }
@@ -436,7 +436,7 @@ bool EnvelopeData::process_state( bool bTrig, bool bHold )
     case STATE_WAIT_TRIG_REV:
         if( bTrig )
         {
-            m_Clock.fpos = engineGetSampleRate();
+            m_Clock.fpos = APP->engine->getSampleRate();
             m_Clock.state = STATE_RUN_REV;
         }
         break;
@@ -465,9 +465,9 @@ float EnvelopeData::procStep( bool bTrig, bool bHold )
 
     process_state( bTrig, bHold );
 
-    m_fIndicator = m_Clock.fpos / engineGetSampleRate();
+    m_fIndicator = m_Clock.fpos / APP->engine->getSampleRate();
 
-    handle = (int)( m_Clock.fpos / ( engineGetSampleRate() / (float)ENVELOPE_DIVISIONS ) );
+    handle = (int)( m_Clock.fpos / ( APP->engine->getSampleRate() / (float)ENVELOPE_DIVISIONS ) );
 
     return valfromline( handle, m_fIndicator * m_fsegsize * (float)ENVELOPE_DIVISIONS );
 }

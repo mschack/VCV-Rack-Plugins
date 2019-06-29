@@ -14,7 +14,7 @@
    viewBox="0 0 7.9374999 4.2333335"
    version="1.1"
    id="svg2526"
-   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="mschack_5p_filtersel_01.svg">
   <defs
      id="defs2520" />
@@ -26,10 +26,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="22.4"
-     inkscape:cx="10.938247"
+     inkscape:cx="3.6837827"
      inkscape:cy="0.052686688"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer2"
+     inkscape:current-layer="layer1"
      showgrid="false"
      units="px"
      inkscape:window-width="1858"
@@ -45,7 +45,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -54,11 +54,11 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(0,-292.76665)"
-     sodipodi:insensitive="true">
+     style="display:inline">
     <rect
-       style="fill:#000000;fill-opacity:0.99447512;stroke-width:0.50718451"
+       style="fill:#000000;fill-opacity:0.99447512;stroke-width:0.53000587"
        id="rect3071"
-       width="7.3168006"
+       width="7.9900708"
        height="4.2533593"
        x="0.0002345495"
        y="292.76523" />

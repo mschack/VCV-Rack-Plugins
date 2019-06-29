@@ -1,7 +1,4 @@
 ﻿#include "mscHack.hpp"
-//#include "mscHack_Controls.hpp"
-#include "dsp/digital.hpp"
-//#include "CLog.h"
 
 #define nCHANNELS 6
 #define nSTEPS 32
@@ -23,11 +20,7 @@ struct SEQ_6x32x16 : Module
 
 	enum ParamIds 
     {
-        PARAM_CPY_NEXT,
-        PARAM_RAND          = PARAM_CPY_NEXT + nCHANNELS,
-        PARAM_PAUSE         = PARAM_RAND + nCHANNELS,
-        PARAM_BILEVEL       = PARAM_PAUSE + nCHANNELS,
-        PARAM_LVL1_KNOB     = PARAM_BILEVEL + nCHANNELS,
+        PARAM_LVL1_KNOB,
         PARAM_LVL2_KNOB     = PARAM_LVL1_KNOB + nCHANNELS,
         PARAM_LVL3_KNOB     = PARAM_LVL2_KNOB + nCHANNELS,
         PARAM_LVL4_KNOB     = PARAM_LVL3_KNOB + nCHANNELS,
@@ -54,7 +47,6 @@ struct SEQ_6x32x16 : Module
 	};
 
     bool            m_bInitialized = false;
-    CLog            lg;
 
     bool            m_bPauseState[ nCHANNELS ] = {};
     bool            m_bBiLevelState[ nCHANNELS ] = {};
@@ -68,14 +60,14 @@ struct SEQ_6x32x16 : Module
     int                     m_MaxProg[ nCHANNELS ] = {};
     PHRASE_CHANGE_STRUCT    m_ProgPending[ nCHANNELS ] = {};
 
-    SchmittTrigger          m_SchTrigClock[ nCHANNELS ];
-    SchmittTrigger          m_SchTrigProg[ nCHANNELS ];
-    SchmittTrigger          m_SchTrigGlobalClkReset;
-    SchmittTrigger          m_SchTrigGlobalProg;
+    dsp::SchmittTrigger          m_SchTrigClock[ nCHANNELS ];
+    dsp::SchmittTrigger          m_SchTrigProg[ nCHANNELS ];
+    dsp::SchmittTrigger          m_SchTrigGlobalClkReset;
+    dsp::SchmittTrigger          m_SchTrigGlobalProg;
 
     bool                    m_bTrig[ nCHANNELS ] = {};
-    PulseGenerator          m_gatePulse[ nCHANNELS ];
-    PulseGenerator          m_gateBeatPulse[ nCHANNELS ];
+    dsp::PulseGenerator          m_gatePulse[ nCHANNELS ];
+    dsp::PulseGenerator          m_gateBeatPulse[ nCHANNELS ];
 
     // swing
     //int                     m_SwingLen[ nCHANNELS ] = {0};
@@ -105,12 +97,24 @@ struct SEQ_6x32x16 : Module
     char                    m_strRange[ 10 ] = {0};
 
     // Contructor
-	SEQ_6x32x16() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
+	SEQ_6x32x16()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, 0);
+
+        for( int i = 0; i < nCHANNELS; i++ )
+        {
+            configParam( PARAM_LVL1_KNOB + i, 0.0, 1.0, 0.25, "Level Lo" );
+            configParam( PARAM_LVL2_KNOB + i, 0.0, 1.0, 0.33, "Level Med Lo" );
+            configParam( PARAM_LVL3_KNOB + i, 0.0, 1.0, 0.50, "Level Med" );
+            configParam( PARAM_LVL4_KNOB + i, 0.0, 1.0, 0.75, "Level Med Hi" );
+            configParam( PARAM_LVL5_KNOB + i, 0.0, 1.0, 0.9 , "Level Hi" );
+        }
+    }
 
     // Overrides 
-	void    step() override;
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
     void    onReset() override;
 
@@ -121,6 +125,8 @@ struct SEQ_6x32x16 : Module
     void    SetPendingProg( int ch, int prog );
     void    Copy( int kb, bool bOn );
 };
+
+SEQ_6x32x16 SEQ_6x32x16Browser;
 
 //-----------------------------------------------------
 // MyLEDButton_TrigMute
@@ -252,61 +258,89 @@ void SEQ_6x32x16_ProgramChangeCallback ( void *pClass, int ch, int pat, int max 
 }
 
 //-----------------------------------------------------
+// Procedure:   MenuItem
+//
+//-----------------------------------------------------
+struct SEQ_6x32x16_CVRange : MenuItem 
+{
+    SEQ_6x32x16 *menumod;
+
+    void onAction(const event::Action &e) override 
+    {
+        menumod->m_RangeSelect++;
+
+        if( menumod->m_RangeSelect > 2 )
+            menumod->m_RangeSelect = 0;
+
+        sprintf( menumod->m_strRange, "%.1fV", menumod->m_fCVRanges[ menumod->m_RangeSelect ] );
+    }
+
+    void step() override 
+    {
+        rightText = menumod->m_strRange;
+    }
+};
+
+//-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
 
 struct SEQ_6x32x16_Widget : ModuleWidget 
 {
-    Menu *createContextMenu() override;
-	SEQ_6x32x16_Widget( SEQ_6x32x16 *module );
-};
 
-SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(module) 
+SEQ_6x32x16_Widget( SEQ_6x32x16 *module )
 {
     int x, y, x2, y2;
     ParamWidget *pWidget = NULL;
+    SEQ_6x32x16 *pmod;
 
-	box.size = Vec( 15*41, 380);
+    //box.size = Vec( 15*41, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/SEQ_6x32x16.svg")));
-		addChild(panel);
-	}
+    setModule(module);
 
-    //module->lg.Open("SEQ_6x32x16.txt");
+    if( !module )
+        pmod = &SEQ_6x32x16Browser;
+    else
+        pmod = module;
+
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/SEQ_6x32x16.svg")));
+
+    //screw
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     x = 7;
     y = 22;
 
     // global inputs
-    addInput(Port::create<MyPortInSmall>( Vec( 204, 357 ), Port::INPUT, module, SEQ_6x32x16::IN_GLOBAL_CLK_RESET ) );
-    addInput(Port::create<MyPortInSmall>( Vec( 90, 357 ), Port::INPUT, module, SEQ_6x32x16::IN_GLOBAL_PAT_CHANGE ) );
+    addInput(createInput<MyPortInSmall>( Vec( 204, 357 ), module, SEQ_6x32x16::IN_GLOBAL_CLK_RESET ) );
+    addInput(createInput<MyPortInSmall>( Vec( 90, 357 ), module, SEQ_6x32x16::IN_GLOBAL_PAT_CHANGE ) );
 
     // trig mute
-    module->m_pButtonTrigMute = new MyLEDButton( 491, 3, 15, 15, 13.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, MyLEDButton_TrigMute );
-    addChild( module->m_pButtonTrigMute );
+    pmod->m_pButtonTrigMute = new MyLEDButton( 491, 3, 15, 15, 13.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, MyLEDButton_TrigMute );
+    addChild( pmod->m_pButtonTrigMute );
 
-    addInput(Port::create<MyPortInSmall>( Vec( 466, 1 ), Port::INPUT, module, SEQ_6x32x16::IN_GLOBAL_TRIG_MUTE ) );
+    addInput(createInput<MyPortInSmall>( Vec( 466, 1 ), module, SEQ_6x32x16::IN_GLOBAL_TRIG_MUTE ) );
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
         // inputs
-        addInput(Port::create<MyPortInSmall>( Vec( x + 6, y + 7 ), Port::INPUT, module, SEQ_6x32x16::IN_CLK + ch ) );
-        addInput(Port::create<MyPortInSmall>( Vec( x + 64, y + 31 ), Port::INPUT, module, SEQ_6x32x16::IN_PAT_TRIG + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x + 6, y + 7 ),   module, SEQ_6x32x16::IN_CLK + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x + 64, y + 31 ), module, SEQ_6x32x16::IN_PAT_TRIG + ch ) );
 
         // pattern display
-        module->m_pPatternDisplay[ ch ] = new SinglePatternClocked32( x + 39, y + 2, 13, 13, 5, 2, 7, DWRGB( 255, 128, 64 ), DWRGB( 18, 9, 0 ), DWRGB( 180, 75, 180 ), DWRGB( 80, 45, 80 ), nSTEPS, ch, module, SEQ_6x32x16_PatternChangeCallback );
-	    addChild( module->m_pPatternDisplay[ ch ] );
+        pmod->m_pPatternDisplay[ ch ] = new SinglePatternClocked32( x + 39, y + 2, 13, 13, 5, 2, 7, DWRGB( 255, 128, 64 ), DWRGB( 18, 9, 0 ), DWRGB( 180, 75, 180 ), DWRGB( 80, 45, 80 ), nSTEPS, ch, module, SEQ_6x32x16_PatternChangeCallback );
+	    addChild( pmod->m_pPatternDisplay[ ch ] );
 
         // program display
-        module->m_pProgramDisplay[ ch ] = new PatternSelectStrip( x + 106, y + 31, 9, 7, DWRGB( 180, 180, 0 ), DWRGB( 90, 90, 64 ), DWRGB( 0, 180, 200 ), DWRGB( 0, 90, 90 ), nPROG, ch, module, SEQ_6x32x16_ProgramChangeCallback );
-	    addChild( module->m_pProgramDisplay[ ch ] );
+        pmod->m_pProgramDisplay[ ch ] = new PatternSelectStrip( x + 106, y + 31, 9, 7, DWRGB( 180, 180, 0 ), DWRGB( 90, 90, 64 ), DWRGB( 0, 180, 200 ), DWRGB( 0, 90, 90 ), nPROG, ch, module, SEQ_6x32x16_ProgramChangeCallback );
+	    addChild( pmod->m_pProgramDisplay[ ch ] );
 
         // add knobs
-        y2 = y + 34;
+        y2 = y + 31;
         //pWidget = ParamWidget::create<Knob_Green1_15>( Vec( x + 374, y2 ), module, SEQ_6x32x16::PARAM_SWING_KNOB + ch, 0.0, 0.6, 0.0 );
 
         // removed for now
@@ -317,52 +351,70 @@ SEQ_6x32x16_Widget::SEQ_6x32x16_Widget( SEQ_6x32x16 *module ) : ModuleWidget(mod
         }
 
         x2 = x + 447;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL1_KNOB + ch, 0.0, 1.0, 0.25 ) ); x2 += 19;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL2_KNOB + ch, 0.0, 1.0, 0.33 ) ); x2 += 19;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL3_KNOB + ch, 0.0, 1.0, 0.50 ) ); x2 += 19;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL4_KNOB + ch, 0.0, 1.0, 0.75 ) ); x2 += 19;
-        addParam(ParamWidget::create<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL5_KNOB + ch, 0.0, 1.0, 0.9 ) );
+        addParam(createParam<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL1_KNOB + ch ) ); x2 += 19;
+        addParam(createParam<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL2_KNOB + ch ) ); x2 += 19;
+        addParam(createParam<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL3_KNOB + ch ) ); x2 += 19;
+        addParam(createParam<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL4_KNOB + ch ) ); x2 += 19;
+        addParam(createParam<Knob_Green1_15>( Vec( x2, y2 ), module, SEQ_6x32x16::PARAM_LVL5_KNOB + ch ) );
 
         // add buttons
-        module->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
-	    addChild( module->m_pButtonAutoPat[ ch ] );
+        pmod->m_pButtonAutoPat[ ch ] = new MyLEDButton( x + 55, y + 35, 9, 9, 6.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_AutoPat );
+	    addChild( pmod->m_pButtonAutoPat[ ch ] );
 
-        module->m_pButtonPause[ ch ] = new MyLEDButton( x + 26, y + 10, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_Pause );
-	    addChild( module->m_pButtonPause[ ch ] );
+        pmod->m_pButtonPause[ ch ] = new MyLEDButton( x + 26, y + 10, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_Pause );
+	    addChild( pmod->m_pButtonPause[ ch ] );
 
         y2 = y + 33;
-        module->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_CpyNxt );
-	    addChild( module->m_pButtonCopy[ ch ] );
+        pmod->m_pButtonCopy[ ch ] = new MyLEDButton( x + 290, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_CpyNxt );
+	    addChild( pmod->m_pButtonCopy[ ch ] );
 
-        module->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
-	    addChild( module->m_pButtonRand[ ch ] );
+        pmod->m_pButtonRand[ ch ] = new MyLEDButton( x + 315, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Rand );
+	    addChild( pmod->m_pButtonRand[ ch ] );
 
-        module->m_pButtonClear[ ch ] = new MyLEDButton( x + 340, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Clear );
-	    addChild( module->m_pButtonClear[ ch ] );
+        pmod->m_pButtonClear[ ch ] = new MyLEDButton( x + 340, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_MOMENTARY, ch, module, MyLEDButton_Clear );
+	    addChild( pmod->m_pButtonClear[ ch ] );
 
-        module->m_pButtonHoldCV[ ch ] = new MyLEDButton( x + 405, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_HoldCV );
-	    addChild( module->m_pButtonHoldCV[ ch ] );
+        pmod->m_pButtonHoldCV[ ch ] = new MyLEDButton( x + 405, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_HoldCV );
+	    addChild( pmod->m_pButtonHoldCV[ ch ] );
 
-        module->m_pButtonBiLevel[ ch ] = new MyLEDButton( x + 425, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_BiLevel );
-	    addChild( module->m_pButtonBiLevel[ ch ] );
+        pmod->m_pButtonBiLevel[ ch ] = new MyLEDButton( x + 425, y2, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 244, 244 ), MyLEDButton::TYPE_SWITCH, ch, module, MyLEDButton_BiLevel );
+	    addChild( pmod->m_pButtonBiLevel[ ch ] );
 
         // add outputs
-        addOutput(Port::create<MyPortOutSmall>( Vec( x + 580, y + 7 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_TRIG + ch ) );
-        addOutput(Port::create<MyPortOutSmall>( Vec( x + 544, y + 33 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_LEVEL + ch ) );
-        addOutput(Port::create<MyPortOutSmall>( Vec( x + 37, y + 31 ), Port::OUTPUT, module, SEQ_6x32x16::OUT_BEAT1 + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 580, y + 7 ), module, SEQ_6x32x16::OUT_TRIG + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 544, y + 31 ), module, SEQ_6x32x16::OUT_LEVEL + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 37, y + 31 ), module, SEQ_6x32x16::OUT_BEAT1 + ch ) );
 
         y += 56;
     }
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+    if( module )
+    {
+        module->m_bInitialized = true;
 
-    module->m_bInitialized = true;
-
-    module->onReset();
+        module->onReset();
+    }
 }
+
+//-----------------------------------------------------
+// Procedure:   createContextMenu
+//
+//-----------------------------------------------------
+void appendContextMenu(Menu *menu) override 
+{
+    menu->addChild(new MenuEntry);
+
+    SEQ_6x32x16 *mod = dynamic_cast<SEQ_6x32x16*>(module);
+    assert(mod);
+
+    menu->addChild( createMenuLabel( "---- CV Output Level ----" ));
+
+    SEQ_6x32x16_CVRange *pMergeItem1 = createMenuItem<SEQ_6x32x16_CVRange>("VRange (15, 10, 5):");
+    pMergeItem1->menumod = mod;
+    menu->addChild(pMergeItem1);
+}
+
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -386,7 +438,7 @@ void SEQ_6x32x16::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *SEQ_6x32x16::toJson() 
+json_t *SEQ_6x32x16::dataToJson() 
 {
 	json_t *root = json_object();
 
@@ -402,7 +454,7 @@ json_t *SEQ_6x32x16::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void SEQ_6x32x16::fromJson( json_t *root ) 
+void SEQ_6x32x16::dataFromJson( json_t *root ) 
 {
     JsonParams( FROMJSON, root );
 
@@ -477,7 +529,7 @@ void SEQ_6x32x16::onRandomize()
         {
             for( int i = 0; i < nSTEPS; i++ )
             {
-                m_Pattern[ ch ][ p ][ i ] = (int)(randomUniform() * 5.0 );
+                m_Pattern[ ch ][ p ][ i ] = (int)(random::uniform() * 5.0 );
             }
         }
 
@@ -493,8 +545,8 @@ void SEQ_6x32x16::Rand( int ch )
 {
     for( int i = 0; i < nSTEPS; i++ )
     {
-        if( i <= m_MaxPat[ ch ][ m_CurrentProg[ ch ] ] && randomUniform() > 0.5f )
-            m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(randomUniform() * 5.0 );
+        if( i <= m_MaxPat[ ch ][ m_CurrentProg[ ch ] ] && random::uniform() > 0.5f )
+            m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = (int)(random::uniform() * 5.0 );
         else
             m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ i ] = 0;
     }
@@ -517,7 +569,7 @@ void SEQ_6x32x16::CpyNext( int ch )
 
     memcpy( m_Pattern[ ch ][ next ], m_Pattern[ ch ][ m_CurrentProg[ ch ] ], sizeof(int) * nSTEPS );
 
-    if(m_bPauseState[ ch ] || !inputs[ SEQ_6x32x16::IN_CLK + ch ].active )
+    if(m_bPauseState[ ch ] || !inputs[ SEQ_6x32x16::IN_CLK + ch ].getVoltage() )
         ChangeProg( ch, next, false );
 }
 
@@ -602,7 +654,7 @@ void SEQ_6x32x16::SetPendingProg( int ch, int progIn )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void SEQ_6x32x16::step() 
+void SEQ_6x32x16::process(const ProcessArgs &args)
 {
 	static float flast[ nCHANNELS ] = {};
     int ch, level, useclock;
@@ -612,14 +664,14 @@ void SEQ_6x32x16::step()
     if( !m_bInitialized )
         return;
 
-    if( inputs[ IN_GLOBAL_TRIG_MUTE ].active )
+    if( inputs[ IN_GLOBAL_TRIG_MUTE ].isConnected() )
     {
-		if( inputs[ IN_GLOBAL_TRIG_MUTE ].value >= 0.00001 )
+		if( inputs[ IN_GLOBAL_TRIG_MUTE ].getVoltage() >= 0.00001 )
 		{
 			m_bTrigMute = true;
 			m_pButtonTrigMute->Set( true );
 		}
-		else if( inputs[ IN_GLOBAL_TRIG_MUTE ].value < 0.00001 )
+		else if( inputs[ IN_GLOBAL_TRIG_MUTE ].getVoltage() < 0.00001 )
 		{
 			m_bTrigMute = false;
 			m_pButtonTrigMute->Set( false );
@@ -627,14 +679,14 @@ void SEQ_6x32x16::step()
     }
 
     if( inputs[ IN_GLOBAL_CLK_RESET ].active )
-        bGlobalClk = m_SchTrigGlobalClkReset.process( inputs[ IN_GLOBAL_CLK_RESET ].value );
+        bGlobalClk = m_SchTrigGlobalClkReset.process( inputs[ IN_GLOBAL_CLK_RESET ].getVoltage() );
 
     if( inputs[ IN_GLOBAL_PAT_CHANGE ].active )
-        bGlobalProg= m_SchTrigGlobalProg.process( inputs[ IN_GLOBAL_PAT_CHANGE ].value );
+        bGlobalProg= m_SchTrigGlobalProg.process( inputs[ IN_GLOBAL_PAT_CHANGE ].getVoltage() );
 
     // get trigs
     for( ch = 0; ch < nCHANNELS; ch++ )
-        bPatTrig[ ch ] = m_SchTrigClock[ ch ].process( inputs[ IN_CLK + ch ].normalize( 0.0f ) );
+        bPatTrig[ ch ] = m_SchTrigClock[ ch ].process( inputs[ IN_CLK + ch ].getNormalVoltage( 0.0f ) );
 
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
@@ -645,10 +697,10 @@ void SEQ_6x32x16::step()
         useclock = ch;
 
         // if no keyboard clock active then use kb 0's clock
-        if( !inputs[ IN_CLK + ch ].active && inputs[ IN_CLK + 0 ].active )
+        if( !inputs[ IN_CLK + ch ].isConnected() && inputs[ IN_CLK + 0 ].isConnected() )
             useclock = 0;
 
-        if( inputs[ IN_CLK + useclock ].active )
+        if( inputs[ IN_CLK + useclock ].isConnected() )
         {
             // time the clock tick
             if( bGlobalClk )
@@ -668,7 +720,7 @@ void SEQ_6x32x16::step()
             // clock the pattern
             if( !m_bPauseState[ ch ] )
             {
-                if( bGlobalProg || m_SchTrigProg[ ch ].process( inputs[ IN_PAT_TRIG + ch ].value ) )
+                if( bGlobalProg || m_SchTrigProg[ ch ].process( inputs[ IN_PAT_TRIG + ch ].getVoltage() ) )
                     SetPendingProg( ch, -1 );
 
                 // clock in
@@ -714,7 +766,7 @@ void SEQ_6x32x16::step()
         if( bClockAtZero )
             m_gateBeatPulse[ ch ].trigger(1e-3);
 
-        outputs[ OUT_BEAT1 + ch ].value = m_gateBeatPulse[ ch ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
+        outputs[ OUT_BEAT1 + ch ].setVoltage( m_gateBeatPulse[ ch ].process( 1.0 / APP->engine->getSampleRate() ) ? CV_MAX10 : 0.0 );
 
         // trigger out
         if( bTrigOut )
@@ -723,9 +775,9 @@ void SEQ_6x32x16::step()
         }
 
         if( !m_bTrigMute )
-        	outputs[ OUT_TRIG + ch ].value = m_gatePulse[ ch ].process( 1.0 / engineGetSampleRate() ) ? CV_MAX : 0.0;
+        	outputs[ OUT_TRIG + ch ].setVoltage( m_gatePulse[ ch ].process( 1.0 / APP->engine->getSampleRate() ) ? CV_MAX10 : 0.0 );
         else
-        	outputs[ OUT_TRIG + ch ].value = 0.0f;
+        	outputs[ OUT_TRIG + ch ].setVoltage( 0.0f );
 
         level = m_Pattern[ ch ][ m_CurrentProg[ ch ] ][ m_pPatternDisplay[ ch ]->m_PatClk ];
 
@@ -759,57 +811,13 @@ void SEQ_6x32x16::step()
             fout = ( fout * 2 ) - 1.0;
 
         if( m_bTrigMute )
-        	outputs[ OUT_LEVEL + ch ].value = flast[ ch ];
+        	outputs[ OUT_LEVEL + ch ].setVoltage( flast[ ch ] );
         else
         {
         	flast[ ch ] = m_fCVRanges[ m_RangeSelect ] * fout;
-        	outputs[ OUT_LEVEL + ch ].value = flast[ ch ];
+        	outputs[ OUT_LEVEL + ch ].setVoltage( flast[ ch ] );
         }
     }
 }
 
-//-----------------------------------------------------
-// Procedure:   SEQ_6x32x16_CVRange
-//
-//-----------------------------------------------------
-struct SEQ_6x32x16_CVRange : MenuItem 
-{
-    SEQ_6x32x16 *module;
-
-    void onAction(EventAction &e) override 
-    {
-        module->m_RangeSelect++;
-
-        if( module->m_RangeSelect > 2 )
-            module->m_RangeSelect = 0;
-
-        sprintf( module->m_strRange, "%.1fV", module->m_fCVRanges[ module->m_RangeSelect ] );
-    }
-
-    void step() override 
-    {
-        rightText = module->m_strRange;
-    }
-};
-
-//-----------------------------------------------------
-// Procedure:   createContextMenu
-//
-//-----------------------------------------------------
-Menu *SEQ_6x32x16_Widget::createContextMenu() 
-{
-    Menu *menu = ModuleWidget::createContextMenu();
-
-    SEQ_6x32x16 *mod = dynamic_cast<SEQ_6x32x16*>(module);
-
-    assert(mod);
-
-    menu->addChild(construct<MenuLabel>());
-
-    menu->addChild(construct<MenuLabel>(&MenuLabel::text, "---- CV Output Level ----"));
-    menu->addChild(construct<SEQ_6x32x16_CVRange>( &MenuItem::text, "VRange (15, 10, 5):", &SEQ_6x32x16_CVRange::module, mod ) );
-
-    return menu;
-}
-
-Model *modelSEQ_6x32x16 = Model::create<SEQ_6x32x16, SEQ_6x32x16_Widget>( "mscHack", "Seq_6ch_32step", "SEQ 6 x 32", SEQUENCER_TAG, MULTIPLE_TAG );
+Model *modelSEQ_6x32x16 = createModel<SEQ_6x32x16, SEQ_6x32x16_Widget>( "Seq_6ch_32step" );

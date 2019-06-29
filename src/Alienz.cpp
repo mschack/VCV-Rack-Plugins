@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 //-----------------------------------------------------
 // General Definition
@@ -92,10 +91,14 @@ struct Alienz : Module
 	};
 
 	bool            m_bInitialized = false;
-    CLog            lg;
 
     // Contructor
-	Alienz() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	Alienz()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_SPEED, 0.0, 8.0, 4.0, "Morph speed" );
+    }
 
 	Label				*m_pTextLabel = NULL;
 	Label				*m_pTextLabel2 = NULL;
@@ -115,38 +118,41 @@ struct Alienz : Module
 	FILTER_STRUCT 		m_filter[ nCHANNELS ]={};
 
 	// random seed
-	SchmittTrigger 		m_SchmitTrigRand;
+    dsp::SchmittTrigger 		m_SchmitTrigRand;
 
 	MyLEDButton    		*m_pButtonSeed[ 32 ] = {};
 	MyLEDButton    		*m_pButtonRand = NULL;
 	int   				m_Seed = 0;
 	int             	m_FadeState = FADE_IN;
 	float           	m_fFade = 0.0f;
-	float speeds[ 9 ] = { 0.1f, 0.25f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
+	float speeds[ 9 ] = { 0.01f, 0.1f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
 
     //-----------------------------------------------------
     // MySpeed_Knob
     //-----------------------------------------------------
-    struct MySpeed_Knob : Knob_Yellow3_20_Snap
+    struct MySpeed_Knob : MSCH_Widget_Knob1
     {
-        Alienz *mymodule;
-        char strVal[ 10 ] = {};
-
-        void onChange( EventChange &e ) override
+        MySpeed_Knob()
         {
-            mymodule = (Alienz*)module;
+            snap = true;
+            set( DWRGB( 255, 255, 0 ), DWRGB( 0, 0, 0 ), 13.0f );
+        }
 
-            if( mymodule )
-            {
-                if( !mymodule->m_bInitialized )
-                	return;
+        void onChange( const event::Change &e ) override
+        {
+            Alienz *mymodule;
+            char strVal[ 10 ] = {};
 
-                sprintf( strVal, "x%.2f", mymodule->speeds[ (int)value ] );
-                mymodule->m_pTextLabel2->text = strVal;
-            }
+            MSCH_Widget_Knob1::onChange( e );
 
-		    RoundKnob::onChange( e );
-	    }
+            mymodule = (Alienz*)paramQuantity->module;
+
+            if( !mymodule )
+                return;
+
+            sprintf( strVal, "x%.2f", mymodule->speeds[ (int)paramQuantity->getValue() ] );
+            mymodule->m_pTextLabel2->text = strVal;
+        }
     };
 
 
@@ -169,15 +175,14 @@ struct Alienz : Module
 	void processReverb( float In, float *pL, float *pR );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
-    void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+Alienz AlienzBrowser;
 
 //-----------------------------------------------------
 // Alienz_SeedButton
@@ -198,7 +203,7 @@ void Alienz_RandButton( void *pClass, int id, bool bOn )
 	Alienz *mymodule;
     mymodule = (Alienz*)pClass;
 
-    mymodule->ChangeSeedPending( (int)randomu32() );
+    mymodule->ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -206,41 +211,40 @@ void Alienz_RandButton( void *pClass, int id, bool bOn )
 //
 //-----------------------------------------------------
 
-struct Alienz_Widget : ModuleWidget {
-	Alienz_Widget( Alienz *module );
-};
+struct Alienz_Widget : ModuleWidget 
+{
 
-Alienz_Widget::Alienz_Widget( Alienz *module ) : ModuleWidget(module)
+Alienz_Widget( Alienz *module )
 {
 	int i, x, y;
+    Alienz *pmod;
 
-	box.size = Vec( 15*5, 380 );
+    setModule(module);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Alienz.svg")));
-		addChild(panel);
-	}
+    if( !module )
+        pmod = &AlienzBrowser;
+    else
+        pmod = module;
 
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Alienz::IN_GATE ) );
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 241 ), Port::INPUT, module, Alienz::IN_RANDTRIG ) );
+    //box.size = Vec( 15*5, 380 );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/Alienz.svg")));
+
+	addInput(createInput<MyPortInSmall>( Vec( 10, 20 ), module, Alienz::IN_GATE ) );
+	addInput(createInput<MyPortInSmall>( Vec( 10, 241 ), module, Alienz::IN_RANDTRIG ) );
 
     // random button
-    module->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Alienz_RandButton );
-	addChild( module->m_pButtonRand );
+    pmod->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Alienz_RandButton );
+	addChild( pmod->m_pButtonRand );
 
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Alienz::OUT ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 20 ), module, Alienz::OUT ) );
 
 	y = 95;
 	x = 9;
 
-    //module->lg.Open("c://users//mark//documents//rack//Alienz.txt");
-
 	for( i = 31; i >=0; i-- )
 	{
-	    module->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Alienz_SeedButton );
-		addChild( module->m_pButtonSeed[ i ] );
+        pmod->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Alienz_SeedButton );
+		addChild( pmod->m_pButtonSeed[ i ] );
 
 		if( i % 4 == 0 )
 		{
@@ -253,24 +257,28 @@ Alienz_Widget::Alienz_Widget( Alienz *module ) : ModuleWidget(module)
 		}
 	}
 
-	addParam(ParamWidget::create<Alienz::MySpeed_Knob>( Vec( 10, 280 ), module, Alienz::PARAM_SPEED, 0.0, 8.0, 4.0 ) );
+	addParam(createParam<Alienz::MySpeed_Knob>( Vec( 10, 280 ), module, Alienz::PARAM_SPEED ) );
 
-	module->m_pTextLabel2 = new Label();
-	module->m_pTextLabel2->box.pos = Vec( 30, 280 );
-	module->m_pTextLabel2->text = "x1.00";
-	addChild( module->m_pTextLabel2 );
+    pmod->m_pTextLabel2 = new Label();
+    pmod->m_pTextLabel2->box.pos = Vec( 30, 280 );
+    pmod->m_pTextLabel2->text = "x1.00";
+	addChild( pmod->m_pTextLabel2 );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 0, 213 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 0, 213 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
-	addChild(Widget::create<ScrewSilver>(Vec(30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(30, 365)));
+    addChild(createWidget<ScrewSilver>(Vec(30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(30, 365)));
 
-	module->putseed( (int)randomu32() );
-	module->BuildDrone();
+    if( module )
+    {
+	    module->putseed( (int)random::u32() );
+	    module->BuildDrone();
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -285,7 +293,7 @@ void Alienz::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *Alienz::toJson()
+json_t *Alienz::dataToJson()
 {
 	json_t *root = json_object();
 
@@ -301,7 +309,7 @@ json_t *Alienz::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Alienz::fromJson( json_t *root )
+void Alienz::dataFromJson( json_t *root )
 {
 	//char strVal[ 10 ] = {};
 
@@ -314,36 +322,12 @@ void Alienz::fromJson( json_t *root )
 }
 
 //-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void Alienz::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void Alienz::onDelete()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onReset
-//
-//-----------------------------------------------------
-void Alienz::onReset()
-{
-}
-
-//-----------------------------------------------------
 // Procedure:   onRandomize
 //
 //-----------------------------------------------------
 void Alienz::onRandomize()
 {
-	ChangeSeedPending( (int)randomu32() );
+	ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -474,7 +458,7 @@ void Alienz::BuildDrone( void )
 	//set up osc
 	m_bitosc.baud = bauds[ srand() & 3 ];
 
-	m_bitosc.finc = engineGetSampleRate() / frand_mm( 100.0f, 400.0f );
+	m_bitosc.finc = APP->engine->getSampleRate() / frand_mm( 100.0f, 400.0f );
 
 	m_bitosc.fcount = 0.0f;
 
@@ -497,7 +481,7 @@ void Alienz::BuildDrone( void )
 	for( i = 0; i < OSC2_NOTES; i++ )
 		m_osc2notes[ i ] = frand_mm( 3.0f, 6.0f );
 
-	m_osc2freq = engineGetSampleRate() / frand_mm( 60.0f, 90.0f );
+	m_osc2freq = APP->engine->getSampleRate() / frand_mm( 60.0f, 90.0f );
 
 	m_bInitialized = true;
 }
@@ -540,7 +524,7 @@ void Alienz::ChangeFilterCutoff( int ch, float f )
     cutfreq = f;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate());
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate());
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -624,7 +608,7 @@ void Alienz::processFilter( int ch, float *pIn )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Alienz::step()
+void Alienz::process(const ProcessArgs &args)
 {
 	float In = 0.0f, fout;
 	int i, ch;
@@ -634,10 +618,10 @@ void Alienz::step()
 		return;
 
 	// randomize trigger
-	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].normalize( 0.0f ) ) )
+	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].getNormalVoltage( 0.0f ) ) )
 	{
 		m_pButtonRand->Set( true );
-		ChangeSeedPending( (int)randomu32() );
+		ChangeSeedPending( (int)random::u32() );
 	}
 
     switch( m_FadeState )
@@ -664,11 +648,11 @@ void Alienz::step()
     	break;
     }
 
-    if( inputs[ IN_GATE ].active )
+    if( inputs[ IN_GATE ].isConnected() )
     {
     	if( inputs[ IN_GATE ].value < 0.000001 )
     	{
-    		outputs[ OUT ].value= 0.0f;
+    		outputs[ OUT ].setVoltage( 0.0f );
     		return;
     	}
     }
@@ -679,7 +663,7 @@ void Alienz::step()
 		// process modulation waves
 		for( i = 0; i < nMODS; i++ )
 		{
-			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].value ];
+			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].getValue() ];
 			m_fval[ ch ][ i ] = m_mod[ ch ][ i ].procStep( false, false );
 		}
 	}
@@ -735,7 +719,7 @@ void Alienz::step()
 
 	fout += In * m_fval[ 0 ][ MOD_LEVEL ] * AUDIO_MAX;
 
-	outputs[ OUT ].value = fout * m_fFade;
+	outputs[ OUT ].setVoltage( fout * m_fFade );
 }
 
-Model *modelAlienz = Model::create<Alienz, Alienz_Widget>( "mscHack", "Alienz", "Alienz module", OSCILLATOR_TAG, MULTIPLE_TAG );
+Model *modelAlienz = createModel<Alienz, Alienz_Widget>( "Alienz" );

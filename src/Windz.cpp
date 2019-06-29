@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 //-----------------------------------------------------
 // General Definition
@@ -77,10 +76,14 @@ struct Windz : Module
 	};
 
 	bool            m_bInitialized = false;
-    CLog            lg;
 
     // Contructor
-	Windz() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	Windz()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_SPEED, 0.0, 8.0, 4.0, "Morph speed" );
+    }
 
 	Label				*m_pTextLabel = NULL;
 	Label				*m_pTextLabel2 = NULL;
@@ -93,38 +96,41 @@ struct Windz : Module
 	FILTER_STRUCT 		m_filter[ nCHANNELS ]={};
 
 	// random seed
-	SchmittTrigger 		m_SchmitTrigRand;
+    dsp::SchmittTrigger 		m_SchmitTrigRand;
 
 	MyLEDButton    		*m_pButtonSeed[ 32 ] = {};
 	MyLEDButton    		*m_pButtonRand = NULL;
 	int   				m_Seed = 0;
 	int             	m_FadeState = FADE_IN;
 	float           	m_fFade = 0.0f;
-	float speeds[ 9 ] = { 0.1f, 0.25f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
+	float speeds[ 9 ] = { 0.01f, 0.1f, 0.50f, 0.75f, 1.0f, 1.5f, 2.0f, 4.0f, 8.0f };
 
     //-----------------------------------------------------
     // MySpeed_Knob
     //-----------------------------------------------------
-    struct MySpeed_Knob : Knob_Yellow3_20_Snap
+    struct MySpeed_Knob : MSCH_Widget_Knob1
     {
-        Windz *mymodule;
-        char strVal[ 10 ] = {};
-
-        void onChange( EventChange &e ) override
+        MySpeed_Knob()
         {
-            mymodule = (Windz*)module;
+            snap = true;
+            set( DWRGB( 255, 255, 0 ), DWRGB( 0, 0, 0 ), 13.0f );
+        }
 
-            if( mymodule )
-            {
-                if( !mymodule->m_bInitialized )
-                	return;
+        void onChange( const event::Change &e ) override
+        {
+            Windz *mymodule;
+            char strVal[ 10 ] = {};
 
-                sprintf( strVal, "x%.2f", mymodule->speeds[ (int)value ] );
-                mymodule->m_pTextLabel2->text = strVal;
-            }
+            MSCH_Widget_Knob1::onChange( e );
 
-		    RoundKnob::onChange( e );
-	    }
+            mymodule = (Windz*)paramQuantity->module;
+
+            if( !mymodule )
+                return;
+
+            sprintf( strVal, "x%.2f", mymodule->speeds[ (int)paramQuantity->getValue() ] );
+            mymodule->m_pTextLabel2->text = strVal;
+        }
     };
 
 
@@ -147,15 +153,14 @@ struct Windz : Module
 	void processReverb( float In, float *pL, float *pR );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
-    void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+Windz WindzBrowser;
 
 //-----------------------------------------------------
 // Windz_SeedButton
@@ -176,7 +181,7 @@ void Windz_RandButton( void *pClass, int id, bool bOn )
 	Windz *mymodule;
     mymodule = (Windz*)pClass;
 
-    mymodule->ChangeSeedPending( (int)randomu32() );
+    mymodule->ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -184,32 +189,33 @@ void Windz_RandButton( void *pClass, int id, bool bOn )
 //
 //-----------------------------------------------------
 
-struct Windz_Widget : ModuleWidget {
-	Windz_Widget( Windz *module );
-};
+struct Windz_Widget : ModuleWidget 
+{
 
-Windz_Widget::Windz_Widget( Windz *module ) : ModuleWidget(module)
+Windz_Widget( Windz *module )
 {
 	int i, x, y;
+    Windz *pmod;
 
-	box.size = Vec( 15*5, 380 );
+    setModule(module);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/Windz.svg")));
-		addChild(panel);
-	}
+    if( !module )
+        pmod = &WindzBrowser;
+    else
+        pmod = module;
+
+    //box.size = Vec( 15*5, 380 );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/Windz.svg")));
 
 	//addInput(Port::create<MyPortInSmall>( Vec( 10, 20 ), Port::INPUT, module, Windz::IN_VOCT ) );
-	addInput(Port::create<MyPortInSmall>( Vec( 10, 241 ), Port::INPUT, module, Windz::IN_RANDTRIG ) );
+	addInput(createInput<MyPortInSmall>( Vec( 10, 241 ), module, Windz::IN_RANDTRIG ) );
 
     // random button
-    module->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Windz_RandButton );
-	addChild( module->m_pButtonRand );
+    pmod->m_pButtonRand = new MyLEDButton( 40, 238, 25, 25, 20.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_MOMENTARY, 0, module, Windz_RandButton );
+	addChild( pmod->m_pButtonRand );
 
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 20 ), Port::OUTPUT, module, Windz::OUT_L ) );
-	addOutput(Port::create<MyPortOutSmall>( Vec( 48, 45 ), Port::OUTPUT, module, Windz::OUT_R ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 20 ), module, Windz::OUT_L ) );
+	addOutput(createOutput<MyPortOutSmall>( Vec( 48, 45 ), module, Windz::OUT_R ) );
 
 	y = 95;
 	x = 9;
@@ -218,8 +224,8 @@ Windz_Widget::Windz_Widget( Windz *module ) : ModuleWidget(module)
 
 	for( i = 31; i >=0; i-- )
 	{
-	    module->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Windz_SeedButton );
-		addChild( module->m_pButtonSeed[ i ] );
+        pmod->m_pButtonSeed[ i ] = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, i, module, Windz_SeedButton );
+		addChild( pmod->m_pButtonSeed[ i ] );
 
 		if( i % 4 == 0 )
 		{
@@ -232,24 +238,28 @@ Windz_Widget::Windz_Widget( Windz *module ) : ModuleWidget(module)
 		}
 	}
 
-	addParam(ParamWidget::create<Windz::MySpeed_Knob>( Vec( 10, 280 ), module, Windz::PARAM_SPEED, 0.0, 8.0, 4.0 ) );
+	addParam(createParam<Windz::MySpeed_Knob>( Vec( 10, 280 ), module, Windz::PARAM_SPEED ) );
 
-	module->m_pTextLabel2 = new Label();
-	module->m_pTextLabel2->box.pos = Vec( 30, 280 );
-	module->m_pTextLabel2->text = "x1.00";
-	addChild( module->m_pTextLabel2 );
+    pmod->m_pTextLabel2 = new Label();
+    pmod->m_pTextLabel2->box.pos = Vec( 30, 280 );
+    pmod->m_pTextLabel2->text = "x1.00";
+	addChild( pmod->m_pTextLabel2 );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 0, 213 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 0, 213 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
-	addChild(Widget::create<ScrewSilver>(Vec(30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(30, 365)));
+    addChild(createWidget<ScrewSilver>(Vec(30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(30, 365)));
 
-	module->putseed( (int)randomu32() );
-	module->BuildDrone();
+    if( module )
+    {
+	    module->putseed( (int)random::u32() );
+	    module->BuildDrone();
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -264,7 +274,7 @@ void Windz::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *Windz::toJson()
+json_t *Windz::dataToJson()
 {
 	json_t *root = json_object();
 
@@ -280,7 +290,7 @@ json_t *Windz::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void Windz::fromJson( json_t *root )
+void Windz::dataFromJson( json_t *root )
 {
 	//char strVal[ 10 ] = {};
 
@@ -293,36 +303,12 @@ void Windz::fromJson( json_t *root )
 }
 
 //-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void Windz::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void Windz::onDelete()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onReset
-//
-//-----------------------------------------------------
-void Windz::onReset()
-{
-}
-
-//-----------------------------------------------------
 // Procedure:   onRandomize
 //
 //-----------------------------------------------------
 void Windz::onRandomize()
 {
-	ChangeSeedPending( (int)randomu32() );
+	ChangeSeedPending( (int)random::u32() );
 }
 
 //-----------------------------------------------------
@@ -486,7 +472,7 @@ void Windz::ChangeFilterCutoff( int ch )
     cutfreq = m_fval[ ch ][ MOD_FILTER ];
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate());
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate());
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -572,7 +558,7 @@ void Windz::processFilter( int ch, float *pIn )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void Windz::step()
+void Windz::process(const ProcessArgs &args)
 {
 	float In =0.0f, fout[ nCHANNELS ] = {};
 	int ch, i;
@@ -581,10 +567,10 @@ void Windz::step()
 		return;
 
 	// randomize trigger
-	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].normalize( 0.0f ) ) )
+	if( m_SchmitTrigRand.process( inputs[ IN_RANDTRIG ].getNormalVoltage( 0.0f ) ) )
 	{
 		m_pButtonRand->Set( true );
-		ChangeSeedPending( (int)randomu32() );
+		ChangeSeedPending( (int)random::u32() );
 	}
 
     switch( m_FadeState )
@@ -617,7 +603,7 @@ void Windz::step()
 		// process modulation waves
 		for( i = 0; i < nMODS; i++ )
 		{
-			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].value ];
+			m_mod[ ch ][ i ].m_Clock.syncInc = m_finc[ ch ][ i ] * speeds[ (int)params[ PARAM_SPEED ].getValue() ];
 			m_fval[ ch ][ i ] = m_mod[ ch ][ i ].procStep( false, false );
 		}
 
@@ -630,8 +616,8 @@ void Windz::step()
 		fout[ ch ] = In * AUDIO_MAX;
 	}
 
-	outputs[ OUT_L ].value = (fout[ 0 ] + fout[ 1 ]) * m_fFade;
-	outputs[ OUT_R ].value = (fout[ 0 ] + fout[ 2 ]) * m_fFade;
+	outputs[ OUT_L ].setVoltage( (fout[ 0 ] + fout[ 1 ]) * m_fFade );
+	outputs[ OUT_R ].setVoltage( (fout[ 0 ] + fout[ 2 ]) * m_fFade );
 }
 
-Model *modelWindz = Model::create<Windz, Windz_Widget>( "mscHack", "Windz", "Windz module", OSCILLATOR_TAG, MULTIPLE_TAG );
+Model *modelWindz = createModel<Windz, Windz_Widget>( "Windz" );

@@ -1,6 +1,4 @@
 RACK_DIR ?= ../..
-SLUG = mscHack
-VERSION = 0.6.3
 
 FLAGS += -Idep/include
 SOURCES += $(wildcard src/*.cpp)

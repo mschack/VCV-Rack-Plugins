@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 #define nCHANNELS 8
 #define nENVELOPE_SEGS 5
@@ -50,7 +49,6 @@ struct ASAF8 : Module
 		STATE_FOUT
 	};
 
-    CLog            lg;
     bool            m_bInitialized = false;
 
     // triggers
@@ -66,7 +64,16 @@ struct ASAF8 : Module
     Label           *m_pTextLabel = NULL;
 
     // Contructor
-	ASAF8() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	ASAF8()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        for( int i = 0; i < nCHANNELS; i++ )
+        {
+            configParam( PARAM_SPEED_IN + i, 0.05f, 40.0f, 5.0f, "Fade In Speed" );
+            configParam( PARAM_SPEED_OUT + i, 0.05f, 40.0f, 5.0f, "Fade Out Speed" );
+        }
+    }
 
     //-----------------------------------------------------
     // spd_Knob
@@ -77,11 +84,11 @@ struct ASAF8 : Module
         int param;
         char strVal[ 10 ] = {};
 
-        void onChange( EventChange &e ) override
+        void onChange( const event::Change &e ) override
         {
-            mymodule = (ASAF8*)module;
+            mymodule = (ASAF8*)paramQuantity->module;
 
-            sprintf( strVal, "[%.2fs]", value );
+            sprintf( strVal, "[%.2fs]", paramQuantity->getValue() );
 
             mymodule->m_pTextLabel->text = strVal;
 
@@ -92,59 +99,62 @@ struct ASAF8 : Module
 	void    envSeg_from_points( float x1, float y1, float x2, float y2, ENV_SEG *L );
 
 	bool    processFade( int ch, bool bfin );
+
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
     void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+// dumb
+ASAF8 g_ASAF8_Browser;
 
 //-----------------------------------------------------
 // ASAF8_TrigButton
 //-----------------------------------------------------
 void ASAF8_TrigButton( void *pClass, int id, bool bOn )
 {
-	//ASAF8 *mymodule;
-    //mymodule = (ASAF8*)pClass;
+	ASAF8 *mymodule;
+    mymodule = (ASAF8*)pClass;
 
-    /*if( bOn )
-    	mymodule->m_State[ id ] = ASAF8::STATE_FIN;
+    if( bOn )
+        mymodule->m_pTrigButton[ id ]->Set( true );
+    	//mymodule->m_State[ id ] = ASAF8::STATE_FIN;
     else
-    	mymodule->m_State[ id ] = ASAF8::STATE_FOUT;*/
+        mymodule->m_pTrigButton[ id ]->Set( false );
+    	//mymodule->m_State[ id ] = ASAF8::STATE_FOUT;
 }
 
 //-----------------------------------------------------
 // Procedure:   Widget
 //
 //-----------------------------------------------------
+struct ASAF8_Widget : ModuleWidget 
+{
 
-struct ASAF8_Widget : ModuleWidget {
-	ASAF8_Widget( ASAF8 *module );
-};
-
-ASAF8_Widget::ASAF8_Widget( ASAF8 *module ) : ModuleWidget(module)
+ASAF8_Widget( ASAF8 *module )
 {
 	int x, y;
+    ASAF8 *pmod;
 
-	box.size = Vec( 15*12, 380);
+	//box.size = Vec( 15*12, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/ASAF8.svg")));
-		addChild(panel);
-	}
+    setModule(module);
 
-    //module->lg.Open("ASAF8.txt");
+    if( !module )
+        pmod = &g_ASAF8_Browser;
+    else
+        pmod = module;
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 90, 28 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/ASAF8.svg")));
+
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 90, 28 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
 	x = 3;
 	y = 77;
@@ -152,40 +162,44 @@ ASAF8_Widget::ASAF8_Widget( ASAF8 *module ) : ModuleWidget(module)
 	for( int ch = 0; ch < nCHANNELS; ch++ )
 	{
 		// inputs
-		addInput(Port::create<MyPortInSmall>( Vec( x + 1, y ), Port::INPUT, module, ASAF8::IN_AUDIOL + ch ) );
-		addInput(Port::create<MyPortInSmall>( Vec( x + 22, y ), Port::INPUT, module, ASAF8::IN_AUDIOR + ch ) );
+		addInput(createInput<MyPortInSmall>( Vec( x + 1, y ), module, ASAF8::IN_AUDIOL + ch ) );
+		addInput(createInput<MyPortInSmall>( Vec( x + 22, y ), module, ASAF8::IN_AUDIOR + ch ) );
 
 		// trigger input
-		addInput(Port::create<MyPortInSmall>( Vec( x + 47, y ), Port::INPUT, module, ASAF8::IN_TRIGS + ch ) );
+		addInput(createInput<MyPortInSmall>( Vec( x + 47, y ), module, ASAF8::IN_TRIGS + ch ) );
 
         // trigger button
-        module->m_pTrigButton[ ch ] = new MyLEDButton( x + 68, y - 1, 19, 19, 15.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, ASAF8_TrigButton );
-	    addChild( module->m_pTrigButton[ ch ] );
+        pmod->m_pTrigButton[ ch ] = new MyLEDButton( x + 68, y - 1, 19, 19, 15.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, ASAF8_TrigButton );
+	    addChild( pmod->m_pTrigButton[ ch ] );
 
         // speed knobs
-        addParam(ParamWidget::create<ASAF8::spd_Knob>( Vec( x + 94, y ), module, ASAF8::PARAM_SPEED_IN + ch, 0.05f, 20.0f, 5.0f ) );
-        addParam(ParamWidget::create<ASAF8::spd_Knob>( Vec( x + 115, y ), module, ASAF8::PARAM_SPEED_OUT + ch, 0.05f, 20.0f, 5.0f ) );
+        addParam(createParam<ASAF8::spd_Knob>( Vec( x + 94, y ), module, ASAF8::PARAM_SPEED_IN + ch  ) );
+        addParam(createParam<ASAF8::spd_Knob>( Vec( x + 115, y ), module, ASAF8::PARAM_SPEED_OUT + ch ) );
 
         // outputs
-        addOutput(Port::create<MyPortOutSmall>( Vec( x + 137, y ), Port::OUTPUT, module, ASAF8::OUT_AUDIOL + ch ) );
-        addOutput(Port::create<MyPortOutSmall>( Vec( x + 158, y ), Port::OUTPUT, module, ASAF8::OUT_AUDIOR + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 137, y ), module, ASAF8::OUT_AUDIOL + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x + 158, y ), module, ASAF8::OUT_AUDIOR + ch ) );
 
         y += 33;
 	}
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+	addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+	addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+	addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+	addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
-	module->envSeg_from_points( 0.0f, 1.0f, 0.2f, 0.975f, &module->m_EnvSeg[ 0 ] );
-	module->envSeg_from_points( 0.2f, 0.975f, 0.3f, 0.9f, &module->m_EnvSeg[ 1 ] );
-	module->envSeg_from_points( 0.3f, 0.9f, 0.7f, 0.1f, &module->m_EnvSeg[ 2 ] );
-	module->envSeg_from_points( 0.7f, 0.1f, 0.8f, 0.075f, &module->m_EnvSeg[ 3 ] );
-	module->envSeg_from_points( 0.8f, 0.075f, 1.0f, 0.0f, &module->m_EnvSeg[ 4 ] );
+    if( module )
+    {
+	    module->envSeg_from_points( 0.0f, 1.0f, 0.2f, 0.975f, &module->m_EnvSeg[ 0 ] );
+	    module->envSeg_from_points( 0.2f, 0.975f, 0.3f, 0.9f, &module->m_EnvSeg[ 1 ] );
+	    module->envSeg_from_points( 0.3f, 0.9f, 0.7f, 0.1f, &module->m_EnvSeg[ 2 ] );
+	    module->envSeg_from_points( 0.7f, 0.1f, 0.8f, 0.075f, &module->m_EnvSeg[ 3 ] );
+	    module->envSeg_from_points( 0.8f, 0.075f, 1.0f, 0.0f, &module->m_EnvSeg[ 4 ] );
 
-	module->m_bInitialized = true;
+        module->m_bInitialized = true;
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -200,7 +214,7 @@ void ASAF8::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *ASAF8::toJson()
+json_t *ASAF8::dataToJson()
 {
 	json_t *root = json_object();
 
@@ -216,9 +230,12 @@ json_t *ASAF8::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void ASAF8::fromJson( json_t *root )
+void ASAF8::dataFromJson( json_t *root )
 {
     JsonParams( FROMJSON, root );
+
+    if( !m_bInitialized )
+        return;
 
     for( int ch = 0; ch < nCHANNELS; ch++ )
     {
@@ -235,22 +252,6 @@ void ASAF8::fromJson( json_t *root )
     		m_fFade[ ch ] = 1.0f;
     	}
     }
-}
-
-//-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void ASAF8::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void ASAF8::onDelete()
-{
 }
 
 //-----------------------------------------------------
@@ -289,9 +290,9 @@ bool ASAF8::processFade( int ch, bool bfin )
 	float inc;
 
 	if( bfin )
-		inc = 1.0 / ( engineGetSampleRate() * params[ PARAM_SPEED_IN + ch ].value );
+		inc = 1.0f / ( APP->engine->getSampleRate() * params[ PARAM_SPEED_IN + ch ].getValue() );
 	else
-		inc = 1.0 / ( engineGetSampleRate() * params[ PARAM_SPEED_OUT + ch ].value );
+		inc = 1.0f / ( APP->engine->getSampleRate() * params[ PARAM_SPEED_OUT + ch ].getValue() );
 
 	if( m_fPos[ ch ] < 0.2f )
 		i = 0;
@@ -305,7 +306,7 @@ bool ASAF8::processFade( int ch, bool bfin )
 		i = 4;
 
 	if( bfin )
-		m_fFade[ ch ] = 1.0 - ( ( m_fPos[ ch ] * m_EnvSeg[ i ].m ) + m_EnvSeg[ i ].b );
+		m_fFade[ ch ] = 1.0f - ( ( m_fPos[ ch ] * m_EnvSeg[ i ].m ) + m_EnvSeg[ i ].b );
 	else
 		m_fFade[ ch ] = ( m_fPos[ ch ] * m_EnvSeg[ i ].m ) + m_EnvSeg[ i ].b;
 
@@ -324,7 +325,7 @@ bool ASAF8::processFade( int ch, bool bfin )
 //-----------------------------------------------------
 #define FADE_GATE_LVL (0.01f)
 
-void ASAF8::step()
+void ASAF8::process(const ProcessArgs &args)
 {
 	if( !m_bInitialized )
 		return;
@@ -335,7 +336,7 @@ void ASAF8::step()
 		{
 		case STATE_FOUT:
 
-			if( inputs[ IN_TRIGS + ch ].normalize( 0.0f ) >= FADE_GATE_LVL || m_pTrigButton[ ch ]->m_bOn )
+			if( inputs[ IN_TRIGS + ch ].getNormalVoltage( 0.0f ) >= FADE_GATE_LVL || m_pTrigButton[ ch ]->m_bOn )
 			{
 				m_pTrigButton[ ch ]->Set( true );
 				m_fPos[ ch ] = 1.0f - m_fPos[ ch ];
@@ -352,7 +353,7 @@ void ASAF8::step()
 
 		case STATE_OFF:
 
-			if( inputs[ IN_TRIGS + ch ].normalize( 0.0f ) >= FADE_GATE_LVL || m_pTrigButton[ ch ]->m_bOn )
+			if( inputs[ IN_TRIGS + ch ].getNormalVoltage( 0.0f ) >= FADE_GATE_LVL || m_pTrigButton[ ch ]->m_bOn )
 			{
 				m_pTrigButton[ ch ]->Set( true );
 				m_State[ ch ] = STATE_FIN;
@@ -365,7 +366,7 @@ void ASAF8::step()
 
 		case STATE_FIN:
 
-			if( inputs[ IN_TRIGS + ch ].normalize( 1.0f ) < FADE_GATE_LVL || !m_pTrigButton[ ch ]->m_bOn )
+			if( inputs[ IN_TRIGS + ch ].getNormalVoltage( 1.0f ) < FADE_GATE_LVL || !m_pTrigButton[ ch ]->m_bOn )
 			{
 				m_pTrigButton[ ch ]->Set( false );
 				m_fPos[ ch ] = 1.0f - m_fPos[ ch ];
@@ -382,7 +383,7 @@ void ASAF8::step()
 
 		case STATE_ON:
 
-			if( inputs[ IN_TRIGS + ch ].normalize( 1.0f ) < FADE_GATE_LVL || !m_pTrigButton[ ch ]->m_bOn )
+			if( inputs[ IN_TRIGS + ch ].getNormalVoltage( 1.0f ) < FADE_GATE_LVL || !m_pTrigButton[ ch ]->m_bOn )
 			{
 				m_pTrigButton[ ch ]->Set( false );
 				m_State[ ch ] = STATE_FOUT;
@@ -394,16 +395,16 @@ void ASAF8::step()
 			break;
 		}
 
-		if( inputs[ IN_AUDIOL + ch ].active )
-			outputs[ OUT_AUDIOL + ch ].value = inputs[ IN_AUDIOL + ch ].value * m_fFade[ ch ];
+		if( inputs[ IN_AUDIOL + ch ].isConnected() )
+			outputs[ OUT_AUDIOL + ch ].setVoltage( inputs[ IN_AUDIOL + ch ].getVoltageSum() * m_fFade[ ch ] );
 		else
-			outputs[ OUT_AUDIOL + ch ].value = CV_MAX * m_fFade[ ch ];
+			outputs[ OUT_AUDIOL + ch ].value = CV_MAX10 * m_fFade[ ch ];
 
-		if( inputs[ IN_AUDIOR + ch ].active )
-			outputs[ OUT_AUDIOR + ch ].value = inputs[ IN_AUDIOR + ch ].value * m_fFade[ ch ];
+		if( inputs[ IN_AUDIOR + ch ].isConnected() )
+			outputs[ OUT_AUDIOR + ch ].setVoltage( inputs[ IN_AUDIOR + ch ].getVoltageSum() * m_fFade[ ch ] );
 		else
-			outputs[ OUT_AUDIOR + ch ].value = CV_MAX * m_fFade[ ch ];
+			outputs[ OUT_AUDIOR + ch ].value = CV_MAX10 * m_fFade[ ch ];
 	}
 }
 
-Model *modelASAF8 = Model::create<ASAF8, ASAF8_Widget>( "mscHack", "ASAF8", "ASAF-8 Channel Auto Stereo Audio Fader", ATTENUATOR_TAG, CONTROLLER_TAG, UTILITY_TAG, MULTIPLE_TAG );
+Model *modelASAF8 = createModel<ASAF8, ASAF8_Widget>( "ASAF8" );

@@ -14,7 +14,7 @@
    viewBox="0 0 7.9374999 4.2333335"
    version="1.1"
    id="svg2526"
-   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="mschack_5p_filtersel_02.svg">
   <defs
      id="defs2520" />
@@ -26,7 +26,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="22.4"
-     inkscape:cx="12.745753"
+     inkscape:cx="5.4912887"
      inkscape:cy="0.052686688"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
@@ -54,11 +54,11 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(0,-292.76665)"
-     sodipodi:insensitive="true">
+     style="display:inline">
     <rect
-       style="fill:#000000;fill-opacity:0.99447512;stroke-width:0.50718451"
+       style="fill:#000000;fill-opacity:0.99447512;stroke-width:0.52961397"
        id="rect3071"
-       width="7.3168006"
+       width="7.9782591"
        height="4.2533593"
        x="0.0002345495"
        y="292.76523" />
@@ -71,7 +71,8 @@
   <g
      inkscape:groupmode="layer"
      id="layer2"
-     inkscape:label="text">
+     inkscape:label="text"
+     style="display:inline">
     <flowRoot
        xml:space="preserve"
        id="flowRoot815"
@@ -98,17 +99,19 @@
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'Segoe Script';-inkscape-font-specification:'Segoe Script'" /></flowRegion><flowPara
          id="flowPara829">sdfds</flowPara></flowRoot>    <g
        aria-label="LP"
-       transform="matrix(0.26458333,0,0,0.26458333,2.6340215,2.1733631)"
+       transform="matrix(0.26458333,0,0,0.26458333,2.9175036,2.1969866)"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12px;line-height:1.25;font-family:'Alien Encounters';-inkscape-font-specification:'Alien Encounters';letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none"
        id="flowRoot831">
       <path
          d="M -0.92007812,-3.6510036 H -2.7200781 v -0.72 h 1.79999998 z m 0,0.96 H -2.7200781 v -0.72 h 1.79999998 z m 0,0.96 H -2.7200781 v -0.72 h 1.79999998 z m 0,0.95999999 H -2.7200781 V -1.4910036 h 1.79999998 z m 0,0.96 H -2.7200781 v -0.72 h 1.79999998 z M 3.8799219,3.0689964 h -6.576 q -0.024,-0.12 -0.024,-0.24 v -0.48 h 6.6 z m -4.80000002,-1.92 H -2.7200781 V 0.42899639 h 1.79999998 z m 4.80000002,2.88 h -5.4 q -0.792,0 -1.104,-0.72 h 6.504 z m -4.80000002,-1.92 H -2.7200781 v -0.72 h 1.79999998 z"
          style="font-size:12px"
-         id="path1397" />
+         id="path1397"
+         inkscape:connector-curvature="0" />
       <path
          d="M 11.792422,-1.7310036 H 9.9924219 v -0.72 h 1.8000001 z m -0.096,-1.92 H 4.5924219 v -0.72 h 6.0000001 q 0.792,0 1.104,0.72 z m 0.096,0.96 H 4.5924219 v -0.72 h 7.1760001 q 0.024,0.12 0.024,0.24 z m 0,1.68 q 0,0.11999999 -0.024,0.23999999 H 4.5924219 V -1.4910036 h 7.2000001 z m -0.096,0.47999999 q -0.312,0.72 -1.104,0.72 H 4.5924219 v -0.72 z M 6.3924219,-1.7310036 h -1.8 v -0.72 h 1.8 z m 0,2.88 h -1.8 V 0.42899639 h 1.8 z m 0,0.96 h -1.8 v -0.72 h 1.8 z m 0,0.96 h -1.8 v -0.72 h 1.8 z m 0,0.96 h -1.8 v -0.72 h 1.8 z"
          style="font-size:12px"
-         id="path1399" />
+         id="path1399"
+         inkscape:connector-curvature="0" />
     </g>
   </g>
 </svg>

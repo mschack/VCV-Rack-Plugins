@@ -1,7 +1,4 @@
 #include "mscHack.hpp"
-//#include "mscHack_Controls.hpp"
-#include "dsp/digital.hpp"
-//#include "CLog.h"
 
 #define nCHANNELS 3
 #define CHANNEL_H 90
@@ -67,9 +64,7 @@ struct SynthDrums : Module
         PARAM_FREQ,
         PARAM_ATT       = PARAM_FREQ + nCHANNELS,
         PARAM_REL       = PARAM_ATT + nCHANNELS,
-        PARAM_REZ       = PARAM_REL + nCHANNELS,
-        PARAM_WAVES     = PARAM_REZ + nCHANNELS,
-        nPARAMS         = PARAM_WAVES + (nWAVEFORMS * nCHANNELS)
+        nPARAMS         = PARAM_REL + nCHANNELS,
     };
 
 	enum InputIds 
@@ -96,9 +91,7 @@ struct SynthDrums : Module
         ADSR_RELEASE
     };
 
-    CLog            lg;
-
-    SchmittTrigger   m_SchTrig[ nCHANNELS ];
+    dsp::SchmittTrigger   m_SchTrig[ nCHANNELS ];
 
     OSC_PARAM_STRUCT m_Wave[ nCHANNELS ] = {};
 
@@ -108,7 +101,17 @@ struct SynthDrums : Module
     float           m_BufferWave[ nWAVEFORMS ][ WAVE_BUFFER_LEN ] = {};
 
     // Contructor
-	SynthDrums() : Module( nPARAMS, nINPUTS, nOUTPUTS, 0 ){}
+	SynthDrums()
+    {
+        config( nPARAMS, nINPUTS, nOUTPUTS, 0 );
+
+        for( int i = 0; i < nCHANNELS; i++ )
+        {
+            configParam( PARAM_FREQ + i, 0.0, 1.0, 0.0, "Pitch" );
+            configParam( PARAM_ATT + i, 0.0, 1.0, 0.0, "Attack" );
+            configParam( PARAM_REL + i, 0.0, 1.0, 0.0, "Release" );
+        }
+    }
 
     //-----------------------------------------------------
     // MyParamKnob
@@ -118,16 +121,16 @@ struct SynthDrums : Module
         SynthDrums *mymodule;
         int param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( const event::Change &e ) override 
         {
-            mymodule = (SynthDrums*)module;
+            mymodule = (SynthDrums*)paramQuantity->module;
 
             if( mymodule )
             {
-                param = paramId - SynthDrums::PARAM_FREQ;
+                param = paramQuantity->paramId - SynthDrums::PARAM_FREQ;
 
                 if( mymodule->m_Wave[ param ].wavetype == WAVE_NOISE )
-                    mymodule->ChangeFilterCutoff( param, value );
+                    mymodule->ChangeFilterCutoff( param, paramQuantity->getValue() );
                 else
                     mymodule->ChangeFilterCutoff( param, 0.6 );
             }
@@ -137,11 +140,9 @@ struct SynthDrums : Module
     };
 
     // Overrides 
-	void    step() override;
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
-    void    onRandomize() override;
-    void    onReset() override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
 
     void    SetWaveLights( void );
     void    BuildWaves( void );
@@ -151,6 +152,8 @@ struct SynthDrums : Module
     float   ProcessADS( int ch, bool bWave );
     float   GetAudio( int ch );
 };
+
+SynthDrums SynthDrumsBrowser;
 
 //-----------------------------------------------------
 // SynthDrums_WaveSelect
@@ -166,7 +169,7 @@ void SynthDrums_WaveSelect( void *pClass, int id, int nbutton, bool bOn )
 // Procedure:   
 //
 //-----------------------------------------------------
-json_t *SynthDrums::toJson() 
+json_t *SynthDrums::dataToJson() 
 {
     json_t *gatesJ;
 	json_t *rootJ = json_object();
@@ -189,7 +192,7 @@ json_t *SynthDrums::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void SynthDrums::fromJson(json_t *rootJ) 
+void SynthDrums::dataFromJson(json_t *rootJ) 
 {
     int i;
     json_t *StepsJ;
@@ -216,29 +219,30 @@ void SynthDrums::fromJson(json_t *rootJ)
 //
 //-----------------------------------------------------
 
-struct SynthDrums_Widget : ModuleWidget {
-	SynthDrums_Widget( SynthDrums *module );
-};
+struct SynthDrums_Widget : ModuleWidget 
+{
 
-SynthDrums_Widget::SynthDrums_Widget( SynthDrums *module ) : ModuleWidget(module) 
+SynthDrums_Widget( SynthDrums *module )
 {
     int ch, x, y;
+    SynthDrums *pmod;
 
-	box.size = Vec( 15*11, 380);
+    //box.size = Vec( 15*11, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/SynthDrums.svg")));
-		addChild(panel);
-	}
+    setModule(module);
 
-    //module->lg.Open("SynthDrums.txt");
+    if( !module )
+        pmod = &SynthDrumsBrowser;
+    else
+        pmod = module;
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/SynthDrums.svg")));
+
+    //screw
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     y = CHANNEL_Y;
     x = CHANNEL_X;
@@ -248,77 +252,57 @@ SynthDrums_Widget::SynthDrums_Widget( SynthDrums *module ) : ModuleWidget(module
         x = CHANNEL_X;
 
         // IN_FREQ_MOD
-        addInput(Port::create<MyPortInSmall>( Vec( x + 48, y ), Port::INPUT, module, SynthDrums::IN_FREQ_MOD + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x + 48, y ), module, SynthDrums::IN_FREQ_MOD + ch ) );
 
         // inputs
-        addInput(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, SynthDrums::IN_LEVEL + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, SynthDrums::IN_LEVEL + ch ) );
 
         y += 43;
 
-        addInput(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, SynthDrums::IN_TRIG + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, SynthDrums::IN_TRIG + ch ) );
 
         x += 32;
         y += 7;
 
         // wave select buttons
-        module->m_pButtonWaveSelect[ ch ] = new MyLEDButtonStrip( x, y, 11, 11, 5, 8.0, 5, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, SynthDrums_WaveSelect );
-	    addChild( module->m_pButtonWaveSelect[ ch ] );
+        pmod->m_pButtonWaveSelect[ ch ] = new MyLEDButtonStrip( x, y, 11, 11, 5, 8.0, 5, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, ch, module, SynthDrums_WaveSelect );
+	    addChild( pmod->m_pButtonWaveSelect[ ch ] );
 
         x = CHANNEL_X + 25;
         y -= 34;
 
         // params
-        addParam(ParamWidget::create<SynthDrums::MyParamFreq>( Vec( x, y ), module, SynthDrums::PARAM_FREQ + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<SynthDrums::MyParamFreq>( Vec( x, y ), module, SynthDrums::PARAM_FREQ + ch ) );
 
         x += 34;
 
-        addParam(ParamWidget::create<Knob_Yellow2_26>( Vec( x, y ), module, SynthDrums::PARAM_ATT + ch, 0.0, 0.1, 0.0 ) );
+        addParam(createParam<Knob_Yellow2_26>( Vec( x, y ), module, SynthDrums::PARAM_ATT + ch ) );
 
         x += 34;
 
-        addParam(ParamWidget::create<Knob_Yellow2_26>( Vec( x, y ), module, SynthDrums::PARAM_REL + ch, 0.0, 1.0, 0.0 ) );
+        addParam(createParam<Knob_Yellow2_26>( Vec( x, y ), module, SynthDrums::PARAM_REL + ch ) );
 
         y -= 15;
         x += 34;
 
         // outputs
-        addOutput(Port::create<MyPortOutSmall>( Vec( x, y ), Port::OUTPUT, module, SynthDrums::OUTPUT_AUDIO + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( x, y ), module, SynthDrums::OUTPUT_AUDIO + ch ) );
 
         y += CHANNEL_H;
     }
 
-    module->BuildWaves();
-
-    module->ChangeFilterCutoff( 0, 0.6 );
-    module->ChangeFilterCutoff( 1, 0.6 );
-    module->ChangeFilterCutoff( 2, 0.6 );
-
-    module->SetWaveLights();
-}
-
-//-----------------------------------------------------
-// Procedure:   reset
-//
-//-----------------------------------------------------
-void SynthDrums::onReset()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   randomize
-//
-//-----------------------------------------------------
-void SynthDrums::onRandomize()
-{
-    int ch;
-
-    for( ch = 0; ch < nCHANNELS; ch++ )
+    if( module )
     {
-        m_Wave[ ch ].wavetype = (int)( randomUniform() * (nWAVEFORMS-1) );
-    }
+        module->BuildWaves();
 
-    SetWaveLights();
+        module->ChangeFilterCutoff( 0, 0.6 );
+        module->ChangeFilterCutoff( 1, 0.6 );
+        module->ChangeFilterCutoff( 2, 0.6 );
+
+        module->SetWaveLights();
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure:   SetWaveLights
@@ -396,7 +380,7 @@ void SynthDrums::BuildWaves( void )
 float SynthDrums::GetWave( int type, float phase )
 {
     float fval = 0.0;
-    float ratio = (float)(WAVE_BUFFER_LEN-1) / engineGetSampleRate();
+    float ratio = (float)(WAVE_BUFFER_LEN-1) / APP->engine->getSampleRate();
 
     switch( type )
     {
@@ -408,7 +392,7 @@ float SynthDrums::GetWave( int type, float phase )
         break;
 
     case WAVE_NOISE:
-        fval = ( randomUniform() > 0.5 ) ? (randomUniform() * -1.0) : randomUniform();
+        fval = ( random::uniform() > 0.5 ) ? (random::uniform() * -1.0) : random::uniform();
         break;
 
     default:
@@ -448,12 +432,12 @@ float SynthDrums::ProcessADS( int ch, bool bWave )
         if( bWave )
         {
             // for the wave asr the release is the waveform release
-            pasr->rcount = (int)( params[ PARAM_REL + ch ].value * ADS_MAX_TIME_SECONDS * engineGetSampleRate() );
+            pasr->rcount = (int)( params[ PARAM_REL + ch ].getValue() * ADS_MAX_TIME_SECONDS * APP->engine->getSampleRate() );
         }
         else
         {
             // for the wave asr the release is the hit
-            pasr->rcount = (int)( params[ PARAM_ATT + ch ].value * ADS_MAX_TIME_SECONDS * engineGetSampleRate() );
+            pasr->rcount = (int)( params[ PARAM_ATT + ch ].getValue() * ADS_MAX_TIME_SECONDS * APP->engine->getSampleRate() );
         }
 
         if( pasr->rcount )
@@ -529,7 +513,7 @@ void SynthDrums::ChangeFilterCutoff( int ch, float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -600,9 +584,9 @@ float SynthDrums::GetAudio( int ch )
 {
     float fout = 0, fenv = 0.0, freq, freqmod;
 
-    if( outputs[ OUTPUT_AUDIO + ch ].active )
+    if( outputs[ OUTPUT_AUDIO + ch ].isConnected() )
     {
-        freqmod = clamp( inputs[ IN_FREQ_MOD + ch ].value / CV_MAX, 0.0f, 1.0f );
+        freqmod = clamp( inputs[ IN_FREQ_MOD + ch ].getVoltage() / CV_MAX10, 0.0f, 1.0f );
 
         // process our second envelope for hit
         fenv = ProcessADS( ch, false );
@@ -610,17 +594,17 @@ float SynthDrums::GetAudio( int ch )
         // if noise then frequency affects the filter cutoff and not the wave frequency
         if( m_Wave[ ch ].wavetype == WAVE_NOISE )
         {
-            freq = clamp( ( ( freqmod + params[ PARAM_FREQ + ch ].value ) + (fenv*2) ), 0.0f, 1.0f );
+            freq = clamp( ( ( freqmod + params[ PARAM_FREQ + ch ].getValue() ) + (fenv*2) ), 0.0f, 1.0f );
 
             ChangeFilterCutoff( ch, freq );
         }
         // other signals the second ADS affects the frequency for the hit
         else
         {
-            m_Wave[ ch ].phase += 35 + ( ( freqmod + params[ PARAM_FREQ + ch ].value ) * freqMAX ) + ( fenv * 400.0f );
+            m_Wave[ ch ].phase += 35 + ( ( freqmod + params[ PARAM_FREQ + ch ].getValue() ) * freqMAX ) + ( fenv * 400.0f );
 
-            if( m_Wave[ ch ].phase >= engineGetSampleRate() )
-                m_Wave[ ch ].phase = m_Wave[ ch ].phase - engineGetSampleRate();
+            if( m_Wave[ ch ].phase >= APP->engine->getSampleRate() )
+                m_Wave[ ch ].phase = m_Wave[ ch ].phase - APP->engine->getSampleRate();
         }
 
         fout = ProcessADS( ch, true ) * GetWave( m_Wave[ ch ].wavetype, m_Wave[ ch ].phase );
@@ -634,16 +618,16 @@ float SynthDrums::GetAudio( int ch )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void SynthDrums::step() 
+void SynthDrums::process(const ProcessArgs &args)
 {
     int ch;
 
     // check for triggers
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-	    if( inputs[ IN_TRIG + ch ].active ) 
+	    if( inputs[ IN_TRIG + ch ].isConnected() ) 
         {
-		    if( m_SchTrig[ ch ].process( inputs[ IN_TRIG + ch ].value ) )
+		    if( m_SchTrig[ ch ].process( inputs[ IN_TRIG + ch ].getVoltage() ) )
             {
     		    m_Wave[ ch ].adsr_freq.bTrig = true;
                 m_Wave[ ch ].adsr_wave.bTrig = true;
@@ -652,9 +636,9 @@ void SynthDrums::step()
     }
 
     // process sounds
-    outputs[ OUTPUT_AUDIO + 0 ].value = GetAudio( 0 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 0 ].value / CV_MAX), 0.0f, 1.0f );
-    outputs[ OUTPUT_AUDIO + 1 ].value = GetAudio( 1 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 1 ].value / CV_MAX), 0.0f, 1.0f );
-    outputs[ OUTPUT_AUDIO + 2 ].value = GetAudio( 2 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 2 ].value / CV_MAX), 0.0f, 1.0f );
+    outputs[ OUTPUT_AUDIO + 0 ].setVoltage( GetAudio( 0 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 0 ].getVoltage() / CV_MAX10), 0.0f, 1.0f ) );
+    outputs[ OUTPUT_AUDIO + 1 ].setVoltage( GetAudio( 1 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 1 ].getVoltage() / CV_MAX10), 0.0f, 1.0f ) );
+    outputs[ OUTPUT_AUDIO + 2 ].setVoltage( GetAudio( 2 ) * AUDIO_MAX * clamp( (inputs[ IN_LEVEL + 2 ].getVoltage() / CV_MAX10), 0.0f, 1.0f ) );
 }
 
-Model *modelSynthDrums = Model::create<SynthDrums, SynthDrums_Widget>( "mscHack", "SynthDrums", "SYNTH Drums", DRUM_TAG, MULTIPLE_TAG );
+Model *modelSynthDrums = createModel<SynthDrums, SynthDrums_Widget>( "SynthDrums" );

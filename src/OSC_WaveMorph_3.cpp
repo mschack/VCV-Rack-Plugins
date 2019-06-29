@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 //-----------------------------------------------------
 // Module Definition
@@ -43,10 +42,17 @@ struct OSC_WaveMorph_3 : Module
 
     bool                m_bInitialized = false;
 
-    CLog            lg;
-
     // Contructor
-	OSC_WaveMorph_3() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	OSC_WaveMorph_3()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_BAND, 0.0, 0.8, 0.333, "Draw Rubber Banding" );
+        configParam( PARAM_LEVEL, 0.0, 1.0, 0.0, "Level Out" );
+        configParam( PARAM_CUTOFF, 0.0, 0.1, 0.0, "Filter Cutoff" );
+        configParam( PARAM_RES, 0.0, 1.0, 0.0, "Filter Resonance" );
+        configParam( PARAM_FILTER_MODE, 0.0, 4.0, 0.0, "Filter Mode" );
+    }
 
     int                 m_CurrentChannel = 0;
     int                 m_GraphData[ MAX_ENVELOPE_CHANNELS ][ ENVELOPE_HANDLES ] = {};
@@ -56,7 +62,7 @@ struct OSC_WaveMorph_3 : Module
 
     bool                m_bSolo = false;
 
-    SchmittTrigger      m_SchmittChangeWave;
+    dsp::SchmittTrigger  m_SchmittChangeWave;
 
     Widget_EnvelopeEdit *m_pEnvelope = NULL;
     MyLEDButtonStrip    *m_pButtonChSelect = NULL;
@@ -94,12 +100,12 @@ struct OSC_WaveMorph_3 : Module
         OSC_WaveMorph_3 *mymodule;
         int param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( const event::Change &e ) override 
         {
-            mymodule = (OSC_WaveMorph_3*)module;
+            mymodule = (OSC_WaveMorph_3*)paramQuantity->module;
 
             if( mymodule )
-                mymodule->m_pEnvelope->m_fband = value; 
+                mymodule->m_pEnvelope->m_fband = paramQuantity->getValue(); 
 
 		    RoundKnob::onChange( e );
 	    }
@@ -110,15 +116,15 @@ struct OSC_WaveMorph_3 : Module
     void    Filter( float *In );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
     void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+OSC_WaveMorph_3 OSC_WaveMorph_3Browser;
 
 //-----------------------------------------------------
 // Seq_Triad2_Pause
@@ -211,7 +217,7 @@ void OSC_WaveMorph_3_WaveRand( void *pClass, int id, bool bOn )
     mymodule = (OSC_WaveMorph_3*)pClass;
 
     for( i = 0; i < ENVELOPE_HANDLES; i++ )
-        mymodule->m_pEnvelope->setVal( mymodule->m_CurrentChannel, i, randomUniform() );
+        mymodule->m_pEnvelope->setVal( mymodule->m_CurrentChannel, i, random::uniform() );
 }
 
 //-----------------------------------------------------
@@ -230,102 +236,104 @@ void OSC_WaveMorph_3_WaveCopy( void *pClass, int id, bool bOn )
 //
 //-----------------------------------------------------
 
-struct OSC_WaveMorph_3_Widget : ModuleWidget {
-	OSC_WaveMorph_3_Widget( OSC_WaveMorph_3 *module );
-};
-
-OSC_WaveMorph_3_Widget::OSC_WaveMorph_3_Widget( OSC_WaveMorph_3 *module ) : ModuleWidget(module) 
+struct OSC_WaveMorph_3_Widget : ModuleWidget 
 {
-	box.size = Vec( 15*16, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/OSC_WaveMorph_3.svg")));
-		addChild(panel);
-	}
+OSC_WaveMorph_3_Widget( OSC_WaveMorph_3 *module )
+{
+    OSC_WaveMorph_3 *pmod;
 
-    //module->lg.Open("OSC_WaveMorph_3.txt");
+    setModule(module);
+
+    if( !module )
+        pmod = &OSC_WaveMorph_3Browser;
+    else
+        pmod = module;
+
+    //box.size = Vec( 15*16, 380 );
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/OSC_WaveMorph_3.svg")));
+
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // input V/OCT
-    addInput(Port::create<MyPortInSmall>( Vec( 14, 20 ), Port::INPUT, module, OSC_WaveMorph_3::INPUT_VOCT ) );
+    addInput(createInput<MyPortInSmall>( Vec( 14, 20 ), module, OSC_WaveMorph_3::INPUT_VOCT ) );
 
     // input morph cv
-    addInput(Port::create<MyPortInSmall>( Vec( 14, 311 ), Port::INPUT, module, OSC_WaveMorph_3::INPUT_MORPHCV ) );
+    addInput(createInput<MyPortInSmall>( Vec( 14, 311 ), module, OSC_WaveMorph_3::INPUT_MORPHCV ) );
 
     // invert
-    module->m_pButtonInvert = new MyLEDButton( 88, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveInvert );
-	addChild( module->m_pButtonInvert );
+    pmod->m_pButtonInvert = new MyLEDButton( 88, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveInvert );
+	addChild( pmod->m_pButtonInvert );
 
     // envelope editor
-    module->m_pEnvelope = new Widget_EnvelopeEdit( 16, 47, 208, 96, 5, module, OSC_WaveMorph_3_EnvelopeEditCALLBACK, nCHANNELS );
-	addChild( module->m_pEnvelope );
+    pmod->m_pEnvelope = new Widget_EnvelopeEdit( 16, 47, 208, 96, 5, module, OSC_WaveMorph_3_EnvelopeEditCALLBACK, nCHANNELS );
+	addChild( pmod->m_pEnvelope );
 
-	module->m_pEnvelope->m_EnvData[ 0 ].m_Range = EnvelopeData::RANGE_Audio;
-	module->m_pEnvelope->m_EnvData[ 1 ].m_Range = EnvelopeData::RANGE_Audio;
-	module->m_pEnvelope->m_EnvData[ 2 ].m_Range = EnvelopeData::RANGE_Audio;
+    pmod->m_pEnvelope->m_EnvData[ 0 ].m_Range = EnvelopeData::RANGE_Audio;
+    pmod->m_pEnvelope->m_EnvData[ 1 ].m_Range = EnvelopeData::RANGE_Audio;
+    pmod->m_pEnvelope->m_EnvData[ 2 ].m_Range = EnvelopeData::RANGE_Audio;
 
     // solo button
-    module->m_pButtonSolo = new MyLEDButton( 158, 146, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_Solo );
-    addChild( module->m_pButtonSolo );
+    pmod->m_pButtonSolo = new MyLEDButton( 158, 146, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_Solo );
+    addChild( pmod->m_pButtonSolo );
 
     // wave change (when soloing) cv input
-    addInput(Port::create<MyPortInSmall>( Vec( 131, 144 ), Port::INPUT, module, OSC_WaveMorph_3::IN_WAVE_CHANGE ) );
+    addInput(createInput<MyPortInSmall>( Vec( 131, 144 ), module, OSC_WaveMorph_3::IN_WAVE_CHANGE ) );
 
     // envelope select buttons
-    module->m_pButtonChSelect = new MyLEDButtonStrip( 183, 146, 11, 11, 3, 8.0, nCHANNELS, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, OSC_WaveMorph_3_ChSelect );
-    addChild( module->m_pButtonChSelect );
+    pmod->m_pButtonChSelect = new MyLEDButtonStrip( 183, 146, 11, 11, 3, 8.0, nCHANNELS, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, OSC_WaveMorph_3_ChSelect );
+    addChild( pmod->m_pButtonChSelect );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 150, 4 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 150, 4 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
     // wave set buttons
-    module->m_pButtonWaveSetBck = new MyLEDButton( 122, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveSet );
-	addChild( module->m_pButtonWaveSetBck );
+    pmod->m_pButtonWaveSetBck = new MyLEDButton( 122, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveSet );
+	addChild( pmod->m_pButtonWaveSetBck );
 
-    module->m_pButtonWaveSetFwd = new MyLEDButton( 134, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 1, module, OSC_WaveMorph_3_WaveSet );
-	addChild( module->m_pButtonWaveSetFwd );
+    pmod->m_pButtonWaveSetFwd = new MyLEDButton( 134, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 1, module, OSC_WaveMorph_3_WaveSet );
+	addChild( pmod->m_pButtonWaveSetFwd );
 
     // random
-    module->m_pButtonRand = new MyLEDButton( 163, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveRand );
-	addChild( module->m_pButtonRand );
+    pmod->m_pButtonRand = new MyLEDButton( 163, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, OSC_WaveMorph_3_WaveRand );
+	addChild( pmod->m_pButtonRand );
 
     // copy
-    module->m_pButtonCopy = new MyLEDButton( 188, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_WaveCopy );
-	addChild( module->m_pButtonCopy );
+    pmod->m_pButtonCopy = new MyLEDButton( 188, 31, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_WaveCopy );
+	addChild( pmod->m_pButtonCopy );
 
     // draw mode
-    module->m_pButtonDraw = new MyLEDButton( 17, 145, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_DrawMode );
-	addChild( module->m_pButtonDraw );
+    pmod->m_pButtonDraw = new MyLEDButton( 17, 145, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, OSC_WaveMorph_3_DrawMode );
+	addChild( pmod->m_pButtonDraw );
 
     // band knob
-    addParam(ParamWidget::create<OSC_WaveMorph_3::Band_Knob>( Vec( 60 , 145 ), module, OSC_WaveMorph_3::PARAM_BAND, 0.0, 0.8, 0.333 ) );
+    addParam(createParam<OSC_WaveMorph_3::Band_Knob>( Vec( 60 , 145 ), module, OSC_WaveMorph_3::PARAM_BAND ) );
 
     // filter
-    addParam(ParamWidget::create<Knob_Green1_40>( Vec( 30, 200 ), module, OSC_WaveMorph_3::PARAM_CUTOFF, 0.0, 0.1, 0.0 ) );
-    addParam(ParamWidget::create<FilterSelectToggle>( Vec( 73, 200 ), module, OSC_WaveMorph_3::PARAM_FILTER_MODE, 0.0, 4.0, 0.0 ) );
-    addParam(ParamWidget::create<Knob_Purp1_20>( Vec( 76, 219 ), module, OSC_WaveMorph_3::PARAM_RES, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Green1_40>( Vec( 30, 200 ), module, OSC_WaveMorph_3::PARAM_CUTOFF ) );
+    addParam(createParam<FilterSelectToggle>( Vec( 73, 200 ), module, OSC_WaveMorph_3::PARAM_FILTER_MODE ) );
+    addParam(createParam<Knob_Purp1_20>( Vec( 76, 219 ), module, OSC_WaveMorph_3::PARAM_RES ) );
 
     // in cvs
-    addInput(Port::create<MyPortInSmall>( Vec( 41, 244 ), Port::INPUT, module, OSC_WaveMorph_3::IN_FILTER ) );
-    addInput(Port::create<MyPortInSmall>( Vec( 77, 244 ), Port::INPUT, module, OSC_WaveMorph_3::IN_REZ ) );
-    addInput(Port::create<MyPortInSmall>( Vec( 162, 265 ), Port::INPUT, module, OSC_WaveMorph_3::IN_LEVEL ) );
+    addInput(createInput<MyPortInSmall>( Vec( 41, 244 ), module, OSC_WaveMorph_3::IN_FILTER ) );
+    addInput(createInput<MyPortInSmall>( Vec( 77, 244 ), module, OSC_WaveMorph_3::IN_REZ ) );
+    addInput(createInput<MyPortInSmall>( Vec( 162, 265 ), module, OSC_WaveMorph_3::IN_LEVEL ) );
 
     // level knob
-    addParam(ParamWidget::create<Knob_Blue2_56>( Vec( 143 , 200 ), module, OSC_WaveMorph_3::PARAM_LEVEL, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Blue2_56>( Vec( 143 , 200 ), module, OSC_WaveMorph_3::PARAM_LEVEL ) );
 
     // audio out
-    addOutput(Port::create<MyPortOutSmall>( Vec( 203, 218 ), Port::OUTPUT, module, OSC_WaveMorph_3::OUTPUT_AUDIO ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 203, 218 ), module, OSC_WaveMorph_3::OUTPUT_AUDIO ) );
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
-
-    module->m_bInitialized = true;
+    if( module )
+        module->m_bInitialized = true;
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -341,7 +349,7 @@ void OSC_WaveMorph_3::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *OSC_WaveMorph_3::toJson() 
+json_t *OSC_WaveMorph_3::dataToJson() 
 {
 	json_t *root = json_object();
 
@@ -359,7 +367,7 @@ json_t *OSC_WaveMorph_3::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void OSC_WaveMorph_3::fromJson( json_t *root ) 
+void OSC_WaveMorph_3::dataFromJson( json_t *root ) 
 {
     JsonParams( FROMJSON, root );
 
@@ -368,22 +376,6 @@ void OSC_WaveMorph_3::fromJson( json_t *root )
     m_pButtonSolo->Set( m_bSolo );
 
     ChangeChannel( 0 );
-}
-
-//-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void OSC_WaveMorph_3::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void OSC_WaveMorph_3::onDelete()
-{
 }
 
 //-----------------------------------------------------
@@ -410,7 +402,7 @@ void OSC_WaveMorph_3::onRandomize()
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
         for( i = 0; i < ENVELOPE_HANDLES; i++ )
-            m_pEnvelope->setVal( ch, i, randomUniform() );
+            m_pEnvelope->setVal( ch, i, random::uniform() );
     }
 }
 
@@ -450,7 +442,7 @@ void OSC_WaveMorph_3::ChangeFilterCutoff( float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -476,14 +468,12 @@ void OSC_WaveMorph_3::Filter( float *In )
     float rez, hp1; 
     float input, out = 0.0f, lowpass, bandpass, highpass;
 
-    if( (int)params[ PARAM_FILTER_MODE ].value == 0 )
+    if( (int)params[ PARAM_FILTER_MODE ].getValue() == 0 )
         return;
 
-    rez = 1.0 - clamp( params[ PARAM_RES ].value * ( inputs[ IN_REZ ].normalize( CV_MAX ) / CV_MAX ), 0.0f, 1.0f );
+    rez = 1.0 - clamp( params[ PARAM_RES ].getValue() * ( inputs[ IN_REZ ].getNormalVoltage( CV_MAX10 ) / CV_MAX10 ), 0.0f, 1.0f );
 
-    input = *In / AUDIO_MAX;
-
-    input  = input + 0.000000001;
+    input = *In + 0.000000001;
 
     lp1         = lp1 + f * bp1; 
     hp1         = input - lp1 - rez * bp1; 
@@ -527,14 +517,14 @@ void OSC_WaveMorph_3::Filter( float *In )
         return;
     }
 
-    *In = out * AUDIO_MAX;
+    *In = out;
 }
 
 //-----------------------------------------------------
 // Procedure:   step
 //
 //-----------------------------------------------------
-void OSC_WaveMorph_3::step() 
+void OSC_WaveMorph_3::process(const ProcessArgs &args)
 {
     int ch;
     float fout = 0.0f, fmorph[ nCHANNELS ] = {}, fcv, cutoff, flevel;
@@ -543,7 +533,7 @@ void OSC_WaveMorph_3::step()
     if( !m_bInitialized )
         return;
 
-    fcv = clamp( inputs[ INPUT_MORPHCV ].normalize( 0.0f ) / CV_MAX, -1.0f, 1.0f );
+    fcv = clamp( inputs[ INPUT_MORPHCV ].getNormalVoltage( 0.0f ) / CV_MAXn5, -1.0f, 1.0f );
 
     fmorph[ 1 ] = 1.0 - fabs( fcv );
 
@@ -553,7 +543,7 @@ void OSC_WaveMorph_3::step()
     else if( fcv > 0.0f )
         fmorph[ 2 ] = fcv;
 
-    bChangeWave = ( m_SchmittChangeWave.process( inputs[ IN_WAVE_CHANGE ].normalize( 0.0f ) ) );
+    bChangeWave = ( m_SchmittChangeWave.process( inputs[ IN_WAVE_CHANGE ].getNormalVoltage( 0.0f ) ) );
 
     if( bChangeWave && m_bSolo )
     {
@@ -568,7 +558,7 @@ void OSC_WaveMorph_3::step()
     // process each channel
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        m_pEnvelope->m_EnvData[ ch ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ INPUT_VOCT ].normalize( 3.0f ), 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
+        m_pEnvelope->m_EnvData[ ch ].m_Clock.syncInc = 32.7032f * clamp( powf( 2.0f, clamp( inputs[ INPUT_VOCT ].getNormalVoltage( 4.0f ), 0.0f, VOCT_MAX ) ), 0.0f, 4186.01f );
 
         if( m_bSolo && ch == m_CurrentChannel )
             fout += m_pEnvelope->procStep( ch, false, false );
@@ -576,14 +566,15 @@ void OSC_WaveMorph_3::step()
             fout += m_pEnvelope->procStep( ch, false, false ) * fmorph[ ch ];
     }
 
-    cutoff = clamp( params[ PARAM_CUTOFF ].value * ( inputs[ IN_FILTER ].normalize( CV_MAX ) / CV_MAX ), 0.0f, 1.0f );
+    cutoff = clamp( params[ PARAM_CUTOFF ].getValue() * ( inputs[ IN_FILTER ].getNormalVoltage( CV_MAX10 ) / CV_MAX10 ), 0.0f, 1.0f );
     ChangeFilterCutoff( cutoff );
 
-    flevel = clamp( params[ PARAM_LEVEL ].value * ( inputs[ IN_LEVEL ].normalize( CV_MAX ) / CV_MAX ), 0.0f, 1.0f );
-    fout *= flevel;
+    flevel = clamp( params[ PARAM_LEVEL ].getValue() * ( inputs[ IN_LEVEL ].getNormalVoltage( CV_MAX10 ) / CV_MAX10 ), 0.0f, 1.0f );
+    fout *= flevel * AUDIO_MAX;
+
     Filter( &fout );
 
-    outputs[ OUTPUT_AUDIO ].value = clamp( fout, -AUDIO_MAX, AUDIO_MAX );
+    outputs[ OUTPUT_AUDIO ].setVoltage( fout );
 }
 
-Model *modelOSC_WaveMorph_3 = Model::create<OSC_WaveMorph_3, OSC_WaveMorph_3_Widget>( "mscHack", "OSC_WaveMorph_3", "OSC Wavemorph3", OSCILLATOR_TAG, MULTIPLE_TAG );
+Model *modelOSC_WaveMorph_3 = createModel<OSC_WaveMorph_3, OSC_WaveMorph_3_Widget>( "OSC_WaveMorph_3" );

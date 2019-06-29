@@ -35,7 +35,7 @@ Widget_EnvelopeEdit::Widget_EnvelopeEdit( int x, int y, int w, int h, int handle
 
     recalcLine( -1, 0 );
 
-    m_BeatLen = (int)engineGetSampleRate();
+    m_BeatLen = (int)APP->engine->getSampleRate();
 
     m_bInitialized  = true;
 }
@@ -107,6 +107,38 @@ void Widget_EnvelopeEdit::setVal( int ch, int handle, float val )
         return;
 
     m_EnvData[ ch ].setVal( handle, val );
+}
+
+//-----------------------------------------------------
+// Procedure:   smoothWave
+//-----------------------------------------------------
+void Widget_EnvelopeEdit::smoothWave( int ch, float amt )
+{
+    float avg;
+
+    if( !m_bInitialized && ch < MAX_ENVELOPE_CHANNELS && ch >= 0 )
+        return;
+
+    for( int j = 0; j < ENVELOPE_HANDLES; j++ )
+    {
+        avg = 0.0f;
+
+        //smooth
+        if( j > 0 && j < ENVELOPE_DIVISIONS )
+        {
+            avg = ( m_EnvData[ ch ].m_HandleVal[ j - 1 ] + m_EnvData[ ch ].m_HandleVal[ j ] + m_EnvData[ ch ].m_HandleVal[ j + 1 ] ) / 3.0f;
+        }
+        else if( j == 0 )
+        {
+            avg = ( m_EnvData[ ch ].m_HandleVal[ j ] + m_EnvData[ ch ].m_HandleVal[ j + 1 ] ) / 2.0f;
+        }
+        else if( j == ENVELOPE_DIVISIONS )
+        {
+            avg = ( m_EnvData[ ch ].m_HandleVal[ j - 1 ] + m_EnvData[ ch ].m_HandleVal[ j ] ) / 2.0f;
+        }
+
+        m_EnvData[ ch ].m_HandleVal[ j ] = ( m_EnvData[ ch ].m_HandleVal[ j ] * ( 1.0f - amt ) ) + ( avg * amt );
+    }
 }
 
 //-----------------------------------------------------
@@ -214,7 +246,7 @@ void Widget_EnvelopeEdit::getDataAll( int *pint )
 // Procedure:   draw
 //-----------------------------------------------------
 int hdivs[ EnvelopeData::nRANGES ] = { 6, 11, 11, 21, 2, 13 };
-void Widget_EnvelopeEdit::draw( NVGcontext *vg )
+void Widget_EnvelopeEdit::draw(const DrawArgs &args)
 {
     int h, hlines;
     float x, y, divsize;
@@ -224,15 +256,15 @@ void Widget_EnvelopeEdit::draw( NVGcontext *vg )
         return;
 
     // fill bg
-    nvgBeginPath(vg);
-    nvgRect(vg, 0, 0, box.size.x-1, box.size.y-1 );
+    nvgBeginPath(args.vg);
+    nvgRect(args.vg, 0, 0, box.size.x-1, box.size.y-1 );
     //nvgFillColor(vg, nvgRGBA(40,40,40,255));
-    nvgFillColor(vg, nvgRGBA(57, 10, 10,255));
-    nvgFill(vg);
+    nvgFillColor(args.vg, nvgRGBA(57, 10, 10,255));
+    nvgFill(args.vg);
 
 
-    nvgStrokeWidth( vg, linewidth );
-    nvgStrokeColor( vg, nvgRGBA( 60, 60, 60, 255 ) );
+    nvgStrokeWidth( args.vg, linewidth );
+    nvgStrokeColor( args.vg, nvgRGBA( 60, 60, 60, 255 ) );
     // draw bounding line
     /*nvgBeginPath( vg );
     nvgMoveTo( vg, 0, 0 );
@@ -247,10 +279,10 @@ void Widget_EnvelopeEdit::draw( NVGcontext *vg )
     // draw vertical lines 
     for( h = 0; h < ENVELOPE_HANDLES; h++ )
     {
-        nvgBeginPath(vg);
-        nvgMoveTo( vg, x, 0 );
-        nvgLineTo( vg, x, box.size.y - 1 );
-        nvgStroke( vg );
+        nvgBeginPath(args.vg);
+        nvgMoveTo( args.vg, x, 0 );
+        nvgLineTo( args.vg, x, box.size.y - 1 );
+        nvgStroke( args.vg );
         x += m_divw;
     }
 
@@ -264,14 +296,14 @@ void Widget_EnvelopeEdit::draw( NVGcontext *vg )
     for( h = 0; h < hlines; h++ )
     {
         if( h == hlines / 2 && ( m_EnvData[ m_currentChannel ].m_Range == EnvelopeData::RANGE_n5to5 || m_EnvData[ m_currentChannel ].m_Range == EnvelopeData::RANGE_n10to10 || m_EnvData[ m_currentChannel ].m_Range == EnvelopeData::RANGE_Audio ) )
-            nvgStrokeColor( vg, nvgRGBA( 255, 255, 255, 255 ) );
+            nvgStrokeColor( args.vg, nvgRGBA( 255, 255, 255, 255 ) );
         else
-            nvgStrokeColor( vg, nvgRGBA( 80, 80, 80, 255 ) );
+            nvgStrokeColor( args.vg, nvgRGBA( 80, 80, 80, 255 ) );
 
-        nvgBeginPath(vg);
-        nvgMoveTo( vg, 0, y );
-        nvgLineTo( vg, box.size.x - 1, y );
-        nvgStroke( vg );
+        nvgBeginPath(args.vg);
+        nvgMoveTo( args.vg, 0, y );
+        nvgLineTo( args.vg, box.size.x - 1, y );
+        nvgStroke( args.vg );
         y += divsize;
     }
 
@@ -280,38 +312,38 @@ void Widget_EnvelopeEdit::draw( NVGcontext *vg )
         // draw rects
         for( h = 0; h < ENVELOPE_DIVISIONS; h++ )
         {
-            nvgBeginPath(vg);
-            nvgRect( vg, h * m_divw, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ h ] ) * box.size.y, m_divw, box.size.y * m_EnvData[ m_currentChannel ].m_HandleVal[ h ] );
-            nvgFillColor(vg, nvgRGBA( 157, 100, 100, 128 ) );
-            nvgFill(vg);
+            nvgBeginPath(args.vg);
+            nvgRect( args.vg, h * m_divw, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ h ] ) * box.size.y, m_divw, box.size.y * m_EnvData[ m_currentChannel ].m_HandleVal[ h ] );
+            nvgFillColor(args.vg, nvgRGBA( 157, 100, 100, 128 ) );
+            nvgFill(args.vg);
         }
     }
     else
     {
-        nvgStrokeColor( vg, nvgRGBA( 255, 255, 255, 255 ) );
-        nvgBeginPath(vg);
+        nvgStrokeColor( args.vg, nvgRGBA( 255, 255, 255, 255 ) );
+        nvgBeginPath(args.vg);
 
         x = 0;
-        nvgMoveTo( vg, x, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ 0 ] ) * box.size.y );
+        nvgMoveTo( args.vg, x, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ 0 ] ) * box.size.y );
 
         // draw lines
         for( h = 1; h < ENVELOPE_HANDLES; h++ )
         {
             x += m_divw;
-            nvgLineTo( vg, x, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ h ] ) * box.size.y );
+            nvgLineTo( args.vg, x, ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ h ] ) * box.size.y );
         }
 
-        nvgStroke( vg );
+        nvgStroke( args.vg );
 
         x = 0;
         // draw handles
         for( h = 0; h < ENVELOPE_DIVISIONS + 1; h++ )
         {
-            nvgBeginPath(vg);
+            nvgBeginPath(args.vg);
             y = ( 1.0f - m_EnvData[ m_currentChannel ].m_HandleVal[ h ] ) * box.size.y;
-            nvgRect( vg, x - m_handleSizeD2, y - m_handleSizeD2, m_handleSize, m_handleSize );
-            nvgFillColor(vg, nvgRGBA( m_HandleCol[ h ].Col[ 2 ], m_HandleCol[ h ].Col[ 1 ], m_HandleCol[ h ].Col[ 0 ],255 ) );
-            nvgFill(vg);
+            nvgRect( args.vg, x - m_handleSizeD2, y - m_handleSizeD2, m_handleSize, m_handleSize );
+            nvgFillColor(args.vg, nvgRGBA( m_HandleCol[ h ].Col[ 2 ], m_HandleCol[ h ].Col[ 1 ], m_HandleCol[ h ].Col[ 0 ],255 ) );
+            nvgFill(args.vg);
 
              x += m_divw;
         }
@@ -320,114 +352,105 @@ void Widget_EnvelopeEdit::draw( NVGcontext *vg )
     // draw indicator line
     if( m_EnvData[ m_currentChannel ].m_Range != EnvelopeData::RANGE_Audio )
     {
-        nvgStrokeColor( vg, nvgRGBA( 255, 255, 255, 80 ) );
-        nvgBeginPath(vg);
-        nvgMoveTo( vg, m_EnvData[ m_currentChannel ].m_fIndicator * box.size.x, 0 );
-        nvgLineTo( vg, m_EnvData[ m_currentChannel ].m_fIndicator * box.size.x, box.size.y );
-        nvgStroke( vg );
+        nvgStrokeColor( args.vg, nvgRGBA( 255, 255, 255, 80 ) );
+        nvgBeginPath(args.vg);
+        nvgMoveTo( args.vg, m_EnvData[ m_currentChannel ].m_fIndicator * box.size.x, 0 );
+        nvgLineTo( args.vg, m_EnvData[ m_currentChannel ].m_fIndicator * box.size.x, box.size.y );
+        nvgStroke( args.vg );
     }
 }
 
 //-----------------------------------------------------
 // Procedure:   onMouseDown
 //-----------------------------------------------------
-void Widget_EnvelopeEdit::onMouseDown( EventMouseDown &e )
+void Widget_EnvelopeEdit::onButton(const event::Button &e)
 {
     int index;
 
-    m_Drag = -1;
-    e.consumed = false;
+    OpaqueWidget::onButton( e );
 
-    OpaqueWidget::onMouseDown( e );
+    m_bCtrl = false;
 
-    if( !m_bInitialized )
+    if( !m_bInitialized || e.action != GLFW_PRESS )
         return;
 
-    if( e.button == 0 )
+    e.consume( this );
+
+    m_Dragy = e.pos.y;
+    m_Dragx = e.pos.x;
+
+    if( e.mods & GLFW_MOD_CONTROL )
+        m_bCtrl = true;
+
+    if( e.button == GLFW_MOUSE_BUTTON_LEFT )
     {
-        if( !m_bDraw )
-            windowCursorLock();
-
         if( m_EnvData[ m_currentChannel ].m_bGateMode )
-            m_Drag = clamp( ( e.pos.x / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)(ENVELOPE_DIVISIONS - 1) );
+            m_Dragi = clamp( ( e.pos.x / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)(ENVELOPE_DIVISIONS - 1) );
         else
-            m_Drag = clamp( ( ( e.pos.x + (m_divw / 2.0f) ) / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)ENVELOPE_DIVISIONS );
+            m_Dragi = clamp( ( ( e.pos.x + (m_divw / 2.0f) ) / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)ENVELOPE_DIVISIONS );
 
-        m_bDrag = true;
     }
-    else if( e.button == 1 )
+    else if( e.button == GLFW_MOUSE_BUTTON_RIGHT )
     {
         if( m_EnvData[ m_currentChannel ].m_bGateMode )
             index = clamp( ( e.pos.x / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)(ENVELOPE_DIVISIONS - 1) );
         else
             index = clamp( ( ( e.pos.x + (m_divw / 2.0f) ) / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)ENVELOPE_DIVISIONS );
 
-        m_EnvData[ m_currentChannel ].m_HandleVal[ index ] = 0.0f;
+        m_EnvData[ m_currentChannel ].m_HandleVal[ index ] = 0.5f;
     }
 }
 
 //-----------------------------------------------------
 // Procedure:   onDragStart
 //-----------------------------------------------------
-void Widget_EnvelopeEdit::onDragStart(EventDragStart &e)
+void Widget_EnvelopeEdit::onDragStart(const event::DragStart &e)
 {
-    e.consumed = true;
-    //windowCursorLock();
+    if( e.button == GLFW_MOUSE_BUTTON_LEFT && !m_bDraw )
+        m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ] = 1.0f - clamp( ( m_Dragy / box.size.y ), 0.0f, 1.0f );
 }
 
 //-----------------------------------------------------
 // Procedure:   onDragEnd
 //-----------------------------------------------------
-void Widget_EnvelopeEdit::onDragEnd(EventDragEnd &e)
+void Widget_EnvelopeEdit::onDragEnd(const event::DragEnd &e)
 {
-    e.consumed = true;
-     windowCursorUnlock();
-     m_Drag = -1;
-}
-
-//-----------------------------------------------------
-// Procedure:   onMouseMove
-//-----------------------------------------------------
-void Widget_EnvelopeEdit::onMouseMove( EventMouseMove &e )
-{
-    OpaqueWidget::onMouseMove( e );
-
-    if( m_bDrag && m_bDraw )
-    {
-        m_Drawy = e.pos.y;
-
-        if( m_EnvData[ m_currentChannel ].m_bGateMode )
-            m_Drag = clamp( ( e.pos.x / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)(ENVELOPE_DIVISIONS - 1) );
-        else
-            m_Drag = clamp( ( ( e.pos.x + (m_divw / 2.0f) ) / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)ENVELOPE_DIVISIONS );
-    }
 }
 
 //-----------------------------------------------------
 // Procedure:   onDragMove
 //-----------------------------------------------------
-void Widget_EnvelopeEdit::onDragMove(EventDragMove &e)
+void Widget_EnvelopeEdit::onDragMove(const event::DragMove &e)
 {
     int h, i;
     float fband;
-    float delta = 0.001f;
+    float delta;
 
-    e.consumed = true;
-
-    if( !m_bInitialized || !m_bDrag )
+    if( !m_bInitialized )
         return;
+
+    m_Dragy += e.mouseDelta.y / APP->scene->rackScroll->zoomWidget->zoom;
+    m_Dragx += e.mouseDelta.x / APP->scene->rackScroll->zoomWidget->zoom;
 
     if( !m_bDraw )
     {
 	    // Drag slower if Mod is held
-	    if (windowIsModPressed())
-		    delta = 0.00001f;
+	    if ( m_bCtrl )
+        {
+            delta = 0.0001f * e.mouseDelta.y;
+            m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ] - delta, 0.0f, 1.0f );
+        }
+        else
+        {
+            delta = m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ];
 
-	    m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] -= delta * e.mouseRel.y;
-	    m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ], 0.0f, 1.0f );
+            m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ] = 1.0f - clamp( m_Dragy / box.size.y, 0.0f, 1.0f );
 
-        if( m_pCallback )
-            m_pCallback( m_pClass, m_EnvData[ m_currentChannel ].getActualVal( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] ) );
+            delta -= m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ];
+        }
+
+        if( m_pCallback && m_pClass )
+            m_pCallback( m_pClass, m_EnvData[ m_currentChannel ].getActualVal( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Dragi ] ) );
 
         if( m_fband > 0.0001 )
         {
@@ -435,13 +458,12 @@ void Widget_EnvelopeEdit::onDragMove(EventDragMove &e)
 
             for( h = -1; h > -4; h -- )
             {
-                i = m_Drag + h;
+                i = m_Dragi + h;
 
                 if( i < 0 )
                     break;
 
-                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] -= (delta * e.mouseRel.y) * fband;
-                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ i ], 0.0f, 1.0f );
+                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ i ] - ( delta * fband ), 0.0f, 1.0f );
 
                 fband *= 0.6f;
             }
@@ -450,33 +472,36 @@ void Widget_EnvelopeEdit::onDragMove(EventDragMove &e)
 
             for( h = 1; h < 4; h ++ )
             {
-                i = m_Drag + h;
+                i = m_Dragi + h;
 
                 if( i > ENVELOPE_DIVISIONS )
                     break;
 
-                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] -= (delta * e.mouseRel.y) * fband;
-                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ i ], 0.0f, 1.0f );
+                m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ i ] - ( delta * fband ), 0.0f, 1.0f );
 
                 fband *= 0.6f;
             }
 
-            recalcLine( -1, m_Drag );
+            recalcLine( -1, m_Dragx );
         }
         else
         {
-            recalcLine( m_currentChannel, m_Drag );
+            recalcLine( m_currentChannel, m_Dragx );
         }
     }
     else
     {
-    	m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] = 1.0 - ( m_Drawy / box.size.y );
-        m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] = clamp( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ], 0.0f, 1.0f );
+        i = clamp( ( ( m_Dragx + (m_divw / 2.0f) ) / box.size.x ) * (float)ENVELOPE_DIVISIONS, 0.0f, (float)ENVELOPE_DIVISIONS );
 
-        if( m_pCallback )
-            m_pCallback( m_pClass, m_EnvData[ m_currentChannel ].getActualVal( m_EnvData[ m_currentChannel ].m_HandleVal[ m_Drag ] ) );
+        if( e.button == GLFW_MOUSE_BUTTON_LEFT )
+            m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = clamp( 1.0 - ( m_Dragy / box.size.y ), 0.0f, 1.0f );
+        else
+            m_EnvData[ m_currentChannel ].m_HandleVal[ i ] = 0.5f;
 
-        recalcLine( m_currentChannel, m_Drag );
+        if( m_pCallback && m_pClass )
+            m_pCallback( m_pClass, m_EnvData[ m_currentChannel ].getActualVal( m_EnvData[ m_currentChannel ].m_HandleVal[ i ] ) );
+
+        recalcLine( m_currentChannel, i );
     }
 }
 
@@ -496,22 +521,22 @@ void Widget_EnvelopeEdit::setBeatLen( int len )
         switch( m_TimeDiv[ i ] )
         {
         case TIME_64th:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 16.0 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 16.0 ) / 16.0;
             break;
         case TIME_32nd:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 8.0 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 8.0 ) / 16.0;
             break;
         case TIME_16th:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 4.0 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 4.0 ) / 16.0;
             break;
         case TIME_8th:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 2.0 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 2.0 ) / 16.0;
             break;
         case TIME_4tr:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 1.0 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 1.0 ) / 16.0;
             break;
         case TIME_Bar:
-        	m_EnvData[ i ].m_Clock.syncInc = ( ( engineGetSampleRate() / (float)m_BeatLen ) * 0.25 ) / 16.0;
+        	m_EnvData[ i ].m_Clock.syncInc = ( ( APP->engine->getSampleRate() / (float)m_BeatLen ) * 0.25 ) / 16.0;
             break;
         }
     }
@@ -525,7 +550,7 @@ float Widget_EnvelopeEdit::procStep( int ch, bool bTrig, bool bHold )
     if( ( m_bClkReset || bTrig ) && !bHold )
     {
         if( m_EnvData[ ch ].m_Mode == EnvelopeData::MODE_REVERSE )
-        	m_EnvData[ ch ].m_Clock.fpos = engineGetSampleRate();
+        	m_EnvData[ ch ].m_Clock.fpos = APP->engine->getSampleRate();
         else
         	m_EnvData[ ch ].m_Clock.fpos = 0;
     }

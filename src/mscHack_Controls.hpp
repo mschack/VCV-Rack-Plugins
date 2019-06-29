@@ -4,7 +4,7 @@
 #define DEG2RAD( x ) ( ( x ) * ( PI / 180.0f ) )
 #define RAD2DEG( x ) ( ( x ) * ( 180.0f / PI ) )
 
-struct CyanValueLight : ModuleLightWidget 
+/*struct CyanValueLight : ModuleLightWidget 
 {
 	CyanValueLight() 
     {
@@ -50,7 +50,7 @@ struct DarkYellow2ValueLight : ModuleLightWidget
     {
 		addBaseColor( nvgRGB(0x40, 0x40, 0) );;
 	}
-};
+};*/
 
 #define lvl_to_db( x ) ( 20.0 * log10( x ) )
 #define db_to_lvl( x ) ( 1.0 / pow( 10, x / 20.0 ) )
@@ -220,13 +220,14 @@ struct Widget_EnvelopeEdit : OpaqueWidget
     float           m_divw=0;
     float           m_handleSize=0, m_handleSizeD2;
     int             m_currentChannel = 0;
-    int             m_Drag = -1;
     float           m_fband = 0.0f;
 
     int             m_MaxChannels;
 
-    bool            m_bDrag = false, m_bDraw = false;
-    float           m_Drawy = 0.0f;
+    bool            m_bDraw = false;
+    int             m_Dragi = 0;
+    float           m_Dragx = 0;
+    float           m_Dragy = 0;
 
     bool            m_bClkReset = false;
     int             m_BeatLen = 0;
@@ -237,12 +238,14 @@ struct Widget_EnvelopeEdit : OpaqueWidget
     void            *m_pClass = NULL;
 
     bool            m_bClkd = false;
+    bool            m_bCtrl = false;
 
     Widget_EnvelopeEdit( int x, int y, int w, int h, int handleSize, void *pClass, EnvelopeEditCALLBACK *pCallback, int nchannels );
 
     void setView( int ch );
     void resetValAll( int ch, float val );
     void setVal( int ch, int handle, float val );
+    void smoothWave( int ch, float amt );
     void setMode( int ch, int Mode );
     void setRange( int ch, int Range );
     void setGateMode( int ch, bool bGate );
@@ -266,12 +269,11 @@ struct Widget_EnvelopeEdit : OpaqueWidget
     void  recalcLine( int ch, int handle );
 
     // overrides
-    void draw( NVGcontext *vg ) override;
-    void onMouseMove( EventMouseMove &e ) override;
-    void onMouseDown( EventMouseDown &e ) override;
-	void onDragStart(EventDragStart &e) override;
-	void onDragEnd(EventDragEnd &e) override;
-	void onDragMove(EventDragMove &e) override;
+    void draw(const DrawArgs &args) override;
+    void onButton(const event::Button &e) override;
+	void onDragStart(const event::DragStart &e) override;
+	void onDragEnd(const event::DragEnd &e) override;
+	void onDragMove(const event::DragMove &e) override;
 };
 
 //-----------------------------------------------------
@@ -282,7 +284,7 @@ struct Widget_EnvelopeEdit : OpaqueWidget
 #define MIN_ANGLE ( 360.0f - MAX_ANGLE )
 #define RANGE_ANGLE (( MAX_ANGLE * 2.0f ) + 1.0f )
 
-struct MySimpleKnob : OpaqueWidget, FramebufferWidget 
+struct MySimpleKnob : OpaqueWidget 
 {
     bool            m_bInitialized;
     Vec             m_Loc;
@@ -322,7 +324,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
         m_fVal          = def;
         m_fangle        = val2a( def );
 
-		box.pos = Vec( x, y );
+        box.pos = Vec( x, y );
         box.size = Vec( width, width );
 
         m_bInitialized  = true;
@@ -371,7 +373,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw( NVGcontext *vg ) override
+    void draw(const DrawArgs &args) override
     {
         float a1, a2;
         float linewidth = m_radius * 0.15f;
@@ -382,12 +384,12 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
         a1 = DEG2RAD( 135.0f );
         a2 = DEG2RAD( 45.0f );
 
-        nvgBeginPath( vg );
-        nvgCircle( vg, m_radius, m_radius, m_radius );
-        nvgFillColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
-        nvgFill( vg );
+        nvgBeginPath( args.vg );
+        nvgCircle( args.vg, m_radius, m_radius, m_radius );
+        nvgFillColor( args.vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
+        nvgFill( args.vg );
 
-        nvgStrokeWidth( vg, linewidth );
+        nvgStrokeWidth( args.vg, linewidth );
 
         /*nvgBeginPath( vg );
         nvgStrokeColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 100 ) );
@@ -397,19 +399,19 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
         a1 = DEG2RAD( 20.0f );
         a2 = DEG2RAD( 20.0f );
 
-        nvgBeginPath( vg );
-        nvgStrokeColor( vg, nvgRGBA( m_BgColour.Col[ 2 ], m_BgColour.Col[ 1 ], m_BgColour.Col[ 0 ], 255 ) );
+        nvgBeginPath( args.vg );
+        nvgStrokeColor( args.vg, nvgRGBA( m_BgColour.Col[ 2 ], m_BgColour.Col[ 1 ], m_BgColour.Col[ 0 ], 255 ) );
         //nvgStrokeColor( vg, nvgRGBA( 255, 255, 255, 160 ) );
-        nvgArc( vg, m_radius, m_radius, m_radius, a1, a2, NVG_CW );
-        nvgLineTo( vg, m_radius, m_radius );
-        nvgStroke( vg );
+        nvgArc( args.vg, m_radius, m_radius, m_radius, a1, a2, NVG_CW );
+        nvgLineTo( args.vg, m_radius, m_radius );
+        nvgStroke( args.vg );
 
-        nvgBeginPath( vg );
-        nvgCircle( vg, m_radius, m_radius, m_radius * 0.2f );
-        nvgFillColor( vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
-        nvgFill( vg );
+        nvgBeginPath( args.vg );
+        nvgCircle( args.vg, m_radius, m_radius, m_radius * 0.2f );
+        nvgFillColor( args.vg, nvgRGBA( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ], 255 ) );
+        nvgFill( args.vg );
 
-        dirty = false;
+        //dirty = false;
     }
 
     //-----------------------------------------------------
@@ -426,7 +428,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
             val = m_max;
 
         m_fVal = val;
-        dirty = true;
+        //dirty = true;
     }
 
     //-----------------------------------------------------
@@ -438,7 +440,7 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
             return;
 
         m_Colour.dwCol = dwCol;
-        dirty = true;
+        //dirty = true;
     }
 
     //-----------------------------------------------------
@@ -450,52 +452,49 @@ struct MySimpleKnob : OpaqueWidget, FramebufferWidget
             return;
 
         m_BgColour.dwCol = dwCol;
-        dirty = true;
+        //dirty = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   onDragStart
     //-----------------------------------------------------
-	void onDragStart(EventDragStart &e) override
+	void onDragStart(const event::DragStart &e) override
     {
-        e.consumed = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   onDragEnd
     //-----------------------------------------------------
-	void onDragEnd(EventDragEnd &e) override
+	void onDragEnd(const event::DragEnd &e) override
     {
-        e.consumed = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   onDragMove
     //-----------------------------------------------------
-	void onDragMove(EventDragMove &e) override
+	void onDragMove(const event::DragMove &e) override
     {
-        m_Vecpos.x = e.mouseRel.x;
-        m_Vecpos.y = e.mouseRel.y;
+        m_Vecpos.x = e.mouseDelta.x;
+        m_Vecpos.y = e.mouseDelta.y;
 
-        if( m_pCallback )
+        if( m_pCallback && m_pClass )
             m_pCallback( m_pClass, m_ch, m_id, m_fVal );
 
-        e.consumed = true;
-        dirty = true;
+        //e.consume = true;
+        //dirty = true;
     }
 };
 
 //-----------------------------------------------------
 // MyLED7DigitDisplay
 //-----------------------------------------------------
-struct MyLED7DigitDisplay : TransparentWidget, FramebufferWidget 
+struct MyLED7DigitDisplay : TransparentWidget 
 {
     bool            m_bInitialized = false;
     int             m_Type;
     RGB_STRUCT      m_Colour;
     RGB_STRUCT      m_LEDColour;
-    int             m_iVal;
-    float           m_fVal;
+    int             m_iVal = 0;
     float           m_fScale;
     float           m_fSpace;
     float           m_MaxDigits;
@@ -503,7 +502,8 @@ struct MyLED7DigitDisplay : TransparentWidget, FramebufferWidget
 	enum MyLEDDisplay_Types 
     {
         TYPE_INT,
-        TYPE_FLOAT
+        TYPE_FLOAT1,
+        TYPE_FLOAT2
 	};
 
 DRAW_VECT_STRUCT DigitDrawVects[ 8 ] = 
@@ -520,7 +520,7 @@ DRAW_VECT_STRUCT DigitDrawVects[ 8 ] =
 
 #define LED_DIGITAL_SCALE_W 160.0f
 #define LED_DIGITAL_SCALE_H 275.0f
-#define LED_SPACE 210.0f
+#define LED_SPACE 200.0f
 #define LED_DISPLAY_DIGITS 5
 
 int DigitToDisplay[ 10 ][ 8 ] =
@@ -553,7 +553,7 @@ int DigitToDisplay[ 10 ][ 8 ] =
 
 		box.pos = Vec( x, y );
 
-        box.size = Vec( ( ( 5.0f * LED_DIGITAL_SCALE_W ) + ( 4.0f * LED_SPACE ) ) * fscale, LED_DIGITAL_SCALE_H * fscale );
+        box.size = Vec( ( ( (float)LED_DISPLAY_DIGITS * LED_DIGITAL_SCALE_W ) + ( (float)(LED_DISPLAY_DIGITS-1) * LED_SPACE ) ) * fscale, LED_DIGITAL_SCALE_H * fscale );
 
         // rescale the LED vectors
         for( i = 0; i < 8; i++ )
@@ -571,7 +571,7 @@ int DigitToDisplay[ 10 ][ 8 ] =
     //-----------------------------------------------------
     // Procedure:   SetInt
     //-----------------------------------------------------
-    void SetInt( int ival )
+    void SetVal( int ival )
     {
         if( !m_bInitialized )
             return;
@@ -580,22 +580,6 @@ int DigitToDisplay[ 10 ][ 8 ] =
             return;
 
         m_iVal = ival;
-        dirty = true;
-    }
-
-    //-----------------------------------------------------
-    // Procedure:   SetFloat
-    //-----------------------------------------------------
-    void SetFloat( float fval )
-    {
-        if( !m_bInitialized )
-            return;
-
-        if( fval == m_fVal )
-            return;
-
-        m_fVal = fval;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -604,7 +588,6 @@ int DigitToDisplay[ 10 ][ 8 ] =
     void SetLEDCol( int colour )
     {
         m_LEDColour.dwCol = colour;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -614,10 +597,7 @@ int DigitToDisplay[ 10 ][ 8 ] =
     {
         int temp;
 
-        if( m_Type == TYPE_FLOAT )
-            temp = (int)( m_fVal * 100.0 );
-        else
-            temp = m_iVal;
+        temp = m_iVal;
 
         pdigits[ 0 ] = temp / 10000;
         temp -= (pdigits[ 0 ] * 10000 );
@@ -662,7 +642,7 @@ int DigitToDisplay[ 10 ][ 8 ] =
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw( NVGcontext *vg ) override
+    void draw(const DrawArgs &args) override
     {
         int digits[ LED_DISPLAY_DIGITS ] = {};
         float xi;
@@ -682,20 +662,24 @@ int DigitToDisplay[ 10 ][ 8 ] =
         {
             bLead = false;
 
-            if( ( m_Type == TYPE_FLOAT ) && ( i < 2 ) )
+            if( ( m_Type == TYPE_FLOAT1 ) && ( i < 3 ) )
+                bLead = ( bLeadingZero && digits[ i ] == 0 );
+            else if( ( m_Type == TYPE_FLOAT2 ) && ( i < 2 ) )
                 bLead = ( bLeadingZero && digits[ i ] == 0 );
             else if( ( m_Type == TYPE_INT ) && ( i < 4 ) )
                 bLead = ( bLeadingZero && digits[ i ] == 0 );
 
             for( j = 0; j < DigitToDisplay[ digits[ i ] ][ 0 ]; j++ )
-                drawvect( vg, xi, 0, &DigitDrawVects[ DigitToDisplay[ digits[ i ] ][ j + 1 ] ], &m_LEDColour, bLead );
+                drawvect( args.vg, xi, 0, &DigitDrawVects[ DigitToDisplay[ digits[ i ] ][ j + 1 ] ], &m_LEDColour, bLead );
 
             if( digits[ i ] != 0 )
                 bLeadingZero = false;
 
             // draw decimal
-            if( i == 2 && m_Type == TYPE_FLOAT )
-                drawvect( vg, xi, 0, &DigitDrawVects[ 7 ], &m_LEDColour, false );
+            if( i == 2 && m_Type == TYPE_FLOAT2 )
+                drawvect( args.vg, xi, 0, &DigitDrawVects[ 7 ], &m_LEDColour, false );
+            if( i == 3 && m_Type == TYPE_FLOAT1 )
+                drawvect( args.vg, xi, 0, &DigitDrawVects[ 7 ], &m_LEDColour, false );
 
             xi += m_fSpace;
         }
@@ -706,7 +690,7 @@ int DigitToDisplay[ 10 ][ 8 ] =
 // MyLEDButtonStrip
 //-----------------------------------------------------
 #define nMAX_STRIP_BUTTONS 32
-struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget 
+struct MyLEDButtonStrip : OpaqueWidget 
 {
     typedef void MyLEDButtonStripCALLBACK ( void *pClass, int id, int nbutton, bool bOn );
 
@@ -787,7 +771,6 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
     void SetHiLightOn( int button )
     {
         m_HiLightOn = button;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -815,8 +798,6 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
 
             m_bOn[ button ] = bOn;
         }
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -828,13 +809,12 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
             return;
 
         m_LEDColour[ button ].dwCol = colour;
-        dirty = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         float xi, yi;
         int i;
@@ -846,20 +826,20 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
         for( i = 0; i < m_nButtons; i ++)
         {
             if( m_HiLightOn == i )
-                nvgFillColor( vg, nvgRGB( 255, 255, 255 ) );
+                nvgFillColor( args.vg, nvgRGB( 255, 255, 255 ) );
             else
-                nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
 
             // background
-		    nvgBeginPath( vg );
-            nvgMoveTo(vg, m_Rect[ i ].x, m_Rect[ i ].y );
-		    nvgLineTo(vg, m_Rect[ i ].x2, m_Rect[ i ].y );
-		    nvgLineTo(vg, m_Rect[ i ].x2, m_Rect[ i ].y2 );
-		    nvgLineTo(vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
-		    nvgClosePath( vg );
-		    nvgFill( vg );
+		    nvgBeginPath( args.vg );
+            nvgMoveTo(args.vg, m_Rect[ i ].x, m_Rect[ i ].y );
+		    nvgLineTo(args.vg, m_Rect[ i ].x2, m_Rect[ i ].y );
+		    nvgLineTo(args.vg, m_Rect[ i ].x2, m_Rect[ i ].y2 );
+		    nvgLineTo(args.vg, m_Rect[ i ].x, m_Rect[ i ].y2 );
+		    nvgClosePath( args.vg );
+		    nvgFill( args.vg );
 
-            nvgFillColor( vg, nvgRGB(0x40, 0x40, 0x40) );
+            nvgFillColor( args.vg, nvgRGB(0x40, 0x40, 0x40) );
 
             if( m_HiLightOn == i )
                 alpha = 0x40;
@@ -867,29 +847,29 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
             if( m_Type == TYPE_EXCLUSIVE_WOFF )
             {
                 if( i == ( m_ExclusiveOn - 1 ) )
-                    nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
+                    nvgFillColor( args.vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
             else if( m_Type == TYPE_EXCLUSIVE )
             {
                 if( i == m_ExclusiveOn )
-                    nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
+                    nvgFillColor( args.vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
             else
             {
                 if( m_bOn[ i ] )
-                   nvgFillColor( vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
+                   nvgFillColor( args.vg, nvgRGBA( m_LEDColour[ i ].Col[ 2 ], m_LEDColour[ i ].Col[ 1 ], m_LEDColour[ i ].Col[ 0 ], alpha ) );
             }
 
             xi = ( ( (float)m_Rect[ i ].x2 + (float)m_Rect[ i ].x ) / 2.0f ) - m_fLEDsize_d2;
             yi = ( ( (float)m_Rect[ i ].y2 + (float)m_Rect[ i ].y ) / 2.0f ) - m_fLEDsize_d2;
 
-		    nvgBeginPath( vg );
-            nvgMoveTo(vg, xi, yi );
-		    nvgLineTo(vg, xi + m_fLEDsize, yi );
-		    nvgLineTo(vg, xi + m_fLEDsize, yi + m_fLEDsize );
-		    nvgLineTo(vg, xi, yi + m_fLEDsize );
-		    nvgClosePath( vg );
-		    nvgFill( vg );
+		    nvgBeginPath( args.vg );
+            nvgMoveTo(args.vg, xi, yi );
+		    nvgLineTo(args.vg, xi + m_fLEDsize, yi );
+		    nvgLineTo(args.vg, xi + m_fLEDsize, yi + m_fLEDsize );
+		    nvgLineTo(args.vg, xi, yi + m_fLEDsize );
+		    nvgClosePath( args.vg );
+		    nvgFill( args.vg );
         }
 	}
 
@@ -907,12 +887,12 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    void onMouseDown( EventMouseDown &e ) override
+    void onButton(const event::Button &e) override
     {
         int i;
-        e.consumed = false;
+        //e.consumed = false;
 
-        if( !m_bInitialized || e.button != 0 )
+        if( !m_bInitialized || e.button != 0 || e.action != GLFW_PRESS )
             return;
 
         for( i = 0; i < m_nButtons; i++ )
@@ -928,19 +908,18 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
                     else
                         m_ExclusiveOn = i + 1;
 
-                    if( m_pCallback )
+                    if( m_pCallback && m_pClass )
                         m_pCallback( m_pClass, m_Id, m_ExclusiveOn, false );
                 }
                 else
                 {
                     Set( i, m_bOn[ i ] );
 
-                    if( m_pCallback )
+                    if( m_pCallback && m_pClass )
                         m_pCallback( m_pClass, m_Id, i, m_bOn[ i ] );
                 }
 
-                dirty = true;
-                e.consumed = true;
+                //e.consumed = true;
                 return;
             }
         }
@@ -952,7 +931,7 @@ struct MyLEDButtonStrip : OpaqueWidget, FramebufferWidget
 //-----------------------------------------------------
 // MyLEDButton
 //-----------------------------------------------------
-struct MyLEDButton : OpaqueWidget, FramebufferWidget 
+struct MyLEDButton : OpaqueWidget 
 {
     typedef void MyLEDButtonCALLBACK ( void *pClass, int id, bool bOn );
 
@@ -1008,7 +987,6 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
     void Set( bool bOn )
     {
         m_bOn = bOn;
-        dirty = true;
 
         if( m_Type == TYPE_MOMENTARY && bOn )
             m_StepCount = 8;//(int)( engineGetSampleRate() * 0.05 );
@@ -1017,32 +995,32 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         float xi, yi;
 
         if( !m_bInitialized )
             return;
 
-        nvgFillColor( vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
+        nvgFillColor( args.vg, nvgRGB( m_Colour.Col[ 2 ], m_Colour.Col[ 1 ], m_Colour.Col[ 0 ] ) );
 
-		nvgBeginPath( vg );
-        nvgRect( vg, 0, 0, box.size.x - 1, box.size.y - 1 );
-		nvgClosePath( vg );
-		nvgFill( vg );
+		nvgBeginPath( args.vg );
+        nvgRect( args.vg, 0, 0, box.size.x - 1, box.size.y - 1 );
+		nvgClosePath( args.vg );
+		nvgFill( args.vg );
 
         if( !m_bOn )
-            nvgFillColor( vg, nvgRGB(0x40, 0x40, 0x40) );
+            nvgFillColor( args.vg, nvgRGB(0x40, 0x40, 0x40) );
         else
-            nvgFillColor( vg, nvgRGB( m_LEDColour.Col[ 2 ], m_LEDColour.Col[ 1 ], m_LEDColour.Col[ 0 ] ) );
+            nvgFillColor( args.vg, nvgRGB( m_LEDColour.Col[ 2 ], m_LEDColour.Col[ 1 ], m_LEDColour.Col[ 0 ] ) );
 
         xi = ( ( (float)m_Rect.x2 + (float)m_Rect.x ) / 2.0f ) - m_fLEDsize_d2 ;
         yi = ( ( (float)m_Rect.y2 + (float)m_Rect.y ) / 2.0f ) - m_fLEDsize_d2 ;
 
-		nvgBeginPath( vg );
-        nvgRoundedRect( vg, xi, yi, m_fLEDsize, m_fLEDsize, 2.5 );
-		nvgClosePath( vg );
-		nvgFill( vg );
+		nvgBeginPath( args.vg );
+        nvgRoundedRect( args.vg, xi, yi, m_fLEDsize, m_fLEDsize, 2.5 );
+		nvgClosePath( args.vg );
+		nvgFill( args.vg );
 	}
 
     //-----------------------------------------------------
@@ -1059,20 +1037,18 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    void onMouseDown( EventMouseDown &e ) override
+    void onButton(const event::Button &e) override
     {
-        e.consumed = false;
-
-        if( !m_bInitialized || e.button != 0 )
+        if( !m_bInitialized || e.button != 0 || e.action != GLFW_PRESS )
             return;
 
-        if( isPoint( &m_Rect, (int)e.pos.x, (int)e.pos.y ) )
-        {
+        //if( isPoint( &m_Rect, (int)e.pos.x, (int)e.pos.y ) )
+        //{
             m_bOn = !m_bOn;
 
             if( m_Type == TYPE_MOMENTARY )
             {
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                 {
                     m_bOn = true;
                     m_StepCount = 8;//(int)( engineGetSampleRate() * 0.05 );
@@ -1081,16 +1057,14 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
             }
             else
             {
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                     m_pCallback( m_pClass, m_Id, m_bOn );
             }
 
-            dirty = true;
-            e.consumed = true;
-            return;
-        }
+            //return;
+        //}
 
-        return;
+        //return;
     }
 
     //-----------------------------------------------------
@@ -1104,11 +1078,8 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
             {
                 m_bOn = false;
                 m_StepCount = 0;
-                dirty = true;
             }
         }
-
-	    FramebufferWidget::step();
     }
 };
 
@@ -1117,7 +1088,7 @@ struct MyLEDButton : OpaqueWidget, FramebufferWidget
 //-----------------------------------------------------
 #define MAX_CLK_PAT 32
 #define LEVELS 5
-struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget 
+struct SinglePatternClocked32 : OpaqueWidget 
 {
     typedef void SINGLEPAT16CALLBACK ( void *pClass, int id, int pat, int level, int maxpat );
 
@@ -1195,8 +1166,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 
         for( int i = 0; i < m_nLEDs; i++ )
             m_PatSelLevel[ i ] = pPat[ i ];// & 0x3;
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1209,8 +1178,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 
         for( int i = 0; i < m_nLEDs; i++ )
             pPat[ i ] = m_PatSelLevel[ i ];
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1225,8 +1192,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 
         if( m_PatSelLevel[ pat ] > LEVELS )
             m_PatSelLevel[ pat ] = 0;
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1238,7 +1203,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
             return;
 
         m_PatSelLevel[ pat ] = 0;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1250,8 +1214,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 
         if ( m_PatClk < 0 || m_PatClk > m_MaxPat || m_PatClk >= m_nLEDs )
             m_PatClk = 0;
-
-        dirty = true;
 
         if( m_PatClk == 0 )
             return true;
@@ -1265,7 +1227,6 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
     void ClockReset( void )
     {
         m_PatClk = 0;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1274,13 +1235,12 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
     void SetMax( int max )
     {
         m_MaxPat = max;
-        dirty = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         float xi, yi;
 
@@ -1290,69 +1250,69 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
         if( !m_bInitialized )
             return;
 
-		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
-		nvgBeginPath(vg);
-		nvgMoveTo(vg, -1, -1 );
-		nvgLineTo(vg, box.size.x + 1, -1 );
-		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
-		nvgLineTo(vg, -1, box.size.y + 1 );
-		nvgClosePath(vg);
-		nvgFill(vg);
+		nvgFillColor(args.vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(args.vg);
+		nvgMoveTo(args.vg, -1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(args.vg, -1, box.size.y + 1 );
+		nvgClosePath(args.vg);
+		nvgFill(args.vg);
 
-        nvgStrokeWidth( vg, 0.35 );
-        nvgStrokeColor( vg, nvgRGBA( 0xc0, 0xc0, 0xc0, 255 ) );
+        nvgStrokeWidth( args.vg, 0.35 );
+        nvgStrokeColor( args.vg, nvgRGBA( 0xc0, 0xc0, 0xc0, 255 ) );
 
         for( i = 0; i < m_nLEDs; i++ )
         {
             // max pattern display
             if( i <= m_MaxPat )
-                nvgFillColor( vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
             else
-                nvgFillColor( vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
 
-			nvgBeginPath(vg);
+			nvgBeginPath(args.vg);
             xi = ( ( (float)m_RectsPatSel[ i ].x2 + (float)m_RectsPatSel[ i ].x ) / 2.0f );
-			nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, xi, m_RectsMaxPat[ i ].y2 );
-			//nvgLineTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
-            //nvgStroke( vg );
+			nvgMoveTo(args.vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
+			nvgLineTo(args.vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
+			nvgLineTo(args.vg, xi, m_RectsMaxPat[ i ].y2 );
+			//nvgLineTo(args.vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
+            //nvgStroke( args.vg );
 
             // pattern select
             rgb.Col[ 0 ] = ( ( m_PatCol[ 1 ].Col[ 0 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 0 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
             rgb.Col[ 1 ] = ( ( m_PatCol[ 1 ].Col[ 1 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 1 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
             rgb.Col[ 2 ] = ( ( m_PatCol[ 1 ].Col[ 2 ] * m_PatSelLevel[ i ] ) + ( m_PatCol[ 0 ].Col[ 2 ] * ( LEVELS - m_PatSelLevel[ i ] ) ) ) / LEVELS;
 
-            nvgFillColor( vg, nvgRGB( rgb.Col[ 2 ], rgb.Col[ 1 ], rgb.Col[ 0 ] ) );
+            nvgFillColor( args.vg, nvgRGB( rgb.Col[ 2 ], rgb.Col[ 1 ], rgb.Col[ 0 ] ) );
 
-			nvgBeginPath(vg);
-			nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
-            nvgStroke( vg );
+			nvgBeginPath(args.vg);
+			nvgMoveTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
+            nvgStroke( args.vg );
 
             xi = ( ( (float)m_RectsPatSel[ i ].x2 + (float)m_RectsPatSel[ i ].x ) / 2.0f ) - 2.0f ;
             yi = ( ( (float)m_RectsPatSel[ i ].y2 + (float)m_RectsPatSel[ i ].y ) / 2.0f ) - 2.0f ;
 
             if( i == m_PatClk )
-                nvgFillColor( vg, nvgRGBA( 0, 0xFF, 0, 0xFF ) );
+                nvgFillColor( args.vg, nvgRGBA( 0, 0xFF, 0, 0xFF ) );
             else
-                nvgFillColor( vg, nvgRGBA( 0, 0, 0, 0xFF ) );
+                nvgFillColor( args.vg, nvgRGBA( 0, 0, 0, 0xFF ) );
 
-			nvgBeginPath(vg);
+			nvgBeginPath(args.vg);
 
-            nvgMoveTo(vg, xi, yi );
-			nvgLineTo(vg, xi + 4.0f, yi );
-			nvgLineTo(vg, xi + 4.0f, yi + 4.0f );
-			nvgLineTo(vg, xi, yi + 4.0f );
+            nvgMoveTo(args.vg, xi, yi );
+			nvgLineTo(args.vg, xi + 4.0f, yi );
+			nvgLineTo(args.vg, xi + 4.0f, yi + 4.0f );
+			nvgLineTo(args.vg, xi, yi + 4.0f );
 
-			nvgClosePath(vg);
-		    nvgFill(vg);
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
         }
 	}
 
@@ -1370,13 +1330,11 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    void onMouseDown( EventMouseDown &e ) override
+    void onButton(const event::Button &e) override
     {
         int i;
 
-        e.consumed = false;
-
-        if( !m_bInitialized )
+        if( !m_bInitialized || e.action != GLFW_PRESS )
             return;
 
         for( i = 0; i < m_nLEDs; i++)
@@ -1388,11 +1346,9 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
                 else
                     ClrPat( i );
 
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                     m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
 
-                dirty = true;
-                e.consumed = true;
                 return;
             }
 
@@ -1400,24 +1356,14 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
             {
                 m_MaxPat = i;
 
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                     m_pCallback( m_pClass, m_Id, i, m_PatSelLevel[ i ], m_MaxPat );
 
-                dirty = true;
-                e.consumed = true;
                 return;
             }
         }
 
         return;
-    }
-
-    //-----------------------------------------------------
-    // Procedure:   draw
-    //-----------------------------------------------------
-    void step() override
-    {
-	    FramebufferWidget::step();
     }
 };
 
@@ -1425,7 +1371,7 @@ struct SinglePatternClocked32 : OpaqueWidget, FramebufferWidget
 // PatternSelectStrip
 //-----------------------------------------------------
 #define MAX_PAT 32
-struct PatternSelectStrip : OpaqueWidget, FramebufferWidget 
+struct PatternSelectStrip : OpaqueWidget 
 {
     typedef void PATCHANGECALLBACK ( void *pClass, int id, int pat, int maxpat );
 
@@ -1501,8 +1447,6 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
             m_PatPending = -1;
             m_PatSel = pat;
         }
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -1511,13 +1455,12 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
     void SetMax( int max )
     {
         m_MaxPat = max;
-        dirty = true;
     }
 
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         int i;
         float xi;
@@ -1525,56 +1468,56 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
         if( !m_bInitialized )
             return;
 
-		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
-		nvgBeginPath(vg);
-		nvgMoveTo(vg, -1, -1 );
-		nvgLineTo(vg, box.size.x + 1, -1 );
-		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
-		nvgLineTo(vg, -1, box.size.y + 1 );
-		nvgClosePath(vg);
-		nvgFill(vg);
+		nvgFillColor(args.vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(args.vg);
+		nvgMoveTo(args.vg, -1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(args.vg, -1, box.size.y + 1 );
+		nvgClosePath(args.vg);
+		nvgFill(args.vg);
 
         for( i = 0; i < m_nLEDs; i++ )
         {
             if( i <= m_MaxPat )
-                nvgFillColor( vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_MaxCol[ 1 ].Col[ 2 ], m_MaxCol[ 1 ].Col[ 1 ], m_MaxCol[ 1 ].Col[ 0 ] ) );
             else
-                nvgFillColor( vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_MaxCol[ 0 ].Col[ 2 ], m_MaxCol[ 0 ].Col[ 1 ], m_MaxCol[ 0 ].Col[ 0 ] ) );
 
 
 
-			nvgBeginPath(vg);
+			nvgBeginPath(args.vg);
             xi = ( ( (float)m_RectsPatSel[ i ].x2 + (float)m_RectsPatSel[ i ].x ) / 2.0f );
-			nvgMoveTo(vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
-			nvgLineTo(vg, xi, m_RectsMaxPat[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
+			nvgMoveTo(args.vg, m_RectsMaxPat[ i ].x, m_RectsMaxPat[ i ].y );
+			nvgLineTo(args.vg, m_RectsMaxPat[ i ].x2, m_RectsMaxPat[ i ].y );
+			nvgLineTo(args.vg, xi, m_RectsMaxPat[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
 
             if( m_PatSel == i )
-                nvgFillColor( vg, nvgRGB( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ] ) );
             else
-                nvgFillColor( vg, nvgRGB( m_PatCol[ 0 ].Col[ 2 ], m_PatCol[ 0 ].Col[ 1 ], m_PatCol[ 0 ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_PatCol[ 0 ].Col[ 2 ], m_PatCol[ 0 ].Col[ 1 ], m_PatCol[ 0 ].Col[ 0 ] ) );
 
-			nvgBeginPath(vg);
-			nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
-			nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
+			nvgBeginPath(args.vg);
+			nvgMoveTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			nvgLineTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
 
             if( m_PatPending == i )
             {
-                nvgFillColor( vg, nvgRGBA( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ], 0x50 ) );
+                nvgFillColor( args.vg, nvgRGBA( m_PatCol[ 1 ].Col[ 2 ], m_PatCol[ 1 ].Col[ 1 ], m_PatCol[ 1 ].Col[ 0 ], 0x50 ) );
 
-			    nvgBeginPath(vg);
-			    nvgMoveTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
-			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
-			    nvgLineTo(vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
-			    nvgLineTo(vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
-			    nvgClosePath(vg);
-		        nvgFill(vg);
+			    nvgBeginPath(args.vg);
+			    nvgMoveTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y );
+			    nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y );
+			    nvgLineTo(args.vg, m_RectsPatSel[ i ].x2, m_RectsPatSel[ i ].y2 );
+			    nvgLineTo(args.vg, m_RectsPatSel[ i ].x, m_RectsPatSel[ i ].y2 );
+			    nvgClosePath(args.vg);
+		        nvgFill(args.vg);
             }
         }
 	}
@@ -1593,16 +1536,14 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    void onMouseDown( EventMouseDown &e ) override
+    void onButton(const event::Button &e) override
     {
         int i;
-
-        e.consumed = false;
 
         if( !m_bInitialized )
             return;
 
-        if( e.button != 0 )
+        if( e.button != 0 || e.action != GLFW_PRESS )
             return;
 
         for( i = 0; i < m_nLEDs; i++)
@@ -1611,11 +1552,9 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
             {
                 m_MaxPat = i;
 
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
-                dirty = true;
-                e.consumed = true;
                 return;
             }
 
@@ -1623,23 +1562,14 @@ struct PatternSelectStrip : OpaqueWidget, FramebufferWidget
             {
                 m_PatSel = i;
 
-                if( m_pCallback )
+                if( m_pCallback && m_pClass )
                     m_pCallback( m_pClass, m_Id, m_PatSel, m_MaxPat );
 
-                e.consumed = true;
                 return;
             }
         }
 
         return;
-    }
-
-    //-----------------------------------------------------
-    // Procedure:   draw
-    //-----------------------------------------------------
-    void step() override
-    {
-	    FramebufferWidget::step();
     }
 };
 
@@ -1695,36 +1625,36 @@ struct CompressorLEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         int i;
 
         if( !m_bInitialized )
             return;
 
-		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
-		nvgBeginPath(vg);
-		nvgMoveTo(vg, -1, -1 );
-		nvgLineTo(vg, box.size.x + 1, -1 );
-		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
-		nvgLineTo(vg, -1, box.size.y + 1 );
-		nvgClosePath(vg);
-		nvgFill(vg);
+		nvgFillColor(args.vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(args.vg);
+		nvgMoveTo(args.vg, -1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(args.vg, -1, box.size.y + 1 );
+		nvgClosePath(args.vg);
+		nvgFill(args.vg);
 
         for( i = 0; i < nDISPLAY_LEDS; i++ )
         {
             if( m_bOn[ i ] )
-                nvgFillColor( vg, nvgRGB( m_ColourOn.Col[ 2 ], m_ColourOn.Col[ 1 ], m_ColourOn.Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_ColourOn.Col[ 2 ], m_ColourOn.Col[ 1 ], m_ColourOn.Col[ 0 ] ) );
             else
-                nvgFillColor( vg, nvgRGB( m_ColourOff.Col[ 2 ], m_ColourOff.Col[ 1 ], m_ColourOff.Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_ColourOff.Col[ 2 ], m_ColourOff.Col[ 1 ], m_ColourOff.Col[ 0 ] ) );
 
-			nvgBeginPath(vg);
-			nvgMoveTo(vg, m_Rects[ i ].x, m_Rects[ i ].y );
-			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y );
-			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y2 );
-			nvgLineTo(vg, m_Rects[ i ].x, m_Rects[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
+			nvgBeginPath(args.vg);
+			nvgMoveTo(args.vg, m_Rects[ i ].x, m_Rects[ i ].y );
+			nvgLineTo(args.vg, m_Rects[ i ].x2, m_Rects[ i ].y );
+			nvgLineTo(args.vg, m_Rects[ i ].x2, m_Rects[ i ].y2 );
+			nvgLineTo(args.vg, m_Rects[ i ].x, m_Rects[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
         }
 	}
 
@@ -1733,7 +1663,7 @@ struct CompressorLEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     void Process( float level )
     {
-        int steptime = (int)( engineGetSampleRate() * 0.05f );
+        int steptime = (int)( APP->engine->getSampleRate() * 0.05f );
         int i;
 
         if( !m_bInitialized )
@@ -1848,36 +1778,36 @@ struct LEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw(NVGcontext *vg) override
+    void draw(const DrawArgs &args) override
     {
         int i;
 
         if( !m_bInitialized )
             return;
 
-		nvgFillColor(vg, nvgRGBA(0, 0, 0, 0xc0));
-		nvgBeginPath(vg);
-		nvgMoveTo(vg, -1, -1 );
-		nvgLineTo(vg, box.size.x + 1, -1 );
-		nvgLineTo(vg, box.size.x + 1, box.size.y + 1 );
-		nvgLineTo(vg, -1, box.size.y + 1 );
-		nvgClosePath(vg);
-		nvgFill(vg);
+		nvgFillColor(args.vg, nvgRGBA(0, 0, 0, 0xc0));
+		nvgBeginPath(args.vg);
+		nvgMoveTo(args.vg, -1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, -1 );
+		nvgLineTo(args.vg, box.size.x + 1, box.size.y + 1 );
+		nvgLineTo(args.vg, -1, box.size.y + 1 );
+		nvgClosePath(args.vg);
+		nvgFill(args.vg);
 
         for( i = 0; i < nDISPLAY_LEDS; i++ )
         {
             if( m_bOn[ i ] )
-                nvgFillColor( vg, nvgRGB( m_ColoursOn[ i ].Col[ 2 ], m_ColoursOn[ i ].Col[ 1 ], m_ColoursOn[ i ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_ColoursOn[ i ].Col[ 2 ], m_ColoursOn[ i ].Col[ 1 ], m_ColoursOn[ i ].Col[ 0 ] ) );
             else
-                nvgFillColor( vg, nvgRGB( m_ColoursOff[ i ].Col[ 2 ], m_ColoursOff[ i ].Col[ 1 ], m_ColoursOff[ i ].Col[ 0 ] ) );
+                nvgFillColor( args.vg, nvgRGB( m_ColoursOff[ i ].Col[ 2 ], m_ColoursOff[ i ].Col[ 1 ], m_ColoursOff[ i ].Col[ 0 ] ) );
 
-			nvgBeginPath(vg);
-			nvgMoveTo(vg, m_Rects[ i ].x, m_Rects[ i ].y );
-			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y );
-			nvgLineTo(vg, m_Rects[ i ].x2, m_Rects[ i ].y2 );
-			nvgLineTo(vg, m_Rects[ i ].x, m_Rects[ i ].y2 );
-			nvgClosePath(vg);
-		    nvgFill(vg);
+			nvgBeginPath(args.vg);
+			nvgMoveTo(args.vg, m_Rects[ i ].x, m_Rects[ i ].y );
+			nvgLineTo(args.vg, m_Rects[ i ].x2, m_Rects[ i ].y );
+			nvgLineTo(args.vg, m_Rects[ i ].x2, m_Rects[ i ].y2 );
+			nvgLineTo(args.vg, m_Rects[ i ].x, m_Rects[ i ].y2 );
+			nvgClosePath(args.vg);
+		    nvgFill(args.vg);
         }
 	}
 
@@ -1886,7 +1816,7 @@ struct LEDMeterWidget : TransparentWidget
     //-----------------------------------------------------
     void Process( float level )
     {
-        int steptime = (int)( engineGetSampleRate() * 0.05 );
+        int steptime = (int)( APP->engine->getSampleRate() * 0.05 );
         int i;
 
         if( !m_bInitialized )
@@ -1916,9 +1846,9 @@ struct LEDMeterWidget : TransparentWidget
 //-----------------------------------------------------
 // Keyboard_3Oct_Widget
 //-----------------------------------------------------
-struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
+struct Keyboard_3Oct_Widget : OpaqueWidget
 {
-    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button );
+    typedef void NOTECHANGECALLBACK ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button, int mod );
 
 #define nKEYS 37
 #define MAX_MULT_KEYS 16
@@ -1926,7 +1856,6 @@ struct Keyboard_3Oct_Widget : OpaqueWidget, FramebufferWidget
 
     bool    m_bInitialized = false;
     RGB_STRUCT m_rgb_white, m_rgb_black, m_rgb_on;
-    CLog *lg;
     int m_MaxMultKeys = 1;
     int m_KeySave[ MAX_MULT_KEYS ] = {0};
     bool m_bKeyOnList[ nKEYS ] = {false};
@@ -1966,7 +1895,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     // Procedure:   Constructor
     //-----------------------------------------------------
-    Keyboard_3Oct_Widget( int x, int y, int maxkeysel, int nKb, unsigned int rgbon, void *pClass, NOTECHANGECALLBACK *pcallback, CLog *plog )
+    Keyboard_3Oct_Widget( int x, int y, int maxkeysel, int nKb, unsigned int rgbon, void *pClass, NOTECHANGECALLBACK *pcallback )
     {
         int i, j, oct = 0;
 
@@ -1979,8 +1908,6 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         m_nKb = nKb;
         m_KeyOn = -1;
         m_rgb_on.dwCol = rgbon;
-
-        lg = plog;
 
 		box.pos = Vec(x, y);
 
@@ -2043,7 +1970,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     // Procedure:   addtokeylist
     //-----------------------------------------------------
-    void addtokeylist( int key, int button )
+    void addtokeylist( int key, int button, int mod )
     {
         int count = 0;
         bool bOn = false;
@@ -2084,7 +2011,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         }
 
         if( pNoteChangeCallback )
-            pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn, button );
+            pNoteChangeCallback( m_pClass, m_nKb, key, m_KeySave, bOn, button, mod );
     }
 
     //-----------------------------------------------------
@@ -2101,23 +2028,21 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     // Procedure:   onMouseDown
     //-----------------------------------------------------
-    void onMouseDown( EventMouseDown &e ) override
+    void onButton(const event::Button &e) override
     {
         int i;
 
-        e.consumed = false;
-
-        if( !m_bInitialized )
+        if( !m_bInitialized || e.action != GLFW_PRESS )
             return;
+
+        e.consume( NULL );
 
         // check black keys first they are on top
         for( i = 0; i < nKEYS; i++)
         {
             if( OctaveKeyDrawVects[ i ].nUsed == 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                addtokeylist( i, e.button );
-                dirty = true;
-                e.consumed = true;
+                addtokeylist( i, e.button, e.mods );
                 return;
             }
         }
@@ -2127,9 +2052,7 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
         {
             if( OctaveKeyDrawVects[ i ].nUsed != 4 && isPoint( &keyrects[ i ], (int)e.pos.x, (int)e.pos.y ) )
             {
-                addtokeylist( i, e.button );
-                dirty = true;
-                e.consumed = true;
+                addtokeylist( i, e.button, e.mods );
                 return;
             }
         }
@@ -2156,8 +2079,6 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
                 m_KeySave[ i ] = pkey[ i ];
             }
         }
-
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -2166,7 +2087,6 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     void setkeyhighlight( int key ) 
     {
         m_KeyOn = key;
-        dirty = true;
     }
 
     //-----------------------------------------------------
@@ -2217,17 +2137,17 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
     //-----------------------------------------------------
     // Procedure:   draw
     //-----------------------------------------------------
-    void draw( NVGcontext *vg ) override
+    void draw(const DrawArgs &args) override
     {
         int key;
 
         for( key = 0; key < nKEYS; key++ )
-            drawkey( vg, key, false );
+            drawkey( args.vg, key, false );
 
         for( key = 0; key < m_MaxMultKeys; key++ )
         {
             if( m_KeySave[ key ] != -1 )
-                drawkey( vg, m_KeySave[ key ], true );
+                drawkey( args.vg, m_KeySave[ key ], true );
         }
 	}
 };
@@ -2236,164 +2156,169 @@ DRAW_VECT_STRUCT OctaveKeyHighC [ 1 ] =
 // Procedure:   MySquareButton
 //
 //-----------------------------------------------------
-struct MySquareButton : SVGSwitch, MomentarySwitch 
+struct MySquareButton : SvgSwitch
 {
 	MySquareButton() 
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_square_button.svg")));
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        momentary = true;
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_square_button.svg")));
+        sw->wrap();
+        //box.size = sw->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   MySquareButton2
 //
 //-----------------------------------------------------
-struct MySquareButton2 : SVGSwitch, MomentarySwitch 
+struct MySquareButton2 : SvgSwitch 
 {
-	MySquareButton2() 
+    MySquareButton2() 
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_Square_Button2.svg")));
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        momentary = true;
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Square_Button2.svg")));
+        sw->wrap();
+        //box.size = sw->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   PianoWhiteKey
 //
 //-----------------------------------------------------
-struct PianoWhiteKey : SVGSwitch, ToggleSwitch
+struct PianoWhiteKey : SvgSwitch
 {
-	PianoWhiteKey()
+    PianoWhiteKey()
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_WhiteKeyOff.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_WhiteKeyOn.svg")));
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_WhiteKeyOff.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_WhiteKeyOn.svg")));
+        sw->wrap();
+        //box.size = sw->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   PianoBlackKey
 //
 //-----------------------------------------------------
-struct PianoBlackKey : SVGSwitch, ToggleSwitch
+struct PianoBlackKey : SvgSwitch
 {
-	PianoBlackKey()
+    PianoBlackKey()
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_BlackKeyOff.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_BlackKeyOn.svg")));
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_BlackKeyOff.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_BlackKeyOn.svg")));
+        sw->wrap();
+        //box.size = sw->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   MyToggle1
 //
 //-----------------------------------------------------
-struct MyToggle1 : SVGSwitch, ToggleSwitch
+struct MyToggle1 : SvgSwitch
 {
-	MyToggle1()
+    MyToggle1()
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_01.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_02.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_3p_vert_simple_03.svg")));
-
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_3p_vert_simple_01.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_3p_vert_simple_02.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_3p_vert_simple_03.svg")));
+        sw->wrap();
+        //box.size = sw->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   FilterSelectToggle
 //
 //-----------------------------------------------------
-struct FilterSelectToggle : SVGSwitch, ToggleSwitch
+struct FilterSelectToggle : SvgSwitch
 {
-	FilterSelectToggle()
+    FilterSelectToggle()
     {
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_01.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_02.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_03.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_04.svg")));
-        addFrame(SVG::load(assetPlugin(plugin,"res/mschack_5p_filtersel_05.svg")));
-
-		sw->wrap();
-		box.size = sw->box.size;
-	}
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_5p_filtersel_01.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_5p_filtersel_02.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_5p_filtersel_03.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_5p_filtersel_04.svg")));
+        addFrame(APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_5p_filtersel_05.svg")));
+        //sw->wrap();
+    }
 };
 
 //-----------------------------------------------------
 // Sliders
 //
 //-----------------------------------------------------
-struct MySlider_01 : SVGFader 
+struct MySlider_01 : SvgSlider 
 {
-	MySlider_01() 
+    MySlider_01() 
     {
 
-		Vec margin = Vec(0, 0);
-		maxHandlePos = Vec(0, -4).plus(margin);
-		minHandlePos = Vec(0, 33).plus(margin);
+        Vec margin = Vec(0, 0);
+        maxHandlePos = Vec(0, -4).plus(margin);
+        minHandlePos = Vec(0, 33).plus(margin);
 
-        background->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderBG_01.svg"));
-		background->wrap();
-		background->box.pos = margin;
-		box.size = background->box.size.plus(margin.mult(2));
+        background->svg = APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_sliderBG_01.svg"));
+        //background->svg = SVG::load(asset::plugin(thePlugin,"res/mschack_sliderBG_01.svg"));
+        background->wrap();
+        background->box.pos = margin;
+        box.size = background->box.size.plus(margin.mult(2));
 
-        handle->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderKNOB_01.svg"));
-		handle->wrap();
-	}
+        handle->svg = APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_sliderKNOB_01.svg"));
+        //handle->svg = SVG::load(asset::plugin(thePlugin,"res/mschack_sliderKNOB_01.svg"));
+        handle->wrap();
+    }
 };
 
-struct Slider02_10x15 : SVGFader 
+struct Slider02_10x15 : SvgSlider
 {
-	Slider02_10x15() 
+    Slider02_10x15() 
     {
 
-		Vec margin = Vec(4, 0);
-		maxHandlePos = Vec(-3, 0).plus(margin);
-		minHandlePos = Vec(-3, 60).plus(margin);
+        Vec margin = Vec(4, 0);
+        maxHandlePos = Vec(-3, 0).plus(margin);
+        minHandlePos = Vec(-3, 60).plus(margin);
 
-        background->svg = SVG::load(assetPlugin(plugin,"res/mschack_sliderBG_02.svg"));
-		background->wrap();
-		background->box.pos = margin;
-		box.size = background->box.size.plus(margin.mult(2));
+        background->svg = APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_sliderBG_02.svg"));
+        //background->svg = SVG::load(asset::plugin(thePlugin,"res/mschack_sliderBG_02.svg"));
+        background->wrap();
+        background->box.pos = margin;
+        box.size = background->box.size.plus(margin.mult(2));
 
-        handle->svg = SVG::load(assetPlugin(plugin,"res/mschack_Slider02_10x15.svg"));
-		handle->wrap();
-	}
+        handle->svg = APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Slider02_10x15.svg"));
+        //handle->svg = SVG::load(asset::plugin(thePlugin,"res/mschack_Slider02_10x15.svg"));
+        handle->wrap();
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   MyPortInSmall
 //
 //-----------------------------------------------------
-struct MyPortInSmall : SVGPort 
+struct MyPortInSmall : SvgPort 
 {
-	MyPortInSmall() 
+    MyPortInSmall() 
     {
-        background->svg = SVG::load(assetPlugin(plugin, "res/mschack_PortIn_small.svg" ) );
-		background->wrap();
-		box.size = background->box.size;
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_PortIn_small.svg")) );
+        //setSvg( SVG::load(asset::plugin(thePlugin, "res/mschack_PortIn_small.svg" ) ) );
+        //wrap();
+        //box.size = background->box.size;
+    }
 };
 
 //-----------------------------------------------------
 // Procedure:   MyPortOutSmall
 //
 //-----------------------------------------------------
-struct MyPortOutSmall : SVGPort 
+struct MyPortOutSmall : SvgPort 
 {
-	MyPortOutSmall() 
+    MyPortOutSmall() 
     {
-        background->svg = SVG::load(assetPlugin(plugin, "res/mschack_PortOut_small.svg" ) );
-		background->wrap();
-		box.size = background->box.size;
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_PortOut_small.svg")) );
+        //setSvg( SVG::load(asset::plugin(thePlugin, "res/mschack_PortOut_small.svg" ) ) );
+        //background->wrap();
+        //box.size = background->box.size;
+    }
 };
 
 //-----------------------------------------------------
@@ -2402,18 +2327,20 @@ struct MyPortOutSmall : SVGPort
 //-----------------------------------------------------
 struct Knob_Red1_20 : RoundKnob 
 {
-	Knob_Red1_20() 
+    Knob_Red1_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Red1_20.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Red1_20.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Red1_20.svg" )));
+    }
 };
 
 struct Knob_Red1_15 : RoundKnob 
 {
-	Knob_Red1_15() 
+    Knob_Red1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Red1_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Red1_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Red1_15.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2422,18 +2349,20 @@ struct Knob_Red1_15 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Purp1_20 : RoundKnob 
 {
-	Knob_Purp1_20() 
+    Knob_Purp1_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Purp1_20.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Purp1_20.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Purp1_20.svg" )));
+    }
 };
 
 struct Knob_Purp1_15 : RoundKnob 
 {
-	Knob_Purp1_15() 
+    Knob_Purp1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Purp1_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Purp1_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Purp1_15.svg" )));
+    }
 };
 
 
@@ -2443,18 +2372,20 @@ struct Knob_Purp1_15 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Green1_15 : RoundKnob 
 {
-	Knob_Green1_15() 
+    Knob_Green1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Green1_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Green1_15.svg" )));
+    }
 };
 
 struct Knob_Green1_40 : RoundKnob 
 {
-	Knob_Green1_40() 
+    Knob_Green1_40() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Green1_40.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Green1_40.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Green1_40.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2463,10 +2394,11 @@ struct Knob_Green1_40 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Blue1_26 : RoundKnob 
 {
-	Knob_Blue1_26() 
+    Knob_Blue1_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue1_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue1_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue1_26.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2475,44 +2407,48 @@ struct Knob_Blue1_26 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Blue2_26 : RoundKnob 
 {
-	Knob_Blue2_26() 
+    Knob_Blue2_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_26.svg" )));
+    }
 };
 
 struct Knob_Blue2_26_Snap : RoundKnob 
 {
-	Knob_Blue2_26_Snap() 
+    Knob_Blue2_26_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_26.svg" )));
+    }
 };
 
 struct Knob_Blue2_15 : RoundKnob 
 {
-	Knob_Blue2_15() 
+    Knob_Blue2_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_15.svg" )));
+    }
 };
 
 struct Knob_Blue2_40 : RoundKnob 
 {
-	Knob_Blue2_40() 
+    Knob_Blue2_40() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_40.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_40.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_40.svg" )));
+    }
 };
 
 struct Knob_Blue2_56 : RoundKnob 
 {
-	Knob_Blue2_56() 
+    Knob_Blue2_56() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue2_56.svg" )));
-		//box.size = Vec(56, 56);
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_56.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue2_56.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2521,18 +2457,20 @@ struct Knob_Blue2_56 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Blue3_20 : RoundKnob 
 {
-	Knob_Blue3_20() 
+    Knob_Blue3_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue3_20.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue3_20.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue3_20.svg" )));
+    }
 };
 
 struct Knob_Blue3_15 : RoundKnob 
 {
-	Knob_Blue3_15() 
+    Knob_Blue3_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Blue3_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Blue3_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Blue3_15.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2541,18 +2479,20 @@ struct Knob_Blue3_15 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Yellow1_26 : RoundKnob 
 {
-	Knob_Yellow1_26() 
+    Knob_Yellow1_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow1_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow1_26.svg" )));
+    }
 };
 
 struct Knob_Yellow1_15 : RoundKnob 
 {
-	Knob_Yellow1_15() 
+    Knob_Yellow1_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow1_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow1_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow1_15.svg" )));
+    }
 };
 
 //-----------------------------------------------------
@@ -2561,44 +2501,49 @@ struct Knob_Yellow1_15 : RoundKnob
 //-----------------------------------------------------
 struct Knob_Yellow2_26 : RoundKnob 
 {
-	Knob_Yellow2_26() 
+    Knob_Yellow2_26() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_26.svg" )));
+    }
 };
 
 struct Knob_Yellow2_26_Snap : RoundKnob 
 {
-	Knob_Yellow2_26_Snap() 
+    Knob_Yellow2_26_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_26.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_26.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_26.svg" )));
+    }
 };
 
 struct Knob_Yellow2_40 : RoundKnob 
 {
-	Knob_Yellow2_40() 
+    Knob_Yellow2_40() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_40.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_40.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_40.svg" )));
+    }
 };
 
 struct Knob_Yellow2_56 : RoundKnob 
 {
-	Knob_Yellow2_56() 
+    Knob_Yellow2_56() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_56.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_56.svg" )));
+    }
 };
 
 struct Knob_Yellow2_56_Snap : RoundKnob 
 {
-	Knob_Yellow2_56_Snap() 
+    Knob_Yellow2_56_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow2_56.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_56.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow2_56.svg" )));
+    }
 };
 //-----------------------------------------------------
 // Yellow3
@@ -2606,25 +2551,28 @@ struct Knob_Yellow2_56_Snap : RoundKnob
 //-----------------------------------------------------
 struct Knob_Yellow3_15 : RoundKnob 
 {
-	Knob_Yellow3_15() 
+    Knob_Yellow3_15() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_15.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_15.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_15.svg" )));
+    }
 };
 
 struct Knob_Yellow3_20 : RoundKnob 
 {
-	Knob_Yellow3_20() 
+    Knob_Yellow3_20() 
     {
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
-	}
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_20.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_20.svg" )));
+    }
 };
 
 struct Knob_Yellow3_20_Snap : RoundKnob 
 {
-	Knob_Yellow3_20_Snap() 
+    Knob_Yellow3_20_Snap() 
     {
         snap = true;
-        setSVG(SVG::load(assetPlugin(plugin, "res/mschack_Knob_Yellow3_20.svg" )));
+        setSvg( APP->window->loadSvg(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_20.svg")) );
+        //setSVG(SVG::load(asset::plugin(thePlugin, "res/mschack_Knob_Yellow3_20.svg" )));
 	}
 };

@@ -1,5 +1,4 @@
 #include "mscHack.hpp"
-#include "dsp/digital.hpp"
 
 //-----------------------------------------------------
 // Module Definition
@@ -40,20 +39,23 @@ struct SEQ_Envelope_8 : Module
 
     bool                m_bInitialized = false;
 
-    CLog            lg;
-
     // Contructor
-	SEQ_Envelope_8() : Module(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS){}
+	SEQ_Envelope_8()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
+
+        configParam( PARAM_BAND, 0.0, 0.8, 0.333, "Rubber Band Edit" );
+    }
 
     // clock     
-    SchmittTrigger      m_SchTrigClk;
+    dsp::SchmittTrigger      m_SchTrigClk;
 
     // global triggers
-    SchmittTrigger      m_SchTrigGlobalClkReset;
-    SchmittTrigger      m_SchTrigGlobalTrig;
+    dsp::SchmittTrigger      m_SchTrigGlobalClkReset;
+    dsp::SchmittTrigger      m_SchTrigGlobalTrig;
 
     // channel triggers
-    SchmittTrigger      m_SchTrigChTrig[ nCHANNELS ] ={};
+    dsp::SchmittTrigger      m_SchTrigChTrig[ nCHANNELS ] ={};
 
     int                 m_CurrentChannel = 0;
     int                 m_GraphData[ nCHANNELS ][ ENVELOPE_HANDLES ] = {};
@@ -84,6 +86,7 @@ struct SEQ_Envelope_8 : Module
     MyLEDButton         *m_pButtonCopy = NULL;
     MyLEDButton         *m_pButtonRand = NULL;
     MyLEDButton         *m_pButtonInvert = NULL;
+    MyLEDButton         *m_pButtonSmooth = NULL;
 
     Label               *m_pTextLabel = NULL;
 
@@ -97,12 +100,12 @@ struct SEQ_Envelope_8 : Module
         SEQ_Envelope_8 *mymodule;
         int param;
 
-        void onChange( EventChange &e ) override 
+        void onChange( const event::Change &e ) override 
         {
-            mymodule = (SEQ_Envelope_8*)module;
+            mymodule = (SEQ_Envelope_8*)paramQuantity->module;
 
             if( mymodule )
-                mymodule->m_pEnvelope->m_fband = value; 
+                mymodule->m_pEnvelope->m_fband = paramQuantity->getValue(); 
 
 		    RoundKnob::onChange( e );
 	    }
@@ -111,15 +114,15 @@ struct SEQ_Envelope_8 : Module
     void ChangeChannel( int ch );
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onRandomize() override;
     void    onReset() override;
-    void    onCreate() override;
-    void    onDelete() override;
 };
+
+SEQ_Envelope_8 SEQ_Envelope_8Browser;
 
 //-----------------------------------------------------
 // Seq_Triad2_Pause
@@ -131,9 +134,23 @@ void EnvelopeEditCALLBACK ( void *pClass, float val )
     SEQ_Envelope_8 *mymodule;
     mymodule = (SEQ_Envelope_8*)pClass;
 
+    if( !pClass )
+        return;
+
     sprintf( strVal, "[%.3fV]", val );
 
     mymodule->m_pTextLabel->text = strVal;
+}
+
+//-----------------------------------------------------
+// Procedure:   SynthEdit_WaveSmooth
+//-----------------------------------------------------
+void SynthEdit_WaveSmooth( void *pClass, int id, bool bOn )
+{
+    SEQ_Envelope_8 *m;
+    m = (SEQ_Envelope_8*)pClass;
+
+    m->m_pEnvelope->smoothWave( m->m_CurrentChannel, 0.25f );
 }
 
 //-----------------------------------------------------
@@ -142,6 +159,10 @@ void EnvelopeEditCALLBACK ( void *pClass, float val )
 void SEQ_Envelope_8_DrawMode( void *pClass, int id, bool bOn ) 
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
     mymodule->m_pEnvelope->m_bDraw = bOn;
 }
@@ -152,6 +173,10 @@ void SEQ_Envelope_8_DrawMode( void *pClass, int id, bool bOn )
 void SEQ_Envelope_8_GateMode( void *pClass, int id, bool bOn ) 
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
     mymodule->m_bGateMode[ mymodule->m_CurrentChannel ] = bOn;
     mymodule->m_pEnvelope->setGateMode( mymodule->m_CurrentChannel, bOn );
@@ -163,6 +188,10 @@ void SEQ_Envelope_8_GateMode( void *pClass, int id, bool bOn )
 void SEQ_Envelope_8_ChSelect( void *pClass, int id, int nbutton, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->ChangeChannel( nbutton );
@@ -174,6 +203,10 @@ void SEQ_Envelope_8_ChSelect( void *pClass, int id, int nbutton, bool bOn )
 void SEQ_Envelope_8_ModeSelect( void *pClass, int id, int nbutton, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->m_Modes[ mymodule->m_CurrentChannel ] = nbutton;
@@ -186,6 +219,10 @@ void SEQ_Envelope_8_ModeSelect( void *pClass, int id, int nbutton, bool bOn )
 void SEQ_Envelope_8_TimeSelect( void *pClass, int id, int nbutton, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->m_TimeDivs[ mymodule->m_CurrentChannel ] = nbutton;
@@ -198,6 +235,10 @@ void SEQ_Envelope_8_TimeSelect( void *pClass, int id, int nbutton, bool bOn )
 void SEQ_Envelope_8_RangeSelect( void *pClass, int id, int nbutton, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->m_Ranges[ mymodule->m_CurrentChannel ] = nbutton;
@@ -210,6 +251,10 @@ void SEQ_Envelope_8_RangeSelect( void *pClass, int id, int nbutton, bool bOn )
 void SEQ_Envelope_8_Hold( void *pClass, int id, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->m_bHold[ id ] = bOn;
@@ -221,6 +266,10 @@ void SEQ_Envelope_8_Hold( void *pClass, int id, bool bOn )
 void SEQ_Envelope_8_WaveSet( void *pClass, int id, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     if( id == 0 )
@@ -244,6 +293,10 @@ void SEQ_Envelope_8_WaveInvert( void *pClass, int id, bool bOn )
 {
     int i;
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     for( i = 0; i < ENVELOPE_HANDLES; i++ )
@@ -257,10 +310,14 @@ void SEQ_Envelope_8_WaveRand( void *pClass, int id, bool bOn )
 {
     int i;
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     for( i = 0; i < ENVELOPE_HANDLES; i++ )
-        mymodule->m_pEnvelope->setVal( mymodule->m_CurrentChannel, i, randomUniform() );
+        mymodule->m_pEnvelope->setVal( mymodule->m_CurrentChannel, i, random::uniform() );
 }
 
 //-----------------------------------------------------
@@ -269,6 +326,10 @@ void SEQ_Envelope_8_WaveRand( void *pClass, int id, bool bOn )
 void SEQ_Envelope_8_WaveCopy( void *pClass, int id, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     mymodule->m_bCpy = bOn;
@@ -280,6 +341,10 @@ void SEQ_Envelope_8_WaveCopy( void *pClass, int id, bool bOn )
 void SEQ_Envelope_8_Trig( void *pClass, int id, bool bOn )
 {
     SEQ_Envelope_8 *mymodule;
+
+    if( !pClass )
+        return;
+
     mymodule = (SEQ_Envelope_8*)pClass;
 
     // global reset
@@ -303,129 +368,139 @@ void SEQ_Envelope_8_Trig( void *pClass, int id, bool bOn )
 //
 //-----------------------------------------------------
 
-struct SEQ_Envelope_8_Widget : ModuleWidget {
-	SEQ_Envelope_8_Widget( SEQ_Envelope_8 *module );
-};
-
-SEQ_Envelope_8_Widget::SEQ_Envelope_8_Widget( SEQ_Envelope_8 *module ) : ModuleWidget(module) 
+struct SEQ_Envelope_8_Widget : ModuleWidget 
 {
-    int ch, x=0, y=0                                       ;
 
-	box.size = Vec( 15*36, 380);
+SEQ_Envelope_8_Widget( SEQ_Envelope_8 *module ) 
+{
+    SEQ_Envelope_8 *pmod;
+    int ch, x=0, y=0;
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/SEQ_Envelope_8.svg")));
-		addChild(panel);
-	}
+	//box.size = Vec( 15*36, 380);
 
-    //module->lg.Open("SEQ_Envelope_8.txt");
+    setModule(module);
+
+    if( !module )
+        pmod = &SEQ_Envelope_8Browser;
+    else
+        pmod = module;
+
+    //box.size = Vec( 15*21, 380);
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/SEQ_Envelope_8.svg")));
+
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
+
     // input clock
-    addInput(Port::create<MyPortInSmall>( Vec( 45, 18 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_CLK ) );
+    addInput(createInput<MyPortInSmall>( Vec( 45, 18 ), module, SEQ_Envelope_8::INPUT_CLK ) );
 
     // input clock reset
-    addInput(Port::create<MyPortInSmall>( Vec( 21, 18 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_CLK_RESET ) );
+    addInput(createInput<MyPortInSmall>( Vec( 21, 18 ), module, SEQ_Envelope_8::INPUT_CLK_RESET ) );
 
     // invert
-    module->m_pButtonInvert = new MyLEDButton( 95, 23, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveInvert );
-	addChild( module->m_pButtonInvert );
+    pmod->m_pButtonInvert = new MyLEDButton( 95, 23, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveInvert );
+	addChild( pmod->m_pButtonInvert );
+
+    // smooth
+    pmod->m_pButtonSmooth = new MyLEDButton( 125, 23, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SynthEdit_WaveSmooth );
+    addChild( pmod->m_pButtonSmooth );
 
     // envelope editor
-    module->m_pEnvelope = new Widget_EnvelopeEdit( 47, 42, 416, 192, 7, module, EnvelopeEditCALLBACK, nCHANNELS );
-	addChild( module->m_pEnvelope );
+    pmod->m_pEnvelope = new Widget_EnvelopeEdit( 47, 42, 416, 192, 7, module, EnvelopeEditCALLBACK, nCHANNELS );
+	addChild( pmod->m_pEnvelope );
 
     // envelope select buttons
-    module->m_pButtonChSelect = new MyLEDButtonStrip( 210, 23, 11, 11, 3, 8.0, nCHANNELS, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_ChSelect );
-    addChild( module->m_pButtonChSelect );
+    pmod->m_pButtonChSelect = new MyLEDButtonStrip( 210, 23, 11, 11, 3, 8.0, nCHANNELS, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_ChSelect );
+    addChild( pmod->m_pButtonChSelect );
 
-	module->m_pTextLabel = new Label();
-	module->m_pTextLabel->box.pos = Vec( 450, 10 );
-	module->m_pTextLabel->text = "----";
-	addChild( module->m_pTextLabel );
+    pmod->m_pTextLabel = new Label();
+    pmod->m_pTextLabel->box.pos = Vec( 450, 10 );
+    pmod->m_pTextLabel->text = "----";
+	addChild( pmod->m_pTextLabel );
 
     // wave set buttons
     x = 364;
     y = 23;
-    module->m_pButtonWaveSetBck = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveSet );
-	addChild( module->m_pButtonWaveSetBck );
+    pmod->m_pButtonWaveSetBck = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveSet );
+	addChild( pmod->m_pButtonWaveSetBck );
 
-    module->m_pButtonWaveSetFwd = new MyLEDButton( x + 12, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 1, module, SEQ_Envelope_8_WaveSet );
-	addChild( module->m_pButtonWaveSetFwd );
+    pmod->m_pButtonWaveSetFwd = new MyLEDButton( x + 12, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 1, module, SEQ_Envelope_8_WaveSet );
+	addChild( pmod->m_pButtonWaveSetFwd );
 
     x = 405;
 
     // random
-    module->m_pButtonRand = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveRand );
-	addChild( module->m_pButtonRand );
+    pmod->m_pButtonRand = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, 0, module, SEQ_Envelope_8_WaveRand );
+	addChild( pmod->m_pButtonRand );
 
     x += 25;
 
     // copy
-    module->m_pButtonCopy = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_WaveCopy );
-	addChild( module->m_pButtonCopy );
+    pmod->m_pButtonCopy = new MyLEDButton( x, y, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_WaveCopy );
+	addChild( pmod->m_pButtonCopy );
 
     // mode select
-    module->m_pButtonModeSelect = new MyLEDButtonStrip( 109, 256, 11, 11, 8, 8.0, EnvelopeData::nMODES, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_ModeSelect );
-    addChild( module->m_pButtonModeSelect );
+    pmod->m_pButtonModeSelect = new MyLEDButtonStrip( 109, 256, 11, 11, 8, 8.0, EnvelopeData::nMODES, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_ModeSelect );
+    addChild( pmod->m_pButtonModeSelect );
 
     // time select
-    module->m_pButtonTimeSelect = new MyLEDButtonStrip( 272, 256, 11, 11, 8, 8.0, nTIMESETS, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_TimeSelect );
-    addChild( module->m_pButtonTimeSelect );
+    pmod->m_pButtonTimeSelect = new MyLEDButtonStrip( 272, 256, 11, 11, 8, 8.0, nTIMESETS, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_TimeSelect );
+    addChild( pmod->m_pButtonTimeSelect );
 
     // range select
-    module->m_pButtonRangeSelect = new MyLEDButtonStrip( 350, 256, 11, 11, 8, 8.0, EnvelopeData::nRANGES - 3, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_RangeSelect );
-    addChild( module->m_pButtonRangeSelect );
+    pmod->m_pButtonRangeSelect = new MyLEDButtonStrip( 350, 256, 11, 11, 8, 8.0, EnvelopeData::nRANGES - 3, true, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, SEQ_Envelope_8_RangeSelect );
+    addChild( pmod->m_pButtonRangeSelect );
 
     // draw mode
-    module->m_pButtonDraw = new MyLEDButton( 48, 237, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_DrawMode );
-	addChild( module->m_pButtonDraw );
+    pmod->m_pButtonDraw = new MyLEDButton( 48, 237, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_DrawMode );
+	addChild( pmod->m_pButtonDraw );
 
     // gate mode
-    module->m_pButtonGateMode = new MyLEDButton( 48, 254, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_GateMode );
-	addChild( module->m_pButtonGateMode );
+    pmod->m_pButtonGateMode = new MyLEDButton( 48, 254, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, SEQ_Envelope_8_GateMode );
+	addChild( pmod->m_pButtonGateMode );
 
     // global reset input
-    addInput(Port::create<MyPortInSmall>( Vec( 21, 313 ), Port::INPUT, module, SEQ_Envelope_8::INPUT_GLOBAL_TRIG ) );
+    addInput(createInput<MyPortInSmall>( Vec( 21, 313 ), module, SEQ_Envelope_8::INPUT_GLOBAL_TRIG ) );
 
     // global reseet button
-    module->m_pButtonGlobalReset = new MyLEDButton( 5, 315, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, nCHANNELS, module, SEQ_Envelope_8_Trig );
-	addChild( module->m_pButtonGlobalReset );
+    pmod->m_pButtonGlobalReset = new MyLEDButton( 5, 315, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, nCHANNELS, module, SEQ_Envelope_8_Trig );
+	addChild( pmod->m_pButtonGlobalReset );
 
     // band knob
-    addParam(ParamWidget::create<SEQ_Envelope_8::Band_Knob>( Vec( 59.5 , 280 ), module, SEQ_Envelope_8::PARAM_BAND, 0.0, 0.8, 0.333 ) );
+    addParam(createParam<SEQ_Envelope_8::Band_Knob>( Vec( 59.5 , 280 ), module, SEQ_Envelope_8::PARAM_BAND ) );
 
     // inputs, outputs
     x=21;
     y=53;
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
-        addInput(Port::create<MyPortInSmall>( Vec( x, y ), Port::INPUT, module, SEQ_Envelope_8::INPUT_CH_TRIG + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( x, y ), module, SEQ_Envelope_8::INPUT_CH_TRIG + ch ) );
 
         // trig button
-        module->m_pButtonTrig[ ch ] = new MyLEDButton( x -16, y + 2, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, ch, module, SEQ_Envelope_8_Trig );
-	    addChild( module->m_pButtonTrig[ ch ] );
+        pmod->m_pButtonTrig[ ch ] = new MyLEDButton( x -16, y + 2, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_MOMENTARY, ch, module, SEQ_Envelope_8_Trig );
+	    addChild( pmod->m_pButtonTrig[ ch ] );
 
         // hold button
-        module->m_pButtonHold[ ch ] = new MyLEDButton( 470, y + 2, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, SEQ_Envelope_8_Hold );
-	    addChild( module->m_pButtonHold[ ch ] );
+        pmod->m_pButtonHold[ ch ] = new MyLEDButton( 470, y + 2, 14, 14, 11.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, ch, module, SEQ_Envelope_8_Hold );
+	    addChild( pmod->m_pButtonHold[ ch ] );
 
         // hold gate input
-        addInput(Port::create<MyPortInSmall>( Vec( 486, y ), Port::INPUT, module, SEQ_Envelope_8::INPUT_CH_HOLD + ch ) );
+        addInput(createInput<MyPortInSmall>( Vec( 486, y ), module, SEQ_Envelope_8::INPUT_CH_HOLD + ch ) );
 
         // out cv
-        addOutput(Port::create<MyPortOutSmall>( Vec( 516, y ), Port::OUTPUT, module, SEQ_Envelope_8::OUTPUT_CV + ch ) );
+        addOutput(createOutput<MyPortOutSmall>( Vec( 516, y ), module, SEQ_Envelope_8::OUTPUT_CV + ch ) );
 
         y += 28;
     }
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
-
-    module->m_bInitialized = true;
+    if( module )
+    {
+        module->m_bInitialized = true;
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -446,7 +521,7 @@ void SEQ_Envelope_8::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *SEQ_Envelope_8::toJson() 
+json_t *SEQ_Envelope_8::dataToJson() 
 {
 	json_t *root = json_object();
 
@@ -467,7 +542,7 @@ json_t *SEQ_Envelope_8::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void SEQ_Envelope_8::fromJson( json_t *root ) 
+void SEQ_Envelope_8::dataFromJson( json_t *root ) 
 {
     int ch;
 
@@ -489,22 +564,6 @@ void SEQ_Envelope_8::fromJson( json_t *root )
     m_pEnvelope->setDataAll( (int*)m_GraphData );
 
     ChangeChannel( 0 );
-}
-
-//-----------------------------------------------------
-// Procedure:   onCreate
-//
-//-----------------------------------------------------
-void SEQ_Envelope_8::onCreate()
-{
-}
-
-//-----------------------------------------------------
-// Procedure:   onDelete
-//
-//-----------------------------------------------------
-void SEQ_Envelope_8::onDelete()
-{
 }
 
 //-----------------------------------------------------
@@ -549,7 +608,7 @@ void SEQ_Envelope_8::onRandomize()
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
         for( i = 0; i < ENVELOPE_HANDLES; i++ )
-            m_pEnvelope->setVal( ch, i, randomUniform() );
+            m_pEnvelope->setVal( ch, i, random::uniform() );
     }
 }
 
@@ -598,22 +657,22 @@ void SEQ_Envelope_8::ChangeChannel( int ch )
 // Procedure:   step
 //
 //-----------------------------------------------------
-void SEQ_Envelope_8::step() 
+void SEQ_Envelope_8::process(const ProcessArgs &args)
 {
     int ch;
     bool bHold = false, bTrig = false, bGlobalTrig = false;
     //char strVal[ 10 ] = {};
 
-    if( !m_bInitialized || !inputs[ INPUT_CLK ].active )
+    if( !m_bInitialized || !inputs[ INPUT_CLK ].isConnected() )
         return;
 
     // global clock reset
-    m_pEnvelope->m_bClkReset = m_SchTrigGlobalClkReset.process( inputs[ INPUT_CLK_RESET ].normalize( 0.0f ) );
+    m_pEnvelope->m_bClkReset = m_SchTrigGlobalClkReset.process( inputs[ INPUT_CLK_RESET ].getNormalVoltage( 0.0f ) );
 
     m_BeatCount++;
 
     // track clock period
-    if( m_SchTrigClk.process( inputs[ INPUT_CLK ].normalize( 0.0f ) ) )
+    if( m_SchTrigClk.process( inputs[ INPUT_CLK ].getNormalVoltage( 0.0f ) ) )
     {
         //sprintf( strVal, "%d", m_BeatCount );
         //m_pTextLabel->text = strVal;
@@ -621,7 +680,7 @@ void SEQ_Envelope_8::step()
         m_BeatCount = 0;
     }
 
-    if( m_SchTrigGlobalTrig.process( inputs[ INPUT_GLOBAL_TRIG ].normalize( 0.0f ) ) )
+    if( m_SchTrigGlobalTrig.process( inputs[ INPUT_GLOBAL_TRIG ].getNormalVoltage( 0.0f ) ) )
     {
         bGlobalTrig = true;
     }
@@ -630,7 +689,7 @@ void SEQ_Envelope_8::step()
     for( ch = 0; ch < nCHANNELS; ch++ )
     {
         // trig, clock reset
-        bTrig = ( m_SchTrigChTrig[ ch ].process( inputs[ INPUT_CH_TRIG + ch ].normalize( 0.0f ) ) ) || bGlobalTrig;
+        bTrig = ( m_SchTrigChTrig[ ch ].process( inputs[ INPUT_CH_TRIG + ch ].getNormalVoltage( 0.0f ) ) ) || bGlobalTrig;
 
         if( bTrig )
             m_pButtonTrig[ ch ]->Set( true );
@@ -638,7 +697,7 @@ void SEQ_Envelope_8::step()
         if( bTrig || m_bTrig[ ch ] )
             bTrig = true;
 
-        bHold = ( m_bHold[ ch ] || inputs[ INPUT_CH_HOLD + ch ].normalize( 0.0f ) > 2.5f );
+        bHold = ( m_bHold[ ch ] || inputs[ INPUT_CH_HOLD + ch ].getNormalVoltage( 0.0f ) > 2.5f );
 
         if( bHold && !m_pButtonHold[ ch ]->m_bOn )
             m_pButtonHold[ ch ]->Set( true );
@@ -646,7 +705,7 @@ void SEQ_Envelope_8::step()
             m_pButtonHold[ ch ]->Set( false );
 
         // process envelope
-        outputs[ OUTPUT_CV + ch ].value = m_pEnvelope->procStep( ch, bTrig, bHold );
+        outputs[ OUTPUT_CV + ch ].setVoltage( m_pEnvelope->procStep( ch, bTrig, bHold ) );
 
         m_bTrig[ ch ] = false;
     }
@@ -654,4 +713,4 @@ void SEQ_Envelope_8::step()
     m_pEnvelope->m_bClkReset = false;
 }
 
-Model *modelSEQ_Envelope_8 = Model::create<SEQ_Envelope_8, SEQ_Envelope_8_Widget>( "mscHack", "SEQ_Envelope_8", "ENVY - 9", ENVELOPE_GENERATOR_TAG, MULTIPLE_TAG );
+Model *modelSEQ_Envelope_8 = createModel<SEQ_Envelope_8, SEQ_Envelope_8_Widget>( "SEQ_Envelope_8" );

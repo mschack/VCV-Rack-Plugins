@@ -1,7 +1,4 @@
 ﻿#include "mscHack.hpp"
-//#include "mscHack_Controls.hpp"
-#include "dsp/digital.hpp"
-//#include "CLog.h"
 
 typedef struct
 {
@@ -67,7 +64,6 @@ struct PingPong : Module
      };
 
     bool            m_bInitialized = false;
-    CLog            lg;
 
     FILTER_PARAM_STRUCT m_Filter[ 2 ];
 
@@ -78,11 +74,11 @@ struct PingPong : Module
     int             m_DelayIn = 0;
     int             m_DelayOut[ 2 ] = {0};
 
-    SchmittTrigger  m_SchmittReverse;
+    dsp::SchmittTrigger  m_SchmittReverse;
     bool            m_bReverseState = false;
 
     // sync clock
-    SchmittTrigger  m_SchmittSync;
+    dsp::SchmittTrigger  m_SchmittSync;
     int             m_LastSyncCount = 0;
     int             m_SyncCount = 0;
     int             m_SyncTime = 0;
@@ -94,18 +90,33 @@ struct PingPong : Module
     MyLEDButton     *m_pButtonReverse = NULL;
 
     // Contructor
-	PingPong() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
+	PingPong()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS, 0);
+
+        configParam( PARAM_DELAYL, 0.0f, 1.0f, 0.0f, "Left Delay Time" );
+        configParam( PARAM_DELAYR, 0.0f, 1.0f, 0.0f, "Right Delay Time" );
+        configParam( PARAM_LEVEL_FB_LR, 0.0f, 1.0f, 0.0f, "Feedback Left to Right" );
+        configParam( PARAM_LEVEL_FB_LL, 0.0f, 1.0f, 0.0f, "Feedback Left to Left" );
+        configParam( PARAM_LEVEL_FB_RL, 0.0f, 1.0f, 0.0f, "Feedback Right to Left" );
+        configParam( PARAM_LEVEL_FB_RR, 0.0f, 1.0f, 0.0f, "Feedback Right to Right" );
+        configParam( PARAM_CUTOFF, 0.0f, 1.0f, 0.0f, "Filter Cutoff" );
+        configParam( PARAM_Q, 0.0f, 1.0f, 0.0f, "Filter Resonance" );
+        configParam( PARAM_MIX, 0.0f, 1.0f, 0.0f, "Wet/Dry Mix" );
+        configParam( PARAM_FILTER_MODE, 0.0, 4.0, 0.0, "Filter Type" );
+    }
 
     // Overrides 
-	void    step() override;
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
-    void    onRandomize() override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onReset() override;
 
     void    ChangeFilterCutoff( float cutfreq );
     float   Filter( int ch, float in );
 };
+
+PingPong PingPongBrowser;
 
 //-----------------------------------------------------
 // PingPong_Reverse
@@ -121,10 +132,10 @@ void PingPong_Reverse( void *pClass, int id, bool bOn )
     // recalc delay offsets when going back to forward mode
     if( !mymodule->m_bReverseState )
     {
-        delay = mymodule->params[ PingPong::PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+        delay = mymodule->params[ PingPong::PARAM_DELAYL ].getValue() * MAC_DELAY_SECONDS * APP->engine->getSampleRate();
         mymodule->m_DelayOut[ L ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
 
-        delay = mymodule->params[ PingPong::PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+        delay = mymodule->params[ PingPong::PARAM_DELAYR ].getValue() * MAC_DELAY_SECONDS * APP->engine->getSampleRate();
         mymodule->m_DelayOut[ R ] = ( mymodule->m_DelayIn - (int)delay ) & 0x7FFFF;
     }
 }
@@ -136,13 +147,13 @@ struct MyCutoffKnob : Knob_Green1_40
 {
     PingPong *mymodule;
 
-    void onChange( EventChange &e ) override 
+    void onChange( const event::Change &e ) override 
     {
-        mymodule = (PingPong*)module;
+        mymodule = (PingPong*)paramQuantity->module;
 
         if( mymodule )
         {
-            mymodule->ChangeFilterCutoff( value ); 
+            mymodule->ChangeFilterCutoff( paramQuantity->getValue() ); 
         }
 
 		RoundKnob::onChange( e );
@@ -156,67 +167,71 @@ struct MyCutoffKnob : Knob_Green1_40
 #define Y_OFF_H 40
 #define X_OFF_W 40
 
-struct PingPong_Widget : ModuleWidget {
-	PingPong_Widget( PingPong *module );
-};
-
-PingPong_Widget::PingPong_Widget( PingPong *module ) : ModuleWidget(module) 
+struct PingPong_Widget : ModuleWidget 
 {
-	box.size = Vec( 15*8, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/PingPong.svg")));
-		addChild(panel);
-	}
+PingPong_Widget( PingPong *module )
+{
+    PingPong *pmod;
 
-    //module->lg.Open("PingPong.txt");
+    //box.size = Vec( 15*8, 380);
+
+    setModule(module);
+
+    if( !module )
+        pmod = &PingPongBrowser;
+    else
+        pmod = module;
+
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/PingPong.svg")));
+
+    //screw
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     // sync clock
-    addInput(Port::create<MyPortInSmall>( Vec( 10, 110 ), Port::INPUT, module, PingPong::INPUT_SYNC ) );
-
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+    addInput(createInput<MyPortInSmall>( Vec( 10, 110 ), module, PingPong::INPUT_SYNC ) );
 
     // Filter/Res knobs
-    addParam(ParamWidget::create<FilterSelectToggle>( Vec( 66, 55 ), module, PingPong::PARAM_FILTER_MODE, 0.0, 4.0, 0.0 ) );
-    addParam(ParamWidget::create<MyCutoffKnob>( Vec( 23, 60 ), module, PingPong::PARAM_CUTOFF, 0.0, 1.0, 0.0 ) );
-    addParam(ParamWidget::create<Knob_Purp1_20>( Vec( 73, 79 ), module, PingPong::PARAM_Q, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<FilterSelectToggle>( Vec( 66, 55 ), module, PingPong::PARAM_FILTER_MODE ) );
+    addParam(createParam<MyCutoffKnob>( Vec( 23, 60 ), module, PingPong::PARAM_CUTOFF ) );
+    addParam(createParam<Knob_Purp1_20>( Vec( 73, 79 ), module, PingPong::PARAM_Q ) );
  
     // L Feedback
-    addParam(ParamWidget::create<Knob_Red1_20>( Vec( 49, 110 ), module, PingPong::PARAM_LEVEL_FB_LL, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Red1_20>( Vec( 49, 110 ), module, PingPong::PARAM_LEVEL_FB_LL ) );
 
     // Left
-    addInput(Port::create<MyPortInSmall>( Vec( 10, 154 ), Port::INPUT, module, PingPong::INPUT_L ) );
-    addParam(ParamWidget::create<Knob_Yellow2_40>( Vec( 38, 143 ), module, PingPong::PARAM_DELAYL, 0.0, 1.0, 0.0 ) );
-    addOutput(Port::create<MyPortOutSmall>( Vec( 90, 154 ), Port::OUTPUT, module, PingPong::OUT_L ) );
+    addInput(createInput<MyPortInSmall>( Vec( 10, 154 ), module, PingPong::INPUT_L ) );
+    addParam(createParam<Knob_Yellow2_40>( Vec( 38, 143 ), module, PingPong::PARAM_DELAYL ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 90, 154 ), module, PingPong::OUT_L ) );
 
     // R to L level and L to R levels
-    addParam(ParamWidget::create<Knob_Red1_20>( Vec( 9, 191 ), module, PingPong::PARAM_LEVEL_FB_RL, 0.0, 1.0, 0.0 ) );
-    addParam(ParamWidget::create<Knob_Red1_20>( Vec( 9, 226 ), module, PingPong::PARAM_LEVEL_FB_LR, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Red1_20>( Vec( 9, 191 ), module, PingPong::PARAM_LEVEL_FB_RL ) );
+    addParam(createParam<Knob_Red1_20>( Vec( 9, 226 ), module, PingPong::PARAM_LEVEL_FB_LR ) );
 
     // mix knob
-    addParam(ParamWidget::create<Knob_Blue2_40>( Vec( 77, 199 ), module, PingPong::PARAM_MIX, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Blue2_40>( Vec( 77, 199 ), module, PingPong::PARAM_MIX ) );
 
     // Left
-    addInput(Port::create<MyPortInSmall>( Vec( 10, 266 ), Port::INPUT, module, PingPong::INPUT_R ) );
-    addParam(ParamWidget::create<Knob_Yellow2_40>( Vec( 38, 255 ), module, PingPong::PARAM_DELAYR, 0.0, 1.0, 0.0 ) );
-    addOutput(Port::create<MyPortOutSmall>( Vec( 90, 266 ), Port::OUTPUT, module, PingPong::OUT_R ) );
+    addInput(createInput<MyPortInSmall>( Vec( 10, 266 ), module, PingPong::INPUT_R ) );
+    addParam(createParam<Knob_Yellow2_40>( Vec( 38, 255 ), module, PingPong::PARAM_DELAYR ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 90, 266 ), module, PingPong::OUT_R ) );
 
     // R Feedback
-    addParam(ParamWidget::create<Knob_Red1_20>( Vec( 49, 308 ), module, PingPong::PARAM_LEVEL_FB_RR, 0.0, 1.0, 0.0 ) );
+    addParam(createParam<Knob_Red1_20>( Vec( 49, 308 ), module, PingPong::PARAM_LEVEL_FB_RR ) );
 
     // reverse button
-    addInput(Port::create<MyPortInSmall>( Vec( 3, 340 ), Port::INPUT, module, PingPong::INPUT_GNIP_TOGGLE ) );
+    addInput(createInput<MyPortInSmall>( Vec( 3, 340 ), module, PingPong::INPUT_GNIP_TOGGLE ) );
 
-    module->m_pButtonReverse = new MyLEDButton( 24, 343, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, PingPong_Reverse );
-	addChild( module->m_pButtonReverse );
+    pmod->m_pButtonReverse = new MyLEDButton( 24, 343, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, PingPong_Reverse );
+	addChild( pmod->m_pButtonReverse );
 
-    module->m_bInitialized = true;
+    if( module )
+        module->m_bInitialized = true;
 }
+};
 
 //-----------------------------------------------------
 // Procedure:   reset
@@ -232,18 +247,10 @@ void PingPong::onReset()
 }
 
 //-----------------------------------------------------
-// Procedure:   randomize
-//
-//-----------------------------------------------------
-void PingPong::onRandomize()
-{
-}
-
-//-----------------------------------------------------
 // Procedure:   
 //
 //-----------------------------------------------------
-json_t *PingPong::toJson() 
+json_t *PingPong::dataToJson() 
 {
 	json_t *rootJ = json_object();
 
@@ -257,7 +264,7 @@ json_t *PingPong::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void PingPong::fromJson(json_t *rootJ) 
+void PingPong::dataFromJson(json_t *rootJ) 
 {
 	// reverse state
 	json_t *revJ = json_object_get(rootJ, "ReverseState");
@@ -277,7 +284,7 @@ void PingPong::ChangeFilterCutoff( float cutfreq )
     float fx, fx2, fx3, fx5, fx7;
 
     // clamp at 1.0 and 20/samplerate
-    cutfreq = fmax(cutfreq, 20 / engineGetSampleRate()); 
+    cutfreq = fmax(cutfreq, 20 / APP->engine->getSampleRate()); 
     cutfreq = fmin(cutfreq, 1.0);
 
     // calculate eq rez freq
@@ -304,7 +311,7 @@ float PingPong::Filter( int ch, float in )
     float rez, hp1, out = 0.0; 
     float lowpass, highpass, bandpass;
 
-    if( (int)params[ PARAM_FILTER_MODE ].value == 0 )
+    if( (int)params[ PARAM_FILTER_MODE ].getValue() == 0 )
         return in;
 
     p = &m_Filter[ ch ];
@@ -363,19 +370,19 @@ float PingPong::Filter( int ch, float in )
 //
 //-----------------------------------------------------
 float syncQuant[ 10 ] = { 0.125, 0.25, 0.333, 0.375, 0.5, 0.625, 0.666, 0.750, 0.875, 1.0 };
-void PingPong::step() 
+void PingPong::process(const ProcessArgs &args) 
 {
-    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0;
+    float outL, outR, inL = 0.0, inR = 0.0, inOrigL = 0.0, inOrigR = 0.0, syncq = 0.0, mix;
     bool bMono = false;
     int i, dR, dL;
 
     if( !m_bInitialized )
         return;
 
-    dL = params[ PARAM_DELAYL ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
-    dR = params[ PARAM_DELAYR ].value * MAC_DELAY_SECONDS * engineGetSampleRate();
+    dL = params[ PARAM_DELAYL ].getValue() * MAC_DELAY_SECONDS * args.sampleRate;
+    dR = params[ PARAM_DELAYR ].getValue() * MAC_DELAY_SECONDS * args.sampleRate;
 
-	if( m_SchmittReverse.process( inputs[ INPUT_GNIP_TOGGLE ].value ) )
+	if( m_SchmittReverse.process( inputs[ INPUT_GNIP_TOGGLE ].getVoltage() ) )
 	{
 		if( m_pButtonReverse->m_bOn )
 			m_pButtonReverse->Set( false );
@@ -386,7 +393,7 @@ void PingPong::step()
 	}
 
     // check right channel first for possible mono
-    if( inputs[ INPUT_SYNC ].active )
+    if( inputs[ INPUT_SYNC ].isConnected() )
     {
         m_SyncCount++;
 
@@ -399,7 +406,7 @@ void PingPong::step()
 
                 for( i = 0; i < 10; i++ )
                 {
-                    if( params[ PARAM_DELAYL ].value <= syncQuant[ i ] )
+                    if( params[ PARAM_DELAYL ].getValue() <= syncQuant[ i ] )
                     {
                         syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
                         break;
@@ -410,7 +417,7 @@ void PingPong::step()
 
                 for( i = 0; i < 10; i++ )
                 {
-                    if( params[ PARAM_DELAYR ].value <= syncQuant[ i ] )
+                    if( params[ PARAM_DELAYR ].getValue() <= syncQuant[ i ] )
                     {
                         syncq = syncQuant[ i ] * MAC_DELAY_SECONDS;
                         break;
@@ -442,9 +449,9 @@ void PingPong::step()
     m_LastDelayKnob[ R ] = dR;
 
     // check right channel first for possible mono
-    if( inputs[ INPUT_R ].active )
+    if( inputs[ INPUT_R ].isConnected() )
     {
-        inR = clamp( inputs[ INPUT_R ].value / AUDIO_MAX, -1.0f, 1.0f );
+        inR = inputs[ INPUT_R ].getVoltage();
         inR = Filter( R, inR );
         inOrigR = inR;
         bMono = false;
@@ -453,9 +460,9 @@ void PingPong::step()
         bMono = true;
 
     // left channel
-    if( inputs[ INPUT_L ].active )
+    if( inputs[ INPUT_L ].isConnected() )
     {
-        inL = clamp( inputs[ INPUT_L ].value / AUDIO_MAX, -1.0f, 1.0f );
+        inL = inputs[ INPUT_L ].getVoltage();
         inL = Filter( L, inL );
         inOrigL = inL;
 
@@ -466,8 +473,8 @@ void PingPong::step()
         }
     }
 
-    m_DelayBuffer[ L ][ m_DelayIn ] = inL + ( m_LastOut[ L ] * params[ PARAM_LEVEL_FB_LL ].value ) + ( m_LastOut[ R ] * params[ PARAM_LEVEL_FB_RL ].value );
-    m_DelayBuffer[ R ][ m_DelayIn ] = inR + ( m_LastOut[ R ] * params[ PARAM_LEVEL_FB_RR ].value ) + ( m_LastOut[ L ] * params[ PARAM_LEVEL_FB_LR ].value );
+    m_DelayBuffer[ L ][ m_DelayIn ] = inL + ( m_LastOut[ L ] * params[ PARAM_LEVEL_FB_LL ].getValue() ) + ( m_LastOut[ R ] * params[ PARAM_LEVEL_FB_RL ].getValue() );
+    m_DelayBuffer[ R ][ m_DelayIn ] = inR + ( m_LastOut[ R ] * params[ PARAM_LEVEL_FB_RR ].getValue() ) + ( m_LastOut[ L ] * params[ PARAM_LEVEL_FB_LR ].getValue() );
 
     m_DelayIn = ( ( m_DelayIn + 1 ) & 0x7FFFF );
 
@@ -488,9 +495,11 @@ void PingPong::step()
     m_LastOut[ L ] = outL;
     m_LastOut[ R ] = outR;
 
+    mix = params[ PARAM_MIX ].getValue();
+
     // output
-    outputs[ OUT_L ].value = clamp( ( inOrigL * ( 1.0f - params[ PARAM_MIX ].value ) ) + ( (outL * AUDIO_MAX) * params[ PARAM_MIX ].value ), -AUDIO_MAX, AUDIO_MAX );
-    outputs[ OUT_R ].value = clamp( ( inOrigR * ( 1.0f - params[ PARAM_MIX ].value ) ) + ( (outR * AUDIO_MAX) * params[ PARAM_MIX ].value ), -AUDIO_MAX, AUDIO_MAX );
+    outputs[ OUT_L ].setVoltage( ( inOrigL * ( 1.0f - mix ) ) + ( outL * mix ) );
+    outputs[ OUT_R ].setVoltage( ( inOrigR * ( 1.0f - mix ) ) + ( outR * mix ) );
 }
 
-Model *modelPingPong = Model::create<PingPong, PingPong_Widget>("mscHack", "PingPong_Widget", "DELAY Ping Pong", DELAY_TAG, PANNING_TAG);
+Model *modelPingPong = createModel<PingPong, PingPong_Widget>( "PingPong_Widget" );

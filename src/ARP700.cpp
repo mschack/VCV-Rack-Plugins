@@ -1,7 +1,4 @@
 #include "mscHack.hpp"
-//#include "mscHack_Controls.hpp"
-#include "dsp/digital.hpp"
-//#include "CLog.h"
 
 #define MAX_ARP_PATTERNS    16
 #define MAX_ARP_NOTES       7
@@ -127,17 +124,19 @@ struct ARP700 : Module
         STATE_TRIG_OFF
     };
 
-    CLog            lg;
     bool            m_bInitialized = false;
 
     // Contructor
-	ARP700() : Module(nPARAMS, nINPUTS, nOUTPUTS, 0){}
+	ARP700()
+    {
+        config(nPARAMS, nINPUTS, nOUTPUTS);
+    }
 
     // pattern
     ARP_PATTERN_STRUCT  m_PatternSave[ MAX_ARP_PATTERNS ] = {};
     PAT_STEP_STRUCT     m_PatCtrl = {};
     
-    SchmittTrigger      m_SchTrigPatternChange;
+    dsp::SchmittTrigger      m_SchTrigPatternChange;
     PatternSelectStrip  *m_pPatternSelect = NULL;
 
     bool                m_bCopySrc = false;
@@ -152,11 +151,11 @@ struct ARP700 : Module
     MyLEDButton         *m_pButtonCopy= NULL;
 
     // clock     
-    SchmittTrigger      m_SchTrigClk;
+    dsp::SchmittTrigger      m_SchTrigClk;
     MAIN_SYNC_CLOCK     m_Clock;
     
     // global triggers
-    SchmittTrigger      m_SchTrigGlobalClkReset;
+    dsp::SchmittTrigger      m_SchTrigGlobalClkReset;
     bool                m_GlobalClkResetPending = false;
 
     // keyboard
@@ -175,11 +174,10 @@ struct ARP700 : Module
     MyLEDButtonStrip    *m_pButtonMode = 0;
 
     // Overrides 
-	void    step() override;
     void    JsonParams( bool bTo, json_t *root);
-    json_t* toJson() override;
-    void    fromJson(json_t *rootJ) override;
-    void    onRandomize() override;
+    void    process(const ProcessArgs &args) override;
+    json_t* dataToJson() override;
+    void    dataFromJson(json_t *rootJ) override;
     void    onReset() override;
 
     void    SetPatternSteps( int nSteps );
@@ -189,6 +187,8 @@ struct ARP700 : Module
     void    ArpStep( bool bReset );
     void    Copy( bool bOn );
 };
+
+ARP700 ARP700Browser;
 
 //-----------------------------------------------------
 // Procedure:   ARP700_ModeSelect
@@ -299,7 +299,7 @@ void ARP700_Trig( void *pClass, int id, bool bOn )
 // Procedure:   NoteChangeCallback
 //
 //-----------------------------------------------------
-void ARP700_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button )
+void ARP700_Widget_NoteChangeCallback ( void *pClass, int kb, int notepressed, int *pnotes, bool bOn, int button, int mod )
 {
     ARP700 *mymodule = (ARP700 *)pClass;
 
@@ -338,47 +338,55 @@ void ARP700_Widget_PatternChangeCallback ( void *pClass, int kb, int pat, int ma
 //
 //-----------------------------------------------------
 
-struct ARP700_Widget : ModuleWidget {
-	ARP700_Widget( ARP700 *module );
-};
+struct ARP700_Widget : ModuleWidget 
+{
 
-ARP700_Widget::ARP700_Widget( ARP700 *module ) : ModuleWidget(module) 
+ARP700_Widget( ARP700 *module )
 {
     int x, y, note, param;
+    ARP700 *pmod;
 
-	box.size = Vec( 15*27, 380);
+    //box.size = Vec( 15*27, 380);
 
-	{
-		SVGPanel *panel = new SVGPanel();
-		panel->box.size = box.size;
-		panel->setBackground(SVG::load(assetPlugin(plugin, "res/ARP700.svg")));
-		addChild(panel);
-	}
+    setModule(module);
+
+    if( !module )
+        pmod = &ARP700Browser;
+    else
+        pmod = module;
+
+    setPanel(APP->window->loadSvg(asset::plugin( thePlugin, "res/ARP700.svg")));
+
+    //screw
+    addChild(createWidget<ScrewSilver>(Vec(15, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 0)));
+    addChild(createWidget<ScrewSilver>(Vec(15, 365))); 
+    addChild(createWidget<ScrewSilver>(Vec(box.size.x-30, 365)));
 
     for( int i = 0; i < 37; i++ )
-        module->m_fKeyNotes[ i ] = (float)i * SEMI;
+        pmod->m_fKeyNotes[ i ] = (float)i * SEMI;
 
     //module->lg.Open("ARP700.txt");
 
     // pause button
-    module->m_pButtonPause = new MyLEDButton( 75, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Pause );
-	addChild( module->m_pButtonPause );
+    pmod->m_pButtonPause = new MyLEDButton( 75, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Pause );
+	addChild( pmod->m_pButtonPause );
 
     // copy button
-    module->m_pButtonCopy = new MyLEDButton( 307, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Copy );
-	addChild( module->m_pButtonCopy );
+    pmod->m_pButtonCopy = new MyLEDButton( 307, 22, 11, 11, 8.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, 0, module, ARP700_Copy );
+	addChild( pmod->m_pButtonCopy );
 
     // keyboard widget
-    module->pKeyboardWidget = new Keyboard_3Oct_Widget( 75, 38, MAX_ARP_NOTES, 0, DWRGB( 255, 128, 64 ), module, ARP700_Widget_NoteChangeCallback, &module->lg );
-	addChild( module->pKeyboardWidget );
+    pmod->pKeyboardWidget = new Keyboard_3Oct_Widget( 75, 38, MAX_ARP_NOTES, 0, DWRGB( 255, 128, 64 ), module, ARP700_Widget_NoteChangeCallback );
+	addChild( pmod->pKeyboardWidget );
 
     // octave select
-    module->m_pButtonOctaveSelect = new MyLEDButtonStrip( 307, 104, 11, 11, 3, 8.0, 4, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, ARP700_OctSelect );
-    addChild( module->m_pButtonOctaveSelect );
+    pmod->m_pButtonOctaveSelect = new MyLEDButtonStrip( 307, 104, 11, 11, 3, 8.0, 4, false, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, ARP700_OctSelect );
+    addChild( pmod->m_pButtonOctaveSelect );
 
     // pattern selects
-    module->m_pPatternSelect = new PatternSelectStrip( 75, 104, 9, 7, DWRGB( 200, 200, 200 ), DWRGB( 40, 40, 40 ), DWRGB( 112, 104, 102 ), DWRGB( 40, 40, 40 ), MAX_ARP_PATTERNS, 0, module, ARP700_Widget_PatternChangeCallback );
-	addChild( module->m_pPatternSelect );
+    pmod->m_pPatternSelect = new PatternSelectStrip( 75, 104, 9, 7, DWRGB( 200, 200, 200 ), DWRGB( 40, 40, 40 ), DWRGB( 112, 104, 102 ), DWRGB( 40, 40, 40 ), MAX_ARP_PATTERNS, 0, module, ARP700_Widget_PatternChangeCallback );
+	addChild( pmod->m_pPatternSelect );
 
     x = 60;
 
@@ -388,33 +396,33 @@ ARP700_Widget::ARP700_Widget( ARP700 *module ) : ModuleWidget(module)
         {
             y = 140;
 
-            module->m_pButtonOnOff[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 3, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_NoteOnOff );
-	        addChild( module->m_pButtonOnOff[ note ][ param ] );
+            pmod->m_pButtonOnOff[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 3, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 0, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_NoteOnOff );
+	        addChild( pmod->m_pButtonOnOff[ note ][ param ] );
 
-            module->m_pButtonOnOff[ note ][ param ]->SetLEDCol( 1, DWRGB( 0, 255, 0 ) );
-            module->m_pButtonOnOff[ note ][ param ]->SetLEDCol( 2, DWRGB( 255, 255, 0 ) );
+            pmod->m_pButtonOnOff[ note ][ param ]->SetLEDCol( 1, DWRGB( 0, 255, 0 ) );
+            pmod->m_pButtonOnOff[ note ][ param ]->SetLEDCol( 2, DWRGB( 255, 255, 0 ) );
 
             y += 43;
 
-            module->m_pButtonLen[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 6, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_NoteLenSelect );
-	        addChild( module->m_pButtonLen[ note ][ param ] );
+            pmod->m_pButtonLen[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 6, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_NoteLenSelect );
+	        addChild( pmod->m_pButtonLen[ note ][ param ] );
 
             y += 89;
 
-            module->m_pButtonLenMod[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 3, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE_WOFF, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_mod );
-	        addChild( module->m_pButtonLenMod[ note ][ param ] );
+            pmod->m_pButtonLenMod[ note ][ param ] = new MyLEDButtonStrip( x, y, 12, 12, 2, 10.0, 3, true, DWRGB( 180, 180, 180 ), DWRGB( 255, 128, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE_WOFF, (note * SUBSTEP_PER_NOTE ) + param, module, ARP700_mod );
+	        addChild( pmod->m_pButtonLenMod[ note ][ param ] );
 
             if( param == 1 )
             {
                 y += 43;
 
-                module->m_pButtonGlide[ note ] = new MyLEDButton( x, y, 12, 12, 10.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, note, module, ARP700_Glide );
-	            addChild( module->m_pButtonGlide[ note ] );
+                pmod->m_pButtonGlide[ note ] = new MyLEDButton( x, y, 12, 12, 10.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, note, module, ARP700_Glide );
+	            addChild( pmod->m_pButtonGlide[ note ] );
 
                 y += 16;
 
-                module->m_pButtonTrig[ note ] = new MyLEDButton( x, y, 12, 12, 10.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, note, module, ARP700_Trig );
-	            addChild( module->m_pButtonTrig[ note ] );
+                pmod->m_pButtonTrig[ note ] = new MyLEDButton( x, y, 12, 12, 10.0, DWRGB( 180, 180, 180 ), DWRGB( 0, 255, 255 ), MyLEDButton::TYPE_SWITCH, note, module, ARP700_Trig );
+	            addChild( pmod->m_pButtonTrig[ note ] );
             }
 
             x += 14;
@@ -424,36 +432,35 @@ ARP700_Widget::ARP700_Widget( ARP700 *module ) : ModuleWidget(module)
     }
 
     // clock trigger
-    addInput(Port::create<MyPortInSmall>( Vec( 44, 21 ), Port::INPUT, module, ARP700::IN_CLOCK_TRIG ) );
+    addInput(createInput<MyPortInSmall>( Vec( 44, 21 ), module, ARP700::IN_CLOCK_TRIG ) );
 
     // VOCT offset input
-    addInput(Port::create<MyPortInSmall>( Vec( 44, 52 ), Port::INPUT, module, ARP700::IN_VOCT_OFF ) );
+    addInput(createInput<MyPortInSmall>( Vec( 44, 52 ), module, ARP700::IN_VOCT_OFF ) );
 
     // prog change trigger
-    addInput(Port::create<MyPortInSmall>( Vec( 44, 102 ), Port::INPUT, module, ARP700::IN_PROG_CHANGE ) );
+    addInput(createInput<MyPortInSmall>( Vec( 44, 102 ), module, ARP700::IN_PROG_CHANGE ) );
 
     // outputs
-    addOutput(Port::create<MyPortOutSmall>( Vec( 365, 38 ), Port::OUTPUT, module, ARP700::OUT_VOCTS ) );
-    addOutput(Port::create<MyPortOutSmall>( Vec( 365, 79 ), Port::OUTPUT, module, ARP700::OUT_TRIG ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 365, 38 ), module, ARP700::OUT_VOCTS ) );
+    addOutput(createOutput<MyPortOutSmall>( Vec( 365, 79 ), module, ARP700::OUT_TRIG ) );
 
     // reset inputs
-    addInput(Port::create<MyPortInSmall>( Vec( 14, 21 ), Port::INPUT, module, ARP700::IN_CLOCK_RESET ) );
+    addInput(createInput<MyPortInSmall>( Vec( 14, 21 ), module, ARP700::IN_CLOCK_RESET ) );
 
     // mode buttons
-    module->m_pButtonMode = new MyLEDButtonStrip( 154, 360, 12, 12, 7, 10.0, 7, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, ARP700_ModeSelect );
-	addChild( module->m_pButtonMode );
+    pmod->m_pButtonMode = new MyLEDButtonStrip( 154, 360, 12, 12, 7, 10.0, 7, false, DWRGB( 180, 180, 180 ), DWRGB( 255, 255, 0 ), MyLEDButtonStrip::TYPE_EXCLUSIVE, 0, module, ARP700_ModeSelect );
+	addChild( pmod->m_pButtonMode );
 
-	addChild(Widget::create<ScrewSilver>(Vec(15, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 0)));
-	addChild(Widget::create<ScrewSilver>(Vec(15, 365))); 
-	addChild(Widget::create<ScrewSilver>(Vec(box.size.x-30, 365)));
+    if( module )
+    {
+        module->m_Clock.fsynclen = 2.0 * 48.0;  // default to 120bpm
+        module->m_Clock.IgnoreClockCount = 2;
+        module->m_bInitialized = true;
 
-    module->m_Clock.fsynclen = 2.0 * 48.0;  // default to 120bpm
-    module->m_Clock.IgnoreClockCount = 2;
-    module->m_bInitialized = true;
-
-    module->onReset();
+        module->onReset();
+    }
 }
+};
 
 //-----------------------------------------------------
 // Procedure: JsonParams  
@@ -471,7 +478,7 @@ void ARP700::JsonParams( bool bTo, json_t *root)
 // Procedure: toJson  
 //
 //-----------------------------------------------------
-json_t *ARP700::toJson() 
+json_t *ARP700::dataToJson() 
 {
 	json_t *root = json_object();
 
@@ -487,7 +494,7 @@ json_t *ARP700::toJson()
 // Procedure:   fromJson
 //
 //-----------------------------------------------------
-void ARP700::fromJson( json_t *root ) 
+void ARP700::dataFromJson( json_t *root ) 
 {
     JsonParams( FROMJSON, root );
 
@@ -527,14 +534,6 @@ void ARP700::onReset()
 }
 
 //-----------------------------------------------------
-// Procedure:   randomize
-//
-//-----------------------------------------------------
-void ARP700::onRandomize()
-{
-}
-
-//-----------------------------------------------------
 // Procedure:   SetPhraseSteps
 //
 //-----------------------------------------------------
@@ -555,7 +554,7 @@ void ARP700::SetOut( void )
     int note = 0, nstep, substep;
     float foct;
 
-    m_VoctOffsetIn = inputs[ IN_VOCT_OFF ].normalize( 0.0 );
+    m_VoctOffsetIn = inputs[ IN_VOCT_OFF ].getNormalVoltage( 0.0 );
 
     nstep = m_PatCtrl.step / SUBSTEP_PER_NOTE;
     substep = m_PatCtrl.step - ( nstep * SUBSTEP_PER_NOTE );
@@ -591,7 +590,7 @@ void ARP700::SetOut( void )
     if( m_PatternSave[ m_PatCtrl.pat ].glide[ nstep ] )
     {
         // glide time
-        m_PatCtrl.glideCount = 0.2 * engineGetSampleRate();
+        m_PatCtrl.glideCount = 0.2 * APP->engine->getSampleRate();
         m_PatCtrl.fglideInc = 1.0 / (float)m_PatCtrl.glideCount;
 
         m_PatCtrl.fglide = 1.0;
@@ -736,7 +735,7 @@ void ARP700::ArpStep( bool bReset )
                 m_PatCtrl.virtstep = 0;
 
             if( m_PatternSave[ m_PatCtrl.pat ].mode == 6 )
-                modestp = (int)( randomUniform() * 20.0f );
+                modestp = (int)( random::uniform() * 20.0f );
             else
                 modestp = patmode[ m_PatternSave[ m_PatCtrl.pat ].mode ][ m_PatCtrl.virtstep ]; 
 
@@ -815,16 +814,16 @@ stepfound:
 // Procedure:   step
 //
 //-----------------------------------------------------
-void ARP700::step() 
+void ARP700::process(const ProcessArgs &args)
 {
     bool bSyncTick = false, bResetClk = false;
 
     if( !m_bInitialized )
         return;
 
-    if( !inputs[ IN_CLOCK_TRIG ].active )
+    if( !inputs[ IN_CLOCK_TRIG ].isConnected() )
     {
-        outputs[ OUT_TRIG ].value = 0;
+        outputs[ OUT_TRIG ].setVoltage( 0.0f );
         m_Clock.tickcount = 0;
         m_Clock.fsynclen = 2.0 * 48.0;  // default to 120bpm
         m_Clock.fsynccount = 0;
@@ -840,14 +839,14 @@ void ARP700::step()
     }
 
     // global clock reset
-    m_Clock.bClockReset = ( m_SchTrigGlobalClkReset.process( inputs[ IN_CLOCK_RESET ].normalize( 0.0f ) ) );
+    m_Clock.bClockReset = ( m_SchTrigGlobalClkReset.process( inputs[ IN_CLOCK_RESET ].getNormalVoltage( 0.0f ) ) );
 
     // pattern change trig
-    if( !m_bPauseState && m_SchTrigPatternChange.process( inputs[ IN_PROG_CHANGE ].normalize( 0.0f ) ) )
+    if( !m_bPauseState && m_SchTrigPatternChange.process( inputs[ IN_PROG_CHANGE ].getNormalVoltage( 0.0f ) ) )
         SetPendingPattern( -1 );
 
     // track clock period
-    if( m_SchTrigClk.process( inputs[ IN_CLOCK_TRIG ].normalize( 0.0f ) ) || m_Clock.bClockReset )
+    if( m_SchTrigClk.process( inputs[ IN_CLOCK_TRIG ].getNormalVoltage( 0.0f ) ) || m_Clock.bClockReset )
     {
         if( m_Clock.bClockReset )
         {
@@ -861,7 +860,7 @@ void ARP700::step()
         if( m_Clock.tickcount && --m_Clock.IgnoreClockCount <= 0 )
         {
             m_Clock.IgnoreClockCount = 0;
-            m_Clock.fsynclen = (float)( engineGetSampleRate() / (float)m_Clock.tickcount ) * 48.0;
+            m_Clock.fsynclen = (float)( APP->engine->getSampleRate() / (float)m_Clock.tickcount ) * 48.0;
         }
 
         m_Clock.fsynccount = 0;
@@ -872,9 +871,9 @@ void ARP700::step()
     {
         // keep track of sync tick (16th / 12 )
         m_Clock.fsynccount += m_Clock.fsynclen;
-        if( m_Clock.fsynccount >= engineGetSampleRate() )
+        if( m_Clock.fsynccount >= APP->engine->getSampleRate() )
         {
-            m_Clock.fsynccount = m_Clock.fsynccount - engineGetSampleRate();
+            m_Clock.fsynccount = m_Clock.fsynccount - APP->engine->getSampleRate();
             bSyncTick = true;
         }
     }
@@ -906,15 +905,15 @@ void ARP700::step()
             ArpStep( bResetClk );
     }
 
-    outputs[ OUT_TRIG ].value = m_PatCtrl.bTrig ? CV_MAX : 0.0;
+    outputs[ OUT_TRIG ].setVoltage( m_PatCtrl.bTrig ? CV_MAX10 : 0.0 );
 
     if( --m_PatCtrl.glideCount > 0 )
         m_PatCtrl.fglide -= m_PatCtrl.fglideInc;
     else
         m_PatCtrl.fglide = 0.0;
 
-    outputs[ OUT_VOCTS ].value = ( m_PatCtrl.fCvStartOut * m_PatCtrl.fglide ) + ( m_PatCtrl.fCvEndOut * ( 1.0 - m_PatCtrl.fglide ) );
+    outputs[ OUT_VOCTS ].setVoltage( ( m_PatCtrl.fCvStartOut * m_PatCtrl.fglide ) + ( m_PatCtrl.fCvEndOut * ( 1.0 - m_PatCtrl.fglide ) ) );
 
 }
 
-Model *modelARP700 = Model::create<ARP700, ARP700_Widget>( "mscHack", "ARP700", "ARP 700", SEQUENCER_TAG );
+Model *modelARP700 = createModel<ARP700, ARP700_Widget>( "ARP700" );
