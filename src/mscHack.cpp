@@ -17,7 +17,7 @@ void init(rack::Plugin *p)
     p->addModel( modelSynthDrums );
     p->addModel( modelSEQ_6x32x16 );
     p->addModel( modelMasterClockx4 );
-    p->addModel( modelMasterClockx8 );  
+    //p->addModel( modelMasterClockx8 );  
     p->addModel( modelSEQ_Envelope_8 );
     p->addModel( modelSeq_Triad2 );
     p->addModel( modelARP700 );

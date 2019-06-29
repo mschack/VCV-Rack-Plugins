@@ -22,14 +22,7 @@
         "Clock"
       ]
     },
-    {
-      "slug": "MasterClockx8",
-      "name": "Master Clock x8",
-      "description": "8 Channel Clock",
-      "tags": [
-        "Clock"
-      ]
-    },
+
     {
       "slug": "SEQ_Envelope_8",
       "name": "ENVY - 9",
