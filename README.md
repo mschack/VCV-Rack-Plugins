@@ -1,15 +1,17 @@
-# mscHack Plugins for VCV Rack 1.0.0
+# mscHack Plugins for VCV Rack 1.1.0
 
 ![screenshot](modules.PNG)
 
 # Updates
+- 30 June 19 [v1,0,1]
+	-Re-added Step Delay and Maude221
 - 29 June 19 [v1.0.0]
 	- Updates mostly for Rack version 1.0
 		- Some fixes here and there
 		- Mixer inputs do receive poly inputs
 
 	- Removed the following:
-		- Compressor, Step Delay, 3x16 step sequencer, Maude, XFade
+		- Compressor, 3x16 step sequencer, XFade
 		- obsolete mixers (1x4 2x4 and 4x4)
 		- If I get enough feedback for a certain modules return I will consider it
 

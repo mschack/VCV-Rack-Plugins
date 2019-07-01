@@ -32,10 +32,10 @@ bool  frand_perc( float perc );
 /*
 
 extern Model *modelSeq_3x16x16;
-extern Model *modelMaude_221;
+
 extern Model *modelXFade;
 extern Model *modelCompressor;
-extern Model *modelStepDelay;
+
 */
 
 extern Model *modelSynthDrums;
@@ -51,9 +51,11 @@ extern Model *modelMix_9_3_4;
 extern Model *modelMix_4_0_4;
 extern Model *modelASAF8;
 extern Model *modelPingPong;
+extern Model *modelStepDelay;
 extern Model *modelOsc_3Ch;
 extern Model *modelDronez;
 extern Model *modelMorze;
 extern Model *modelWindz;
 extern Model *modelAlienz;
 extern Model *modelOSC_WaveMorph_3;
+extern Model *modelMaude_221;

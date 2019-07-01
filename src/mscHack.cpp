@@ -8,10 +8,9 @@ void init(rack::Plugin *p)
 
     /*
     p->addModel( modelSeq_3x16x16 );
-    p->addModel( modelMaude_221 );
     p->addModel( modelXFade );
-    p->addModel( modelStepDelay );
     p->addModel( modelCompressor );
+    
     */
 
     p->addModel( modelSynthDrums );
@@ -27,12 +26,14 @@ void init(rack::Plugin *p)
     p->addModel( modelMix_24_4_4 );
     p->addModel( modelASAF8 );
     p->addModel( modelPingPong );
+    p->addModel( modelStepDelay );
     p->addModel( modelOsc_3Ch );
     p->addModel( modelDronez );
     p->addModel( modelMorze );
     p->addModel( modelWindz );
     p->addModel( modelAlienz );
     p->addModel( modelOSC_WaveMorph_3 );
+    p->addModel( modelMaude_221 );
 }
 
 //-----------------------------------------------------
