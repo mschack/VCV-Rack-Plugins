@@ -4,6 +4,9 @@
 
 # Updates
 - 10 July 19 [v1.0.2]
+	-Re-added compressor
+	-New Module "Lorenz" noise generator
+	-Fix 4ch mixer mute/solo
 - 30 June 19 [v1.0.1]
 	-Re-added Step Delay and Maude221
 - 29 June 19 [v1.0.0]
