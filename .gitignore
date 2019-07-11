@@ -3,6 +3,7 @@
 /oldcode
 /.vs
 /.git
+/dist
 
 plugin.dll
 mschack.zip
