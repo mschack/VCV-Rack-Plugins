@@ -82,6 +82,10 @@ struct Mixer_ : Module
     // Contructor
     Mixer_()
     {
+        int pos;
+        char strVal[ 30 ] = {};
+        char strType[ 30 ] = {};
+
         config(nPARAMS, nINPUTS, nOUTPUTS, nLIGHTS);
 
 
@@ -90,18 +94,50 @@ struct Mixer_ : Module
 
         for( int i = 0; i < nCHANNELS; i++ )
         {
-            configParam( PARAM_CHLVL + i, 0.0, 1.0, 0.0, "Channel Level" );
-            configParam( PARAM_CHPAN + i, -1.0, 1.0, 0.0, "Channel Pan" );
-            configParam( PARAM_CHEQHI + i, 0.0, 1.0, 0.5, "EQ High" );
-            configParam( PARAM_CHEQMD + i, 0.0, 1.0, 0.5, "EQ Mid" );
-            configParam( PARAM_CHEQLO + i, 0.0, 1.0, 0.5, "EQ Low" );
+            if( i < nINCHANNELS )
+            {
+                sprintf( strType, "Ch" );
+                pos = i + 1;
+            }
+            else if( nGROUPS && i < (nINCHANNELS + nGROUPS) )
+            {
+                sprintf( strType, "Gr" );
+                pos = i - nINCHANNELS + 1;
+            }
+            else
+            {
+                sprintf( strType, "AUX" );
+                pos = i - ( nINCHANNELS + nGROUPS ) + 1;
+            }
+
+            sprintf( strVal, "%s%d. Level", strType, pos );
+            configParam( PARAM_CHLVL + i, 0.0, 1.0, 0.0, strVal );
+
+            sprintf( strVal, "%s%d. Pan", strType, pos );
+            configParam( PARAM_CHPAN + i, -1.0, 1.0, 0.0, strVal );
+
+            sprintf( strVal, "%s%d. EQ High", strType, pos );
+            configParam( PARAM_CHEQHI + i, 0.0, 1.0, 0.5, strVal );
+
+            sprintf( strVal, "%s%d. EQ Mid", strType, pos );
+            configParam( PARAM_CHEQMD + i, 0.0, 1.0, 0.5, strVal );
+
+            sprintf( strVal, "%s%d. EQ Low", strType, pos );
+            configParam( PARAM_CHEQLO + i, 0.0, 1.0, 0.5, strVal );
 
             if( i < ( nINCHANNELS + nGROUPS ) )
             {
-                configParam( PARAM_CHAUX + (i * 4) + 0, 0.0, 1.0, 0.0, "AUX 1 Level" );
-                configParam( PARAM_CHAUX + (i * 4) + 1, 0.0, 1.0, 0.0, "AUX 2 Level" );
-                configParam( PARAM_CHAUX + (i * 4) + 2, 0.0, 1.0, 0.0, "AUX 3 Level" );
-                configParam( PARAM_CHAUX + (i * 4) + 3, 0.0, 1.0, 0.0, "AUX 4 Level" );
+                sprintf( strVal, "%s%d. AUX 1 Level", strType, pos );
+                configParam( PARAM_CHAUX + (i * 4) + 0, 0.0, 1.0, 0.0, strVal );
+
+                sprintf( strVal, "%s%d. AUX 2 Level", strType, pos );
+                configParam( PARAM_CHAUX + (i * 4) + 1, 0.0, 1.0, 0.0, strVal );
+
+                sprintf( strVal, "%s%d. AUX 3 Level", strType, pos );
+                configParam( PARAM_CHAUX + (i * 4) + 2, 0.0, 1.0, 0.0, strVal );
+
+                sprintf( strVal, "%s%d. AUX 4 Level", strType, pos );
+                configParam( PARAM_CHAUX + (i * 4) + 3, 0.0, 1.0, 0.0, strVal );
             }
         }
 
@@ -1104,7 +1140,7 @@ void Mixer_::process(const ProcessArgs &args)
                 inL *= fade[ group ];
                 inR *= fade[ group ];
             }
-
+#endif
             // mute comes before group outputs
             if( !m_bGroupPreMute )
             {
@@ -1112,6 +1148,7 @@ void Mixer_::process(const ProcessArgs &args)
                 inR *= m_fMuteFade[ ch ];
             }
 
+#if nGROUPS > 0
             // group output (pre mute)
             if( section == SGROUP )
             {
@@ -1126,14 +1163,14 @@ void Mixer_::process(const ProcessArgs &args)
                     outputs[ OUT_GRPR + group ].setVoltage( 0.0f );
                 }
             }
-
+#endif
             // mute comes after group outputs
             if( m_bGroupPreMute )
             {
                 inL *= m_fMuteFade[ ch ];
                 inR *= m_fMuteFade[ ch ];
             }
-#endif
+
             // put output to aux ( post fader )
             if( section != SAUX )
             {

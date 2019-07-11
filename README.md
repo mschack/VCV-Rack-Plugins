@@ -3,7 +3,8 @@
 ![screenshot](modules.PNG)
 
 # Updates
-- 30 June 19 [v1,0,1]
+- 10 July 19 [v1.0.2]
+- 30 June 19 [v1.0.1]
 	-Re-added Step Delay and Maude221
 - 29 June 19 [v1.0.0]
 	- Updates mostly for Rack version 1.0

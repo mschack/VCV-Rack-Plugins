@@ -1,6 +1,6 @@
 {
   "slug": "mscHack",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "license": "BSD-3-Clause",
   "name": "mscHack",
   "brand": "mscHack",
@@ -13,14 +13,6 @@
   "changelogUrl": "https://github.com/mschack/VCV-Rack-Plugins",
 
   "modules": [
-    {
-      "slug": "Compressor1",
-      "name": "Compressor",
-      "description": "Compressor",
-      "tags": [
-        "Compressor"
-      ]
-    },
 
     {
       "slug": "MasterClockx4",

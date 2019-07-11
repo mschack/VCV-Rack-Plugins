@@ -5,6 +5,8 @@ extern Plugin *thePlugin;
 
 #include "mscHack_Controls.hpp"
 #include "mscHack_Knob.hpp"
+#include "mscHack_Image.hpp"
+#include "mscHack_LineImage.hpp"
 
 #define CV_MAX10 (10.0f)
 #define CV_MAXn5 (5.0f)
@@ -34,10 +36,11 @@ bool  frand_perc( float perc );
 extern Model *modelSeq_3x16x16;
 
 extern Model *modelXFade;
-extern Model *modelCompressor;
+
 
 */
 
+extern Model *modelCompressor;
 extern Model *modelSynthDrums;
 extern Model *modelSEQ_6x32x16;
 extern Model *modelMasterClockx8;
@@ -56,6 +59,7 @@ extern Model *modelOsc_3Ch;
 extern Model *modelDronez;
 extern Model *modelMorze;
 extern Model *modelWindz;
+extern Model *modelLorenz;
 extern Model *modelAlienz;
 extern Model *modelOSC_WaveMorph_3;
 extern Model *modelMaude_221;
