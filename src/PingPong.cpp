@@ -149,6 +149,7 @@ struct MyCutoffKnob : Knob_Green1_40
 
     void onChange( const event::Change &e ) override 
     {
+        auto paramQuantity = getParamQuantity();
         mymodule = (PingPong*)paramQuantity->module;
 
         if( mymodule )

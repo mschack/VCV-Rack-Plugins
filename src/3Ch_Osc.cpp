@@ -165,6 +165,7 @@ struct Osc_3Ch : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Osc_3Ch*)paramQuantity->module;
 
             if( mymodule )
@@ -187,6 +188,7 @@ struct Osc_3Ch : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Osc_3Ch*)paramQuantity->module;
 
             if( mymodule )
@@ -211,6 +213,7 @@ struct Osc_3Ch : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Osc_3Ch*)paramQuantity->module;
 
             if( mymodule )

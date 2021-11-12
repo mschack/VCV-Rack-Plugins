@@ -127,6 +127,7 @@ struct MyDelayKnob : Knob_Yellow3_20_Snap
 
     void onChange( const event::Change &e ) override 
     {
+        auto paramQuantity = getParamQuantity();
         mymodule = (StepDelay*)paramQuantity->module;
 
         if( mymodule )

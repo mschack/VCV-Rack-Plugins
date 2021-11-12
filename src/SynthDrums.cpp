@@ -123,6 +123,7 @@ struct SynthDrums : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (SynthDrums*)paramQuantity->module;
 
             if( mymodule )

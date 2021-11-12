@@ -123,6 +123,7 @@ struct Windz : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (Windz*)paramQuantity->module;
 
             if( !mymodule )
