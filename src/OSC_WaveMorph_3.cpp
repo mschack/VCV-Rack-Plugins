@@ -102,6 +102,7 @@ struct OSC_WaveMorph_3 : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (OSC_WaveMorph_3*)paramQuantity->module;
 
             if( mymodule )

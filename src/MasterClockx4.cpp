@@ -103,6 +103,7 @@ struct MasterClockx4 : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (MasterClockx4*)paramQuantity->module;
 
             if( !mymodule )
@@ -129,6 +130,7 @@ struct MasterClockx4 : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (MasterClockx4*)paramQuantity->module;
 
             if( !mymodule )
@@ -157,6 +159,7 @@ struct MasterClockx4 : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (MasterClockx4*)paramQuantity->module;
 
             if( !mymodule )

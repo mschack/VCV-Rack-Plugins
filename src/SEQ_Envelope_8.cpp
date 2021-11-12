@@ -102,6 +102,7 @@ struct SEQ_Envelope_8 : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (SEQ_Envelope_8*)paramQuantity->module;
 
             if( mymodule )

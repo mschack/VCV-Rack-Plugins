@@ -145,6 +145,7 @@ struct Alienz : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (Alienz*)paramQuantity->module;
 
             if( !mymodule )

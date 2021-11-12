@@ -206,6 +206,7 @@ struct Mixer_ : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Mixer_*)paramQuantity->module;
 
             if( mymodule )
@@ -229,6 +230,7 @@ struct Mixer_ : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Mixer_*)paramQuantity->module;
 
             if( mymodule )
@@ -251,6 +253,7 @@ struct Mixer_ : Module
 
         void onChange( const event::Change &e ) override 
         {
+            auto paramQuantity = getParamQuantity();
             mymodule = (Mixer_*)paramQuantity->module;
 
             if( mymodule )

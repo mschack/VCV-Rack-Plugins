@@ -173,6 +173,7 @@ struct Dronez : Module
 
             MSCH_Widget_Knob1::onChange( e );
 
+            auto paramQuantity = getParamQuantity();
             mymodule = (Dronez*)paramQuantity->module;
 
             if( !mymodule )
